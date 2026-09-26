@@ -61,7 +61,18 @@
         </intent>
         <!-- Query for WhatsApp -->
         <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
         <!-- Query for Gmail -->
         <package android:name="com.google.android.gm" />
+        <!-- Fallback: wa.me report deep link (WhatsApp or browser) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Fallback: mailto: report composition -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
     </queries>
 </manifest>

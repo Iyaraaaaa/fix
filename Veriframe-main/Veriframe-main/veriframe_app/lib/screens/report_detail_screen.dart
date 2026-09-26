@@ -203,7 +203,7 @@ class _CardHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Hero section — stamped verdict + custody-line accent
+// Hero section — stamped verdict + custody-line accent + media preview
 // ─────────────────────────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
@@ -227,23 +227,33 @@ class _HeroCard extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     final r = report;
 
-    Widget thumb;
+    // Media preview thumbnail - prominently displayed
+    Widget mediaPreview;
     if (r.thumbnailBase64 != null && r.thumbnailBase64!.isNotEmpty) {
       try {
-        thumb = ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
-            base64Decode(r.thumbnailBase64!),
-            width: 46,
-            height: 46,
-            fit: BoxFit.cover,
+        mediaPreview = Container(
+          width: double.infinity,
+          height: 160,
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: pal.border, width: 1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(
+              base64Decode(r.thumbnailBase64!),
+              width: double.infinity,
+              height: 160,
+              fit: BoxFit.cover,
+            ),
           ),
         );
       } catch (_) {
-        thumb = _placeholderThumb();
+        mediaPreview = _placeholderMediaPreview(pal, verdictColor);
       }
     } else {
-      thumb = _placeholderThumb();
+      mediaPreview = _placeholderMediaPreview(pal, verdictColor);
     }
 
     return _CardShell(
@@ -274,10 +284,12 @@ class _HeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Media preview at the top - before source/risk info
+                mediaPreview,
+                const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    thumb,
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -368,6 +380,38 @@ class _HeroCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _placeholderMediaPreview(_Pal pal, Color verdictColor) => Container(
+    width: double.infinity,
+    height: 160,
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: verdictColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: verdictColor.withValues(alpha: 0.3), width: 1),
+    ),
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isReal ? Icons.verified_user_rounded : Icons.gavel_rounded,
+            color: verdictColor,
+            size: 36,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Media Preview',
+            style: TextStyle(
+              fontSize: 12,
+              color: verdictColor.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _placeholderThumb() => Container(
     width: 46,

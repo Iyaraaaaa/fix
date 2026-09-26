@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -485,10 +486,7 @@ class _ReportCard extends StatelessWidget {
     final isReal = vUpper == 'AUTHENTIC';
     final isInconclusive = vUpper == 'INCONCLUSIVE';
     final isUnverified = vUpper == 'UNVERIFIED';
-
-    final isManipulatedOrHighRisk = !isReal ||
-        report.riskLevel.toUpperCase() == 'HIGH' ||
-        report.riskLevel.toUpperCase() == 'CRITICAL';
+    final isManipulated = vUpper == 'MANIPULATED' || vUpper == 'FAKE' || vUpper == 'LIKELY_FAKE';
 
     final statusColor = isReal
         ? _Pal.authentic
@@ -501,6 +499,26 @@ class _ReportCard extends StatelessWidget {
     final displayScoreStr = isUnverified
         ? 'N/A'
         : '${displayScore.toStringAsFixed(1)}%';
+
+    // Media preview thumbnail
+    Widget mediaPreview;
+    if (report.thumbnailBase64 != null && report.thumbnailBase64!.isNotEmpty) {
+      try {
+        mediaPreview = ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            base64Decode(report.thumbnailBase64!),
+            width: 80,
+            height: 60,
+            fit: BoxFit.cover,
+          ),
+        );
+      } catch (_) {
+        mediaPreview = _placeholderPreview(statusColor, isReal);
+      }
+    } else {
+      mediaPreview = _placeholderPreview(statusColor, isReal);
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -526,13 +544,8 @@ class _ReportCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _MiniRing(
-                  value: displayScore,
-                  color: statusColor,
-                  isReal: isReal,
-                  trackColor: pal.surfaceMuted,
-                ),
-                const SizedBox(width: 14),
+                mediaPreview,
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,7 +653,7 @@ class _ReportCard extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (isManipulatedOrHighRisk)
+                        if (isManipulated)
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(
@@ -758,5 +771,22 @@ class _MiniRingPainter extends CustomPainter {
   bool shouldRepaint(covariant _MiniRingPainter old) =>
       old.fraction != fraction || old.color != color || old.trackColor != trackColor;
 }
+
+Widget _placeholderPreview(Color statusColor, bool isReal) => Container(
+  width: 80,
+  height: 60,
+  decoration: BoxDecoration(
+    color: statusColor.withValues(alpha: 0.12),
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
+  ),
+  child: Center(
+    child: Icon(
+      isReal ? Icons.verified_user_rounded : Icons.gavel_rounded,
+      color: statusColor,
+      size: 24,
+    ),
+  ),
+);
 
 

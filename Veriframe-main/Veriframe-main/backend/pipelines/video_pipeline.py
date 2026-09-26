@@ -14,8 +14,9 @@ from filters.scene_forensics import SceneForensicsAnalyzer
 from calibration.temporal_filter import TemporalFilter
 from calibration.confidence_calibration import ConfidenceCalibrator
 from preprocessing.preprocessor import FramePreprocessor
-from utils.video import get_video_metadata
+from utils.video import get_video_metadata, extract_video_thumbnail_base64
 from utils.image import resize_face, pad_to_square
+from services.reality_defender_service import RealityDefenderService
 
 logger = logging.getLogger("veriframe.pipelines.video")
 
@@ -25,6 +26,7 @@ class VideoPipeline:
     Supports dual-track forensic analysis:
     - Biometric Face Forensics (Face detection, tracking, TFLite neural classification)
     - Full-Scene Forensics (2D FFT frequency grid, optical flow motion physics, sensor noise PRNU)
+    - Reality Defender AI Cloud Ensemble (when API key is configured)
     Works accurately for both face videos and non-face AI videos (Sora, Runway, Pika, Kling).
     """
     def __init__(
@@ -39,6 +41,7 @@ class VideoPipeline:
         calibrator: ConfidenceCalibrator,
         preprocessor: FramePreprocessor,
         scene_analyzer: Optional[SceneForensicsAnalyzer] = None,
+        rd_service: Optional[RealityDefenderService] = None,
     ):
         self.interpreter = interpreter
         self.input_details = input_details
@@ -50,6 +53,7 @@ class VideoPipeline:
         self.calibrator = calibrator
         self.preprocessor = preprocessor
         self.scene_analyzer = scene_analyzer or SceneForensicsAnalyzer()
+        self.rd_service = rd_service or RealityDefenderService()
 
     def process(self, video_path: str, source: str = "Local Upload") -> Dict[str, Any]:
         start_time = time.time()
@@ -157,6 +161,26 @@ class VideoPipeline:
             forensic_observations.insert(0, "Non-Face Video Mode: Full-Scene Generative AI Forensics executed.")
             detected_evidence.extend(scene_eval["evidence"])
 
+        # --- Reality Defender Cloud Forensics (Optional Ensemble) ---
+        rd_result = None
+        models_used = "VeriFrame Local Neural Net (TFLite)"
+        if self.rd_service and self.rd_service.detector.is_configured():
+            try:
+                rd_result = self.rd_service.analyze_media(video_path)
+            except Exception as e:
+                logger.warning(f"[VideoPipeline] Reality Defender analysis failed: {e}")
+
+        if rd_result and rd_result.get("status") == "success":
+            rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
+            # Ensemble: 50% Local Biometric & Scene Forensics + 50% Reality Defender
+            final_fake_prob = 0.50 * final_fake_prob + 0.50 * rd_fake_prob
+            models_used = "Ensemble: VeriFrame TFLite + Reality Defender AI"
+            if rd_result.get("evidence"):
+                detected_evidence.extend(rd_result["evidence"])
+            if rd_result.get("observations"):
+                forensic_observations.extend(rd_result["observations"])
+            forensic_observations.append(f"Reality Defender Cloud Deepfake Score: {rd_result.get('fake_probability')}%.")
+
         # Temporal calibration
         calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
         fake_probability = round(calibrated_fake_prob * 100.0, 2)
@@ -203,6 +227,9 @@ class VideoPipeline:
         verification_id = f"VRF-LOC-{int(time.time() * 1000)}"
         processing_time = round(time.time() - start_time, 2)
 
+        # Extract thumbnail for report preview
+        thumbnail_base64 = extract_video_thumbnail_base64(video_path)
+
         logger.info(f"[VideoPipeline] Local video verification done in {processing_time}s. Verdict: {verdict} ({fake_probability}%)")
 
         return {
@@ -221,6 +248,7 @@ class VideoPipeline:
             "verdict": legacy_verdict,
             "fineVerdict": verdict,
             "riskLevel": risk_level,
+            "modelsUsed": models_used,
             "detectedEvidence": detected_evidence,
             "forensicObservations": forensic_observations,
             "reportHash": video_hash,
@@ -233,7 +261,9 @@ class VideoPipeline:
             "is_fake": legacy_verdict == "MANIPULATED",
             "has_faces": len(all_faces) > 0,
             "scene_forensics": scene_eval,
+            "reality_defender": rd_result,
             "confidence_label": "High" if fused_confidence >= 80.0 else ("Medium" if fused_confidence >= 60.0 else "Low"),
+            "thumbnailBase64": thumbnail_base64,
         }
 
     def _run_inference(self, face_tensor: np.ndarray) -> float:

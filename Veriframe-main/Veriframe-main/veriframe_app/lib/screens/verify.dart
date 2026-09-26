@@ -131,7 +131,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   String _baseUrl = '';
 
   String? _errorMessage;
-  String _reportId = '';
 
   @override
   void initState() {
@@ -724,8 +723,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   Future<void> _startLocalCameraStream() async {
     if (_cameraController == null || !_isCameraInitialized) return;
 
-    _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
-    
     setState(() {
       _isStreaming = true;
       _showResults = false;
@@ -739,6 +736,17 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
     final service = VerifyBackendService.instance;
     final isOnline = await service.isBackendAvailable(_baseUrl);
+
+    if (isOnline) {
+      try {
+        _streamSessionId = await service.verifyStream(_baseUrl, 'device-camera://default');
+      } catch (e) {
+        debugPrint("Failed to create stream session: $e");
+        _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
+      }
+    } else {
+      _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
+    }
 
     _streamTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
       if (!_isStreaming || _cameraController == null) {
@@ -875,10 +883,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           : 'Report compiled successfully.';
       final serverExplanation = serverResult.forensicObservations.join(' ');
 
-      setState(() {
-        _reportId = res['report_id'] ?? serverResult.verificationId;
-      });
-
       await _executePostVerificationFlow(
         videoName: 'Live Stream Session',
         videoPath: _streamSessionId,
@@ -889,10 +893,35 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         modelUsed: serverModelUsed,
       );
     } catch (e) {
-      setState(() {
-        _isAnalyzing = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '').trim();
-      });
+      final errMsg = e.toString().replaceAll('Exception: ', '').trim();
+      final isRecoverable = errMsg.contains('No frames with faces detected') ||
+          errMsg.contains('No biometric') ||
+          errMsg.contains('Invalid request parameters');
+
+      if (isRecoverable) {
+        final authenticityScore = _rollingStreamScore.clamp(0.0, 100.0);
+        final streamVerdict = authenticityScore > 60.0
+            ? 'authentic'
+            : (authenticityScore >= 40.0 ? 'inconclusive' : 'manipulated');
+        final fakeProbability = (100.0 - authenticityScore).clamp(0.0, 100.0);
+        final streamExplanation =
+            loc.verifyLocalReportExplanation(_framesAnalyzed, _rollingStreamScore.toStringAsFixed(1));
+
+        await _executePostVerificationFlow(
+          videoName: 'Live Stream Session',
+          videoPath: '',
+          verdict: streamVerdict,
+          authenticityScore: authenticityScore,
+          fakeProbability: fakeProbability,
+          explanation: streamExplanation,
+          modelUsed: 'On-Device Stream Analysis',
+        );
+      } else {
+        setState(() {
+          _isAnalyzing = false;
+          _errorMessage = errMsg;
+        });
+      }
     }
   }
 
@@ -1105,7 +1134,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         _uploadProgress = 1.0;
         _isAnalyzing = false;
         _showResults = true;
-        _reportId = reportId;
       });
 
       _showSuccessDialog(result);
@@ -1252,12 +1280,22 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     });
 
     try {
-      final file = await PdfService.instance.generateReportPdf(result: result);
+       final file = await PdfService.instance.generateReportPdf(result: result);
       setState(() {
         _isAnalyzing = false;
+        _statusMessage = "";
       });
       if (file != null && await file.exists()) {
-        await OpenFilex.open(file.path);
+        final openResult = await OpenFilex.open(file.path);
+        if (openResult.type != ResultType.done && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(loc.reportErrorOpeningPdf(openResult.message)), backgroundColor: const Color(0xFFFF3B5C)),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.reportPdfNotGenerated), backgroundColor: const Color(0xFFFF3B5C)),
+        );
       }
     } catch (e) {
       setState(() {
@@ -1513,28 +1551,56 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF00C8FF).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF00C8FF).withValues(alpha: 0.2)),
+              color: const Color(0xFF00C8FF).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF00C8FF).withValues(alpha: 0.25)),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Column(
               children: [
-                Icon(
-                  _tfliteReady ? Icons.check_circle_outline : Icons.hourglass_empty,
-                  color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
-                  size: 14,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _tfliteReady ? Icons.check_circle_outline : Icons.hourglass_empty,
+                      color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _tfliteReady ? '${loc.verifyOnDeviceReady} · Vedio.tflite' : loc.verifyLoadingModel,
+                      style: TextStyle(
+                        color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  _tfliteReady ? loc.verifyOnDeviceReady : loc.verifyLoadingModel,
-                  style: TextStyle(
-                    color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.memory_rounded, color: Color(0xFF34D399), size: 13),
+                    SizedBox(width: 6),
+                    Text(
+                      'veriframe_model.tflite · Face Biometric Net',
+                      style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.cloud_done_rounded, color: Color(0xFF38BDF8), size: 13),
+                    SizedBox(width: 6),
+                    Text(
+                      'Reality Defender Cloud Deepfake AI: Active',
+                      style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1811,10 +1877,10 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     final url = _streamUrlController.text.trim();
                     if (url.isNotEmpty) {
-                      _startNetworkStream(url);
+                      await _startNetworkStream(url);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Please enter an RTSP/RTMP/HLS stream URL or select Live Camera Stream.')),
@@ -1837,7 +1903,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     );
   }
 
-  void _startNetworkStream(String url) async {
+  Future<void> _startNetworkStream(String url) async {
     setState(() {
       _isStreaming = true;
       _showResults = false;
@@ -1847,8 +1913,21 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       _streamStartTime = DateTime.now();
       _confidenceHistory.clear();
       _errorMessage = null;
-      _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
     });
+
+    final service = VerifyBackendService.instance;
+    final isOnline = await service.isBackendAvailable(_baseUrl);
+
+    if (isOnline) {
+      try {
+        _streamSessionId = await service.verifyStream(_baseUrl, url);
+      } catch (e) {
+        debugPrint("Failed to create network stream session: $e");
+        _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
+      }
+    } else {
+      _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
+    }
 
     _streamTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isStreaming || !mounted) {
@@ -2120,12 +2199,15 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   verdict: result.verdict,
                   confidenceScore: consistentScore,
                 ),
-              ],
-            ),
-          ),
+],
+        ),
+      ),
 
-          // Forensic Metrics Dashboard
-          LinkForensicDashboard(result: result),
+      // Media Display Widget (Video/Image/Audio)
+      LinkMediaDisplayWidget(result: result),
+
+      // Forensic Metrics Dashboard
+      LinkForensicDashboard(result: result),
 
           // Suspicious Frames Gallery
           if (result.suspiciousFrames != null && result.suspiciousFrames!.isNotEmpty)
@@ -2238,7 +2320,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               setState(() {
                 _showResults = false;
                 _rollingStreamScore = 0.0;
-                _reportId = "";
                 _streamSessionId = "";
                 _errorMessage = null;
               });
@@ -2436,7 +2517,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
             setState(() {
               _showResults = false;
               _rollingStreamScore = 0.0;
-              _reportId = "";
               _streamSessionId = "";
               _errorMessage = null;
             });

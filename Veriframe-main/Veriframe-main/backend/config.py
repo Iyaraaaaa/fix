@@ -1,9 +1,15 @@
 import os
 from dataclasses import dataclass, field
 from typing import Optional, List
+from dotenv import load_dotenv
+
+# Load .env file from backend directory or project root
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv()
 
 @dataclass
 class Config:
+    REALITY_DEFENDER_API_KEY: str = ""
     INPUT_SIZE: tuple = (224, 224)
     MAX_FRAMES: int = 40
     TARGET_FRAMES: int = 100
@@ -36,6 +42,11 @@ class Config:
     USE_GPU_DELEGATE: bool = False
 
     def __post_init__(self):
+        if not self.REALITY_DEFENDER_API_KEY:
+            self.REALITY_DEFENDER_API_KEY = os.getenv(
+                "REALITY_DEFENDER_API_KEY",
+                "rd_8df050af16b26285_0679d63d644b966221eb8a61f296babe"
+            )
         if self.MODEL_FALLBACK_PATHS is None:
             self.MODEL_FALLBACK_PATHS = [
                 os.path.join(os.path.dirname(__file__), "..", "assets", "veriframe_model.tflite"),

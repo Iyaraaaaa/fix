@@ -28,6 +28,9 @@ from pipelines.link_pipeline import LinkPipeline
 from pipelines.link_verification_v2 import LinkVerificationV2
 from pipelines.stream_pipeline import StreamPipeline
 from pipelines.offline_pipeline import OfflinePipeline
+from pipelines.image_pipeline import ImagePipeline
+from pipelines.audio_pipeline import AudioPipeline
+from services.reality_defender_service import RealityDefenderService
 from preprocessing.preprocessor import FramePreprocessor
 from cache.result_cache import ResultCache
 from database.connection import init_db, upsert_job, insert_report, insert_history, get_report_by_hash, list_reports
@@ -60,10 +63,41 @@ try:
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-    logger.info(f"[Main] Model loaded: {model_path}")
+    logger.info(f"[Main] Video model loaded: {model_path}")
 except Exception as e:
     logger.error(f"[Main] Model load failed: {e}")
     raise RuntimeError(f"Failed to load TFLite model: {e}")
+
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ---- Load dedicated Image.tflite (input [1,224,224,3] → output [1,2] softmax [real,fake]) ----
+_image_model_path = os.path.join(_BASE_DIR, "Image.tflite")
+try:
+    img_interpreter = tf.lite.Interpreter(model_path=_image_model_path)
+    img_interpreter.allocate_tensors()
+    img_input_details = img_interpreter.get_input_details()
+    img_output_details = img_interpreter.get_output_details()
+    logger.info(f"[Main] Image.tflite loaded: {_image_model_path}")
+except Exception as _img_err:
+    logger.warning(f"[Main] Image.tflite not loaded ({_img_err}), falling back to video model.")
+    img_interpreter = interpreter
+    img_input_details = input_details
+    img_output_details = output_details
+
+# ---- Load dedicated Audio.tflite (input [1,1536] wav2vec2 embedding → output [1,1] sigmoid) ----
+_audio_model_path = os.path.join(_BASE_DIR, "Audio.tflite")
+try:
+    aud_interpreter = tf.lite.Interpreter(model_path=_audio_model_path)
+    aud_interpreter.allocate_tensors()
+    aud_input_details = aud_interpreter.get_input_details()
+    aud_output_details = aud_interpreter.get_output_details()
+    logger.info(f"[Main] Audio.tflite loaded: {_audio_model_path}")
+except Exception as _aud_err:
+    logger.warning(f"[Main] Audio.tflite not loaded ({_aud_err}), skipping on-device audio TFLite.")
+    aud_interpreter = None
+    aud_input_details = None
+    aud_output_details = None
+
 
 INPUT_SIZE = app_config.INPUT_SIZE
 preprocessor = FramePreprocessor(target_size=INPUT_SIZE)
@@ -86,6 +120,8 @@ quality_filter = QualityFilter(config=FaceQualityConfig(
 temporal_filter = TemporalFilter(window_size=app_config.TEMPORAL_WINDOW_SIZE)
 calibrator = ConfidenceCalibrator(temperature=app_config.CONFIDENCE_CALIBRATION_TEMP)
 
+rd_service = RealityDefenderService()
+
 video_pipeline = VideoPipeline(
     interpreter=interpreter,
     input_details=input_details,
@@ -96,6 +132,7 @@ video_pipeline = VideoPipeline(
     temporal_filter=temporal_filter,
     calibrator=calibrator,
     preprocessor=preprocessor,
+    rd_service=rd_service,
 )
 
 link_pipeline = LinkPipeline(
@@ -108,6 +145,24 @@ link_pipeline = LinkPipeline(
     temporal_filter=TemporalFilter(window_size=app_config.TEMPORAL_WINDOW_SIZE),
     calibrator=calibrator,
     preprocessor=preprocessor,
+)
+
+image_pipeline = ImagePipeline(
+    interpreter=img_interpreter,
+    input_details=img_input_details,
+    output_details=img_output_details,
+    face_detector=face_detector,
+    calibrator=calibrator,
+    preprocessor=preprocessor,
+    rd_service=rd_service,
+)
+
+audio_pipeline = AudioPipeline(
+    calibrator=calibrator,
+    rd_service=rd_service,
+    aud_interpreter=aud_interpreter,
+    aud_input_details=aud_input_details,
+    aud_output_details=aud_output_details,
 )
 
 stream_pipeline = StreamPipeline(
@@ -133,6 +188,9 @@ streams_db = {}
 active_stream_workers: Dict[str, Any] = {}
 
 class LinkVerifyRequest(BaseModel):
+    url: str
+
+class ImageLinkVerifyRequest(BaseModel):
     url: str
 
 class StreamVerifyRequest(BaseModel):
@@ -360,6 +418,72 @@ async def predict(file: UploadFile = File(...)):
     finally:
         if os.path.exists(video_path):
             os.remove(video_path)
+
+@app.post("/verify/image")
+async def verify_image(file: UploadFile = File(...)):
+    suffix = os.path.splitext(file.filename or "")[1] or ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        result = image_pipeline.process(tmp_path, source="Local Image")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[verify_image] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process image: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@app.post("/verify/image/link")
+async def verify_image_link(request: ImageLinkVerifyRequest):
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    try:
+        resp = requests.get(request.url, headers=headers, timeout=25)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Failed to fetch image from URL: HTTP {resp.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Unable to download image: {str(e)}")
+
+    suffix = ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(resp.content)
+        tmp_path = tmp.name
+
+    try:
+        result = image_pipeline.process(tmp_path, source="Image Link")
+        result["imageUrl"] = request.url
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[verify_image_link] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze image link: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@app.post("/verify/audio")
+async def verify_audio(file: UploadFile = File(...)):
+    suffix = os.path.splitext(file.filename or "")[1] or ".mp3"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        result = audio_pipeline.process(tmp_path, source="Local Audio")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[verify_audio] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process audio: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 @app.post("/verify/link")
 def verify_link(request: LinkVerifyRequest, background_tasks: BackgroundTasks):

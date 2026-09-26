@@ -6,6 +6,7 @@ import logging
 import hashlib
 import tempfile
 import requests
+import base64
 from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -220,6 +221,9 @@ class LinkVerificationV2:
             processing_time = round(time.time() - start_time, 2)
             video_hash = self._compute_file_hash(video_path)
 
+            # Extract thumbnail for report preview
+            thumbnail_base64 = self._extract_thumbnail(video_path)
+
             fake_percentage = round(aggregated_prob * 100.0, 2)
             auth_percentage = round((1.0 - aggregated_prob) * 100.0, 2)
 
@@ -270,6 +274,7 @@ class LinkVerificationV2:
                 "has_faces": len(valid_face_crops) > 0,
                 "scene_forensics": scene_eval,
                 "confidence_label": "High" if confidence_val >= 80.0 else ("Medium" if confidence_val >= 60.0 else "Low"),
+                "thumbnailBase64": thumbnail_base64,
 
                 # V2 Clean Specification fields
                 "source_type": "link",
@@ -705,6 +710,36 @@ class LinkVerificationV2:
             while chunk := f.read(8192):
                 h.update(chunk)
         return h.hexdigest()
+
+    def _extract_thumbnail(self, video_path: str, max_size: int = 320) -> Optional[str]:
+        """Extract a thumbnail from video at 10% duration and return as base64 JPEG."""
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return None
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count <= 0:
+                return None
+            target_frame = max(0, min(frame_count // 10, frame_count - 1))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    return None
+            h, w = frame.shape[:2]
+            if max(h, w) > max_size:
+                scale = max_size / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            return base64.b64encode(buffer).decode('utf-8')
+        except Exception:
+            return None
+        finally:
+            cap.release()
 
     def _calculate_frame_consistency(self, faces: List[np.ndarray]) -> float:
         if len(faces) < 2:
