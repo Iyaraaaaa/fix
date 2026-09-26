@@ -834,6 +834,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       final authenticityScore = _rollingStreamScore.clamp(0.0, 100.0);
       final streamVerdict = authenticityScore > 60.0 ? 'authentic' : (authenticityScore >= 40.0 ? 'inconclusive' : 'manipulated');
       final fakeProbability = (100.0 - authenticityScore).clamp(0.0, 100.0);
+      final streamExplanation = loc.verifyLocalReportExplanation(_framesAnalyzed, _rollingStreamScore.toStringAsFixed(1));
 
       await _executePostVerificationFlow(
         videoName: 'Live Camera Stream',
