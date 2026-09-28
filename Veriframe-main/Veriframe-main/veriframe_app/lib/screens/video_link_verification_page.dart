@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:veriframe_app/screens/download_analysis_page.dart';
+import 'package:veriframe_app/widgets/main_scaffold.dart';
 
 class VideoLinkVerificationPage extends StatefulWidget {
   const VideoLinkVerificationPage({super.key});
@@ -33,31 +34,12 @@ class _VideoLinkVerificationPageState extends State<VideoLinkVerificationPage> {
     final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    return Scaffold(
+    return MainScaffold(
       backgroundColor: isDark ? const Color(0xFF0B1424) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF00458E),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-          onPressed: () => Navigator.maybePop(context),
-        ),
-        title: const Text(
-          'VERIFRAME',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.0,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
-            onPressed: () {},
-          ),
-        ],
+      showBack: true,
+      title: const Text(
+        'Link Verification',
+        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -329,10 +311,20 @@ class _VideoLinkVerificationPageState extends State<VideoLinkVerificationPage> {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: () {
+                        final url = linkController.text.trim();
+                        if (url.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please paste a video link first.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DownloadAnalysisPage(),
+                            builder: (_) => DownloadAnalysisPage(videoUrl: url),
                           ),
                         );
                       },

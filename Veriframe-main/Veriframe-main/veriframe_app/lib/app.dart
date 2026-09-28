@@ -89,7 +89,9 @@ class MyApp extends StatelessWidget {
             '/reports': (_) => const ReportsPage(),
             '/tech_stack': (_) => const TechnologyStackPage(),
             '/video_link': (_) => const VideoLinkVerificationPage(),
-            '/download_analysis': (_) => const DownloadAnalysisPage(),
+            '/download_analysis': (context) => DownloadAnalysisPage(
+              videoUrl: ModalRoute.of(context)?.settings.arguments as String? ?? '',
+            ),
           },
         ),
       ),

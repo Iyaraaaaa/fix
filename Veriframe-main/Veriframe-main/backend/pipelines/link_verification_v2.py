@@ -20,6 +20,7 @@ from calibration.confidence_calibration import ConfidenceCalibrator
 from preprocessing.preprocessor import FramePreprocessor
 from utils.video import get_video_metadata
 from utils.url_service import URLService
+from utils.transparency import THRESHOLDS_LINK
 
 logger = logging.getLogger("veriframe.pipelines.link_v2")
 
@@ -242,6 +243,13 @@ class LinkVerificationV2:
             _emit("completed", 1.0)
             logger.info(f"[LinkV2] Completed successfully in {processing_time}s. Verdict: {fine_verdict} ({aggregated_prob:.4f})")
 
+            face_detectors = detection_res.get("detectors", [])
+            face_detector_used = (
+                face_detectors[0] if face_detectors else (
+                    self.face_detector.loaded_detectors[0].lower() if getattr(self.face_detector, "loaded_detectors", None) else "none"
+                )
+            )
+
             return {
                 # Legacy / standard API contract fields
                 "verificationId": f"VRF-LNK-V2-{int(time.time() * 1000)}",
@@ -261,6 +269,9 @@ class LinkVerificationV2:
                 "verdict": verdict,
                 "fineVerdict": fine_verdict,
                 "riskLevel": risk_level,
+                "face_detector_used": face_detector_used,
+                "engines_used": ["local"],
+                "degraded": False,
                 "detectedEvidence": detected_evidence,
                 "forensicObservations": forensic_observations,
                 "reportHash": video_hash,
@@ -288,6 +299,7 @@ class LinkVerificationV2:
                 "reason": None,
                 "url_security": url_sec,
             }
+
 
         finally:
             if video_path and os.path.exists(video_path):
@@ -411,6 +423,7 @@ class LinkVerificationV2:
         boxes: List[List[float]] = []
         total_faces_detected = 0
 
+        detectors = []
         for idx in frame_indices:
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ret, frame = cap.read()
@@ -432,6 +445,7 @@ class LinkVerificationV2:
                     face_resized = cv2.resize(best_det.face_crop, self.preprocessor.target_size)
                     valid_face_crops.append(face_resized)
                     boxes.append(best_det.box)
+                    detectors.append(best_det.detector)
                 except Exception as e:
                     logger.debug(f"[LinkV2] Face resize error on frame {idx}: {e}")
 
@@ -442,7 +456,9 @@ class LinkVerificationV2:
             "raw_scene_frames": raw_scene_frames,
             "total_faces_detected": total_faces_detected,
             "boxes": boxes,
+            "detectors": detectors,
         }
+
 
     def run_model(self, face_crops: List[np.ndarray]) -> List[float]:
         """
@@ -508,14 +524,16 @@ class LinkVerificationV2:
         """
         # Require at least 1 valid face (not 2) — single-face videos are common in short clips
         # A video with 1 clear fake face scoring 0.95 should NOT return UNCERTAIN
-        if valid_face_count < 1 or (0.30 <= aggregated_prob <= 0.70):
+        if valid_face_count < 1 or (
+            THRESHOLDS_LINK["inconclusive_range"][0] <= aggregated_prob <= THRESHOLDS_LINK["inconclusive_range"][1]
+        ):
             return "INCONCLUSIVE", "UNCERTAIN", "MEDIUM"
 
-        if aggregated_prob > 0.70:
-            fine_verdict = "FAKE" if aggregated_prob >= 0.80 else "LIKELY_FAKE"
+        if aggregated_prob > THRESHOLDS_LINK["manipulated_above"]:
+            fine_verdict = "FAKE" if aggregated_prob >= THRESHOLDS_LINK["fake_confirmed_at_or_above"] else "LIKELY_FAKE"
             return "MANIPULATED", fine_verdict, "HIGH"
         else:
-            fine_verdict = "REAL" if aggregated_prob <= 0.20 else "LIKELY_REAL"
+            fine_verdict = "REAL" if aggregated_prob <= THRESHOLDS_LINK["real_confirmed_at_or_below"] else "LIKELY_REAL"
             return "AUTHENTIC", fine_verdict, "LOW"
 
     # ---------------------------------------------------------------------------
@@ -665,7 +683,13 @@ class LinkVerificationV2:
             "verdict": verdict,
             "fineVerdict": "INCONCLUSIVE",
             "riskLevel": "UNKNOWN",
+            "face_detector_used": (
+                self.face_detector.loaded_detectors[0].lower() if getattr(self.face_detector, "loaded_detectors", None) else "none"
+            ),
+            "engines_used": ["local"],
+            "degraded": False,
             "detectedEvidence": detected_evidence,
+
             "forensicObservations": forensic_observations,
             "reportHash": url_hash,
             "framesAnalyzed": frames_analyzed,

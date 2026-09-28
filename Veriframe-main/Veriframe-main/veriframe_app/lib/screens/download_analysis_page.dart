@@ -1,22 +1,26 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:veriframe_app/service/engines/link_verification_engine.dart';
+import 'package:veriframe_app/widgets/main_scaffold.dart';
+import 'package:veriframe_app/screens/report_detail_screen.dart' show ReportDetailPage;
 
 enum TimelineStatus { completed, active, pending }
 
 class TimelineStep {
   final String label;
-  final String time;
-  final TimelineStatus status;
+  TimelineStatus status;
+  String time;
 
-  const TimelineStep({
+  TimelineStep({
     required this.label,
-    required this.time,
-    required this.status,
+    this.time = '--',
+    this.status = TimelineStatus.pending,
   });
 }
 
 class DownloadAnalysisPage extends StatefulWidget {
-  const DownloadAnalysisPage({super.key});
+  final String videoUrl;
+
+  const DownloadAnalysisPage({super.key, required this.videoUrl});
 
   @override
   State<DownloadAnalysisPage> createState() => _DownloadAnalysisPageState();
@@ -24,53 +28,27 @@ class DownloadAnalysisPage extends StatefulWidget {
 
 class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
     with SingleTickerProviderStateMixin {
-  int currentProgress = 40;
-  int currentStage = 2; // 0-indexed (Stage 3 of 9)
+  double currentProgress = 0.0;
+  int currentStageIndex = 0;
   late AnimationController _pulseController;
-  Timer? _simulationTimer;
 
-  final List<TimelineStep> steps = const [
-    TimelineStep(
-      label: 'Validating URL',
-      time: '2.3s',
-      status: TimelineStatus.completed,
-    ),
-    TimelineStep(
-      label: 'Detecting Platform',
-      time: '1.8s',
-      status: TimelineStatus.completed,
-    ),
-    TimelineStep(
-      label: 'Downloading Video',
-      time: '4.2s...',
-      status: TimelineStatus.active,
-    ),
-    TimelineStep(
-      label: 'Extracting Frames',
-      time: '--',
-      status: TimelineStatus.pending,
-    ),
-    TimelineStep(
-      label: 'Detecting Faces',
-      time: '--',
-      status: TimelineStatus.pending,
-    ),
-    TimelineStep(
-      label: 'Running AI Analysis',
-      time: '--',
-      status: TimelineStatus.pending,
-    ),
-    TimelineStep(
-      label: 'Generating Report',
-      time: '--',
-      status: TimelineStatus.pending,
-    ),
-    TimelineStep(
-      label: 'Verification Complete',
-      time: '--',
-      status: TimelineStatus.pending,
-    ),
+  String? _errorMessage;
+  bool _isDone = false;
+
+  // Mutable step list — updated live as engine emits progress
+  final List<TimelineStep> steps = [
+    TimelineStep(label: 'Validating URL'),
+    TimelineStep(label: 'Detecting Platform'),
+    TimelineStep(label: 'Downloading Video'),
+    TimelineStep(label: 'Extracting Frames'),
+    TimelineStep(label: 'Detecting Faces'),
+    TimelineStep(label: 'Running AI Analysis'),
+    TimelineStep(label: 'Generating Report'),
+    TimelineStep(label: 'Verification Complete'),
   ];
+
+  // Timestamps for when each stage starts
+  final List<DateTime?> _stageTimes = List.filled(8, null);
 
   @override
   void initState() {
@@ -80,28 +58,91 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
       vsync: this,
     )..repeat(reverse: true);
 
-    _startProgressSimulation();
+    _startVerification();
   }
 
-  void _startProgressSimulation() {
-    _simulationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+  void _startVerification() async {
+    try {
+      final result = await LinkVerificationEngine.instance.verify(
+        widget.videoUrl,
+        onProgress: (int step, double progress, String message) {
+          if (!mounted) return;
+          setState(() {
+            currentProgress = progress;
+            currentStageIndex = step;
+
+            // Mark stages completed / active / pending
+            for (int i = 0; i < steps.length; i++) {
+              if (i < step) {
+                steps[i].status = TimelineStatus.completed;
+                if (_stageTimes[i] != null) {
+                  final elapsed = DateTime.now().difference(_stageTimes[i]!);
+                  steps[i].time = '${elapsed.inMilliseconds / 1000.0}s';
+                } else {
+                  steps[i].time = 'done';
+                }
+              } else if (i == step) {
+                if (steps[i].status != TimelineStatus.active) {
+                  _stageTimes[i] = DateTime.now();
+                }
+                steps[i].status = TimelineStatus.active;
+                steps[i].time = '...';
+              } else {
+                steps[i].status = TimelineStatus.pending;
+                steps[i].time = '--';
+              }
+            }
+          });
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isDone = true;
+        currentProgress = 1.0;
+        // Mark all stages complete
+        for (int i = 0; i < steps.length; i++) {
+          steps[i].status = TimelineStatus.completed;
+        }
+      });
+
+      // Auto-navigate to report after a brief pause
+      await Future.delayed(const Duration(milliseconds: 600));
       if (mounted) {
-        setState(() {
-          if (currentProgress < 100) {
-            currentProgress += 5;
-          } else {
-            timer.cancel();
-          }
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReportDetailPage(report: result),
+          ),
+        );
       }
-    });
+    } on PlatformNotSupportedException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.message;
+        _isDone = true;
+        currentProgress = currentProgress.clamp(0.0, 1.0);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Verification failed: $e';
+        _isDone = true;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _simulationTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  String get _stageName {
+    if (currentStageIndex < steps.length) {
+      return steps[currentStageIndex].label;
+    }
+    return 'Verification Complete';
   }
 
   @override
@@ -112,36 +153,81 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
     final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    return Scaffold(
+    return MainScaffold(
       backgroundColor: isDark ? const Color(0xFF0B1424) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF00458E),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-          onPressed: () => Navigator.maybePop(context),
-        ),
-        title: const Text(
-          'VERIFRAME',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.0,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white, size: 24),
-            onPressed: () {},
-          ),
-        ],
+      showBack: true,
+      title: const Text(
+        'Video Analysis',
+        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Column(
           children: [
+            // Error banner (if failed)
+            if (_errorMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF2D1010)
+                      : const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: Color(0xFFEF4444), size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Verification Failed',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: subtitleColor,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFEF4444)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Go Back & Try Another URL',
+                          style: TextStyle(color: Color(0xFFEF4444)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Top Progress Card
             Container(
               decoration: BoxDecoration(
@@ -163,34 +249,40 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Downloading Video',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: titleColor,
-                              letterSpacing: -0.2,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isDone && _errorMessage == null
+                                  ? 'Verification Complete'
+                                  : _isDone
+                                      ? 'Verification Failed'
+                                      : _stageName,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: titleColor,
+                                letterSpacing: -0.2,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Stage 3 of 9',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: subtitleColor,
-                              fontWeight: FontWeight.w500,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Stage ${(currentStageIndex + 1).clamp(1, 9)} of 9',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: subtitleColor,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '$currentProgress%',
+                            '${(currentProgress * 100).toStringAsFixed(0)}%',
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
@@ -200,7 +292,7 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '~6s remaining',
+                            _isDone ? 'Complete' : 'Processing...',
                             style: TextStyle(
                               fontSize: 11,
                               color: subtitleColor,
@@ -216,13 +308,15 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: currentProgress / 100,
+                      value: currentProgress,
                       minHeight: 6,
                       backgroundColor: isDark
                           ? const Color(0xFF1E293B)
                           : const Color(0xFFE2E8F0),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF00A3CC),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _errorMessage != null
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF00A3CC),
                       ),
                     ),
                   ),
@@ -261,69 +355,28 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
             const SizedBox(height: 22),
 
             // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Opening forensic report...')),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Text('📊', style: TextStyle(fontSize: 16)),
-                        SizedBox(width: 8),
-                        Text(
-                          'VIEW REPORT',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: borderColor, width: 1.3),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Analysis paused')),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: borderColor, width: 1.3),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'PAUSE',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: subtitleColor,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
+                child: Text(
+                  'PAUSE / CANCEL',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFEF4444),
+                    letterSpacing: 0.4,
                   ),
                 ),
-              ],
+              ),
             ),
           ],
         ),

@@ -88,22 +88,18 @@ class VerifyBackendService {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kBackendKey);
     if (saved != null && saved.isNotEmpty) {
-      final clean = saved.replaceAll(RegExp(r'/$'), '');
-      // If user previously had a local LAN or emulator IP that is now unreachable,
-      // fallback smoothly to the live Render cloud backend.
-      final isLocal = clean.contains('10.') ||
-          clean.contains('192.168.') ||
-          clean.contains('localhost') ||
-          clean.contains('127.0.0.1');
-      if (isLocal) {
-        final localAlive = await isBackendAvailable(clean);
-        if (!localAlive) {
-          return defaultRemoteUrl;
-        }
-      }
-      return clean;
+      // Any explicitly saved URL is returned verbatim.
+      //
+      // Do NOT silently substitute the Render default when a local address looks
+      // unreachable: that made the app talk to an older cloud deployment which has
+      // no /verify/image or /verify/audio route (HTTP 404), hiding the real cause
+      // of a local backend failure. Let the request fail loudly instead — the
+      // caller already surfaces "Backend server is unreachable."
+      return saved.replaceAll(RegExp(r'/$'), '');
     }
 
+    // Nothing saved yet: a LAN/emulator address is a better dev default than the
+    // cloud deployment, since the cloud backend may lag the local code.
     return defaultRemoteUrl;
   }
 
@@ -443,5 +439,50 @@ class VerifyBackendService {
       }
     } catch (_) {}
     return 'Server error (HTTP $statusCode).';
+  }
+
+  /// POST /ai/explain - generate Gemini AI forensic narrative for a report payload
+  Future<Map<String, dynamic>> getAiExplanation(
+    String baseUrl, {
+    required String verdict,
+    String? fineVerdict,
+    required double fakeProbability,
+    required double authenticityScore,
+    String mediaType = 'media',
+    String source = 'upload',
+    List<String>? detectedEvidence,
+    List<String>? forensicObservations,
+  }) async {
+    final uri = Uri.parse('$baseUrl/ai/explain');
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: _headers({'Content-Type': 'application/json'}),
+        body: jsonEncode({
+          'verdict': verdict,
+          'fineVerdict': fineVerdict ?? verdict,
+          'fakeProbability': fakeProbability,
+          'authenticityScore': authenticityScore,
+          'mediaType': mediaType,
+          'source': source,
+          'detectedEvidence': detectedEvidence ?? [],
+          'forensicObservations': forensicObservations ?? [],
+        }),
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode != 200) {
+        throw ServerException(_parseErrorDetail(response.body, response.statusCode));
+      }
+
+      final data = jsonDecode(response.body);
+      return Map<String, dynamic>.from(data);
+    } on SocketException catch (_) {
+      throw BackendOfflineException('Backend server is unreachable.');
+    } on TimeoutException catch (_) {
+      throw ConnectionTimeoutException('Gemini AI explanation timed out.');
+    } on FormatException catch (_) {
+      throw InvalidResponseException('Failed to parse AI explanation response.');
+    }
   }
 }

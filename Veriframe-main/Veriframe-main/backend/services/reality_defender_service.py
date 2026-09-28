@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 
 from config import config as app_config
 from detectors.reality_defender_detector import RealityDefenderDetector
+from utils.score_utils import normalize_score_0_1
 
 logger = logging.getLogger("veriframe.services.reality_defender_service")
 
@@ -93,8 +94,18 @@ class RealityDefenderService:
 
     def _normalize(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         """Convert the raw detector response into the canonical dict used by the pipelines.
+
+        A ``partial`` payload (the deadline was hit while at least one model was
+        still ANALYZING) never yields a firm AUTHENTIC/MANIPULATED verdict: the
+        verdict is downgraded to INCONCLUSIVE/UNCERTAIN and the confidence is
+        scaled down, because the aggregate score was computed from a subset of
+        the model panel.
         """
         status = raw.get("status")
+        partial = bool(raw.get("partial", False))
+        incomplete = list(raw.get("incomplete_models") or [])
+        rd_status = str(raw.get("rd_status") or "")
+
         if status != "success":
             return {
                 "status": status,
@@ -102,19 +113,26 @@ class RealityDefenderService:
                 "error_message": raw.get("error") or raw.get("reason"),
                 "fake_probability": 0.0,
                 "authenticity_score": 100.0,
+                "confidence": 0.0,
                 "verdict": "UNKNOWN",
                 "fine_verdict": "UNKNOWN",
+                "request_id": raw.get("request_id"),
+                "rd_status": rd_status,
+                "partial": partial,
+                "incomplete_models": incomplete,
                 "models": [],
                 "heatmaps": {},
                 "evidence": [],
                 "observations": [],
             }
 
-        score = float(raw.get("score", 0.0))  # 0.0 - 1.0 range
+        score = normalize_score_0_1(raw.get("score")) or 0.0
         fake_prob = round(score * 100.0, 2)
         auth_score = round(max(0.0, (1.0 - score) * 100.0), 2)
-        
-        rd_status = raw.get("rd_status", "")
+
+        models = raw.get("models", []) or []
+        models = models if isinstance(models, list) else []
+
         if "MANIPULATED" in rd_status or fake_prob > 65.0:
             verdict = "MANIPULATED"
             fine_verdict = "FAKE" if fake_prob >= 85.0 else "LIKELY_FAKE"
@@ -125,31 +143,68 @@ class RealityDefenderService:
             verdict = "INCONCLUSIVE"
             fine_verdict = "UNCERTAIN"
 
-        models = raw.get("models", [])
         evidence = []
         observations = []
 
         if raw.get("request_id"):
             observations.append(f"Reality Defender Request ID: {raw['request_id']}")
+        if rd_status:
+            observations.append(f"Reality Defender aggregate status: {rd_status}")
+
+        _error_indicators = ("cannot read", "does not support", "not support", "error", "failed", "inform the user")
+        in_progress_indicators = ("analyzing", "downloading", "pending", "in_progress", "queued")
 
         for m in models:
+            if not isinstance(m, dict):
+                continue
             m_name = m.get("name", "Model")
             m_status = m.get("status", "")
-            m_score = m.get("score")
-            score_str = f" ({m_score}%)" if m_score is not None else ""
-            if "MANIPULATED" in str(m_status).upper() or (m_score is not None and m_score > 60):
+            m_status_text = str(m_status).upper()
+            # Per-model predictionNumber is 0-100 for most models but a 0-1
+            # fraction for others (e.g. rd-context-img). Normalize before use.
+            m_score = normalize_score_0_1(m.get("score"))
+            m_score_pct = None if m_score is None else round(m_score * 100.0, 2)
+            score_str = f" ({m_score_pct}%)" if m_score_pct is not None else ""
+
+            if any(ind in str(m_status).lower() for ind in in_progress_indicators):
+                observations.append(f"Reality Defender {m_name}: {m_status or 'PENDING'} (no score yet)")
+                continue
+            if any(ind in str(m_status).lower() for ind in _error_indicators):
+                continue
+            if m_score is None:
+                continue
+            if "MANIPULATED" in m_status_text or m_score_pct > 60.0:
                 evidence.append(f"Reality Defender {m_name}: Flagged as {m_status}{score_str}")
             else:
                 observations.append(f"Reality Defender {m_name}: {m_status}{score_str}")
+
+        if partial:
+            verdict = "INCONCLUSIVE"
+            fine_verdict = "UNCERTAIN"
+            evidence = []
+            missing = ", ".join(incomplete) if incomplete else "unknown"
+            observations.append(
+                f"PARTIAL Reality Defender result: {len(incomplete)} model(s) still ANALYZING when the "
+                f"deadline was reached ({missing}). The aggregate score is based on an incomplete model "
+                "panel, so it is reported for traceability only and no AUTHENTIC/MANIPULATED verdict is derived."
+            )
+
+        confidence = float(raw.get("confidence", 85.0))
+        if partial:
+            confidence *= float(getattr(app_config, "RD_PARTIAL_CONFIDENCE_FACTOR", 0.5))
+        confidence = round(min(100.0, max(0.0, confidence)), 2)
 
         return {
             "status": "success",
             "request_id": raw.get("request_id"),
             "fake_probability": fake_prob,
             "authenticity_score": auth_score,
-            "confidence": raw.get("confidence", 85.0),
+            "confidence": confidence,
             "verdict": verdict,
             "fine_verdict": fine_verdict,
+            "rd_status": rd_status,
+            "partial": partial,
+            "incomplete_models": incomplete,
             "models": models,
             "heatmaps": raw.get("heatmaps", {}),
             "evidence": evidence,

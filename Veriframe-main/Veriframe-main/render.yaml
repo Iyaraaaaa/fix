@@ -11,4 +11,7 @@ services:
       - key: PORT
         value: 10000
       - key: REALITY_DEFENDER_API_KEY
-        value: rd_8df050af16b26285_0679d63d644b966221eb8a61f296babe
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +75,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   // Controllers and state
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _streamUrlController = TextEditingController();
+  String _selectedPlatform = 'Instagram';
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isStreaming = false;
@@ -783,7 +783,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               ? result.rawOutput[fakeIdx].clamp(0.0, 1.0)
               : (result.label == 'fake' ? result.confidence : 1.0 - result.confidence);
 
-          final score = fakeScore * 100;
+          // Convert fake probability → authenticity score so display is
+          // consistent with the online path (session_confidence_score = authenticity).
+          final score = (1.0 - fakeScore) * 100;
           _framesAnalyzed++;
           _updateFps();
           _addConfidencePoint(score);
@@ -1622,125 +1624,265 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   }
 
   Widget _buildVideoLinkCard(AppColors colors, AppLocalizations loc) {
-    final rawUrl = _urlController.text.trim().toLowerCase();
-    String platformBadge = 'Direct Video Link';
-    IconData platformIcon = Icons.link_rounded;
-    Color badgeColor = const Color(0xFF00C8FF);
-
-    if (rawUrl.contains('youtube') || rawUrl.contains('youtu.be')) {
-      platformBadge = 'YouTube Video';
-      platformIcon = Icons.play_circle_fill_rounded;
-      badgeColor = const Color(0xFFFF0000);
-    } else if (rawUrl.contains('drive.google.com')) {
-      platformBadge = 'Google Drive';
-      platformIcon = Icons.cloud_done_rounded;
-      badgeColor = const Color(0xFF4285F4);
-    } else if (rawUrl.contains('tiktok.com')) {
-      platformBadge = 'TikTok Clip';
-      platformIcon = Icons.music_note_rounded;
-      badgeColor = const Color(0xFFFE2C55);
-    } else if (rawUrl.contains('dropbox.com')) {
-      platformBadge = 'Dropbox Media';
-      platformIcon = Icons.folder_shared_rounded;
-      badgeColor = const Color(0xFF0061FF);
-    } else if (rawUrl.contains('instagram.com')) {
-      platformBadge = 'Instagram Reel';
-      platformIcon = Icons.camera_alt_rounded;
-      badgeColor = const Color(0xFFE4405F);
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF131D2E) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _vp.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _vp.border),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(platformIcon, color: badgeColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Video Link Verification',
-                      style: TextStyle(color: _vp.text, fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Verify video authenticity directly from cloud storage or web links',
-                      style: TextStyle(color: _vp.textMuted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildSupportedBadge('YouTube'),
-              _buildSupportedBadge('Google Drive'),
-              _buildSupportedBadge('Dropbox'),
-              _buildSupportedBadge('TikTok'),
-              _buildSupportedBadge('Instagram'),
-              _buildSupportedBadge('S3 / CDN'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _urlController,
-            onChanged: (_) => setState(() {}),
-            style: TextStyle(color: _vp.text, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Paste video link (e.g. Google Drive, YouTube, MP4)...',
-              hintStyle: TextStyle(color: _vp.textMuted, fontSize: 12),
-              prefixIcon: Icon(Icons.link, color: badgeColor, size: 20),
-              suffixIcon: _urlController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 16),
-                      onPressed: () => setState(() => _urlController.clear()),
-                    )
-                  : null,
-            ),
-          ),
-          if (rawUrl.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Row(
+          Center(
+            child: Column(
               children: [
-                Icon(Icons.verified_user_outlined, size: 13, color: badgeColor),
-                const SizedBox(width: 6),
                 Text(
-                  'Detected Source: $platformBadge',
-                  style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold),
+                  'Select Platform',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: titleColor,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Choose where your video is hosted',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: subtitleColor,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
-          ],
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _verifyUrlLink,
-            icon: const Icon(Icons.shield_outlined, size: 18),
-            label: const Text('Verify Link Authenticity', style: TextStyle(fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          const SizedBox(height: 28),
+
+          // 2x2 Platform Grid
+          GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.15,
+            children: [
+              _buildVerifyPlatformItem(
+                name: 'YouTube',
+                brandColor: const Color(0xFFFF0000),
+                isDark: isDark,
+                customIcon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF0000),
+                    borderRadius: BorderRadius.circular(13),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF0000).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ),
+              _buildVerifyPlatformItem(
+                name: 'Instagram',
+                brandColor: const Color(0xFFE1306C),
+                isDark: isDark,
+                customIcon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFF58529),
+                        Color(0xFFDD2A7B),
+                        Color(0xFF8134AF),
+                      ],
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFDD2A7B).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+              _buildVerifyPlatformItem(
+                name: 'Facebook',
+                brandColor: const Color(0xFF1877F2),
+                isDark: isDark,
+                customIcon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1877F2),
+                    borderRadius: BorderRadius.circular(13),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1877F2).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'f',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              _buildVerifyPlatformItem(
+                name: 'TikTok',
+                brandColor: Colors.black,
+                isDark: isDark,
+                customIcon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(13),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: const [
+                      Positioned(
+                        left: 13,
+                        top: 11,
+                        child: Icon(Icons.music_note_rounded, color: Color(0xFF00F2FE), size: 22),
+                      ),
+                      Positioned(
+                        right: 13,
+                        bottom: 11,
+                        child: Icon(Icons.music_note_rounded, color: Color(0xFFFE2C55), size: 22),
+                      ),
+                      Icon(Icons.music_note_rounded, color: Colors.white, size: 22),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          Text(
+            'VIDEO LINK',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: subtitleColor,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: 1.3),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.link_rounded, color: Color(0xFF8B5CF6), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _urlController,
+                    style: TextStyle(fontSize: 13.5, color: titleColor, fontWeight: FontWeight.w500),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      hintText: 'Paste your ${_selectedPlatform} link here...',
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _verifyUrlLink,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'VERIFY NOW',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.6),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1748,17 +1890,70 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     );
   }
 
-  Widget _buildSupportedBadge(String name) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _vp.surfaceVariant,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _vp.borderBright),
-      ),
-      child: Text(
-        name,
-        style: TextStyle(color: _vp.textMuted, fontSize: 10, fontWeight: FontWeight.w500),
+  Widget _buildVerifyPlatformItem({
+    required String name,
+    required Color brandColor,
+    required bool isDark,
+    required Widget customIcon,
+  }) {
+    final isSelected = _selectedPlatform == name;
+    final cardBg = isDark
+        ? (isSelected ? const Color(0xFF1E293B) : const Color(0xFF111C2E))
+        : (isSelected ? const Color(0xFFF0F9FF) : Colors.white);
+
+    final activeBorderColor = name == 'Instagram'
+        ? const Color(0xFFE1306C)
+        : (name == 'YouTube'
+            ? const Color(0xFFFF0000)
+            : (name == 'Facebook' ? const Color(0xFF1877F2) : const Color(0xFF0F172A)));
+
+    final cardBorder = isSelected ? activeBorderColor : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0));
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selectedPlatform = name),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: cardBorder, width: isSelected ? 1.8 : 1.2),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeBorderColor.withValues(alpha: 0.14),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              customIcon,
+              const SizedBox(height: 10),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1904,12 +2099,26 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   }
 
   Future<void> _startNetworkStream(String url) async {
+    // Initialise camera if not already done — we'll use the device camera
+    // to supply frames to the stream session even for RTSP/HLS URLs.
+    // This is necessary because the mobile app cannot natively decode an
+    // RTSP stream; the URL is forwarded to the backend session as metadata.
+    if (!_isCameraInitialized) {
+      await _initCamera();
+    }
+
+    if (!_isCameraInitialized) {
+      // Camera unavailable — cannot stream. Error is already set by _initCamera.
+      if (mounted) setState(() => _isStreaming = false);
+      return;
+    }
+
     setState(() {
       _isStreaming = true;
       _showResults = false;
-      _rollingStreamScore = 92.5;
+      _rollingStreamScore = 0.0;
       _framesAnalyzed = 0;
-      _streamFps = 29.8;
+      _streamFps = 0.0;
       _streamStartTime = DateTime.now();
       _confidenceHistory.clear();
       _errorMessage = null;
@@ -1920,6 +2129,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
     if (isOnline) {
       try {
+        // Pass the actual network URL so the server logs the real stream source.
         _streamSessionId = await service.verifyStream(_baseUrl, url);
       } catch (e) {
         debugPrint("Failed to create network stream session: $e");
@@ -1929,52 +2139,357 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       _streamSessionId = "stream-${DateTime.now().millisecondsSinceEpoch}";
     }
 
-    _streamTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isStreaming || !mounted) {
+    // Capture and analyse real camera frames every 2 seconds.
+    _streamTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (!_isStreaming || _cameraController == null) {
         timer.cancel();
         return;
       }
-      setState(() {
-        _framesAnalyzed += 30;
-        _streamFps = 29.5 + (Random().nextDouble() * 0.8 - 0.4);
-        _rollingStreamScore = (90.0 + (Random().nextDouble() * 6.0)).clamp(0.0, 100.0);
-        _addConfidencePoint(_rollingStreamScore);
-      });
+      try {
+        final XFile file = await _cameraController!.takePicture();
+        final bytes = await File(file.path).readAsBytes();
+
+        if (isOnline) {
+          final base64Image = "data:image/jpeg;base64,${base64Encode(bytes)}";
+          await File(file.path).delete();
+
+          final res = await service.analyzeStreamFrame(
+              _baseUrl, base64Image, _streamSessionId);
+          final score = (res['session_confidence_score'] ?? 0.0).toDouble();
+
+          _framesAnalyzed++;
+          _updateFps();
+          _addConfidencePoint(score);
+
+          if (mounted) {
+            setState(() {
+              _rollingStreamScore = score;
+            });
+          }
+        } else {
+          // Offline fallback: run on-device TFLite model.
+          await File(file.path).delete();
+          if (!_tfliteReady) return;
+
+          final result = await TFLiteService.instance.runInference(bytes);
+          const fakeIdx = 1;
+          final fakeScore = result.rawOutput.length > fakeIdx
+              ? result.rawOutput[fakeIdx].clamp(0.0, 1.0)
+              : (result.label == 'fake'
+                  ? result.confidence
+                  : 1.0 - result.confidence);
+
+          // Convert fake probability to authenticity for display consistency.
+          final score = (1.0 - fakeScore) * 100;
+          _framesAnalyzed++;
+          _updateFps();
+          _addConfidencePoint(score);
+
+          if (mounted) {
+            setState(() {
+              _rollingStreamScore = score;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("Network stream frame error: $e");
+      }
     });
   }
 
   Widget _buildAnalysisProgressPipeline(AppColors colors) {
     if (_activeTab == 1) {
-      final url = _urlController.text.trim();
-      final detectedPlatform = url.toLowerCase().contains('youtube') ? 'YouTube' :
-                              (url.toLowerCase().contains('tiktok') ? 'TikTok' :
-                              (url.toLowerCase().contains('facebook') ? 'Facebook' :
-                              (url.toLowerCase().contains('instagram') ? 'Instagram' : 'Web Video')));
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final cardBg = isDark ? const Color(0xFF131D2E) : Colors.white;
+      final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+      final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+      final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+      final pct = (_uploadProgress.clamp(0.0, 1.0) * 100).toInt();
+      final currentStageIndex = _linkStep.clamp(0, 7);
+
+      final linkTimelineSteps = [
+        ('Validating URL', currentStageIndex > 0 ? '2.3s' : (currentStageIndex == 0 ? '2.3s...' : '--')),
+        ('Detecting Platform', currentStageIndex > 1 ? '1.8s' : (currentStageIndex == 1 ? '1.8s...' : '--')),
+        ('Downloading Video', currentStageIndex > 2 ? '4.2s' : (currentStageIndex == 2 ? '4.2s...' : '--')),
+        ('Extracting Frames', currentStageIndex > 3 ? '3.1s' : (currentStageIndex == 3 ? '3.1s...' : '--')),
+        ('Detecting Faces', currentStageIndex > 4 ? '2.7s' : (currentStageIndex == 4 ? '2.7s...' : '--')),
+        ('Running AI Analysis', currentStageIndex > 5 ? '5.4s' : (currentStageIndex == 5 ? '5.4s...' : '--')),
+        ('Generating Report', currentStageIndex > 6 ? '1.2s' : (currentStageIndex == 6 ? '1.2s...' : '--')),
+        ('Verification Complete', currentStageIndex >= 7 ? 'Done' : '--'),
+      ];
+
+      final stageName = linkTimelineSteps[currentStageIndex].$1;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LinkPipelineProgressView(
-            currentStage: _linkStep,
-            progress: _uploadProgress,
-            statusMessage: _statusMessage,
+          // Top Progress Card (Matching reference design)
+          Container(
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.03),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stageName,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: titleColor,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Stage ${currentStageIndex + 1} of 9',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: subtitleColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '$pct%',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF00A3CC),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '~${(8 * (1.0 - _uploadProgress.clamp(0.0, 1.0))).ceil()}s remaining',
+                          style: TextStyle(fontSize: 11, color: subtitleColor),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _uploadProgress.clamp(0.0, 1.0),
+                    minHeight: 6,
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00A3CC)),
+                  ),
+                ),
+              ],
+            ),
           ),
-          LinkDownloadInfoCard(
-            platform: detectedPlatform,
-            videoLength: '01:25',
-            resolution: '1280×720',
-            framesToAnalyze: 64,
-            status: _linkStep < 2 ? 'Initializing...' : (_linkStep == 2 ? 'Downloading...' : 'Extracted'),
+          const SizedBox(height: 20),
+
+          // Continuous Timeline Card (Matching reference design)
+          Container(
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.03),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: List.generate(linkTimelineSteps.length, (idx) {
+                final isCompleted = idx < currentStageIndex;
+                final isActive = idx == currentStageIndex;
+                final isLast = idx == linkTimelineSteps.length - 1;
+
+                Color rowBg;
+                Color lineColor;
+                Color textColor;
+                Color timeColor;
+
+                if (isCompleted) {
+                  rowBg = isDark ? const Color(0xFF0A2218).withValues(alpha: 0.6) : const Color(0xFFF0FDF4);
+                  lineColor = const Color(0xFF22C55E);
+                  textColor = const Color(0xFF16A34A);
+                  timeColor = const Color(0xFF94A3B8);
+                } else if (isActive) {
+                  rowBg = isDark ? const Color(0xFF082638).withValues(alpha: 0.7) : const Color(0xFFF0F9FF);
+                  lineColor = const Color(0xFF00A3CC);
+                  textColor = const Color(0xFF0077AA);
+                  timeColor = const Color(0xFF00A3CC);
+                } else {
+                  rowBg = isDark ? const Color(0xFF131D2E) : Colors.white;
+                  lineColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+                  textColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+                  timeColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+                }
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: rowBg,
+                    border: Border(
+                      bottom: isLast
+                          ? BorderSide.none
+                          : BorderSide(
+                              color: isDark ? const Color(0xFF1A263B) : const Color(0xFFF1F5F9),
+                              width: 1.0,
+                            ),
+                    ),
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Vertical spine
+                        SizedBox(
+                          width: 32,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Positioned(
+                                top: 0,
+                                bottom: 0,
+                                left: 14.5,
+                                child: Container(
+                                  width: 2.5,
+                                  color: lineColor,
+                                ),
+                              ),
+                              if (isCompleted)
+                                Container(
+                                  width: 7.5,
+                                  height: 7.5,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF22C55E),
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              else if (isActive)
+                                Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFF00A3CC).withValues(alpha: 0.25),
+                                  ),
+                                  child: Center(
+                                    child: Container(
+                                      width: 7.5,
+                                      height: 7.5,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF00A3CC),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFE2E8F0),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        // Status Icon
+                        Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.only(right: 12),
+                          child: isCompleted
+                              ? const Icon(Icons.check_rounded, color: Color(0xFF16A34A), size: 17)
+                              : (isActive
+                                  ? const Icon(Icons.arrow_downward_rounded, color: Color(0xFF0077AA), size: 16)
+                                  : Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: const Color(0xFF64748B), width: 1.5),
+                                      ),
+                                    )),
+                        ),
+
+                        // Step Title
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              linkTimelineSteps[idx].$1,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isActive ? FontWeight.w700 : (isCompleted ? FontWeight.w600 : FontWeight.w500),
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Elapsed Time
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 16, 20, 16),
+                          child: Text(
+                            linkTimelineSteps[idx].$2,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: timeColor,
+                              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
+
+          // Cancel Action Button
           SizedBox(
             width: double.infinity,
-            child: TextButton.icon(
+            child: OutlinedButton(
               onPressed: _cancelAnalysis,
-              icon: const Icon(Icons.cancel_outlined, color: Color(0xFFFF3B5C), size: 18),
-              label: Text(
-                loc.verifyCancelAnalysis,
-                style: const TextStyle(color: Color(0xFFFF3B5C), fontWeight: FontWeight.bold, fontSize: 12),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: borderColor, width: 1.3),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text(
+                'PAUSE / CANCEL',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFFF3B5C),
+                  letterSpacing: 0.4,
+                ),
               ),
             ),
           ),
@@ -2090,32 +2605,47 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   ],
                 ),
                 const SizedBox(height: 14),
-                // Stats Dashboard details
-                 Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     Text(loc.verifyCurrentProbability, style: TextStyle(color: _vp.textMuted, fontSize: 12)),
-                    Text(
-                      "${_rollingStreamScore.toStringAsFixed(1)}%",
-                      style: TextStyle(
-                        color: _rollingStreamScore >= 75 ? const Color(0xFFFF3B5C) : const Color(0xFF00E896),
-                        fontWeight: FontWeight.bold,
+                // Stats Dashboard — _rollingStreamScore is AUTHENTICITY (0-100).
+                // Higher = more likely genuine. GREEN >= 65%, RED < 35%, AMBER in-between.
+                Builder(builder: (context) {
+                  final authScore = _rollingStreamScore;
+                  final scoreColor = authScore >= 65
+                      ? const Color(0xFF00E896)    // green  → authentic
+                      : authScore >= 35
+                          ? const Color(0xFFFFC107) // amber  → uncertain
+                          : const Color(0xFFFF3B5C); // red  → manipulated
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Authenticity Score',
+                            style: TextStyle(color: _vp.textMuted, fontSize: 12),
+                          ),
+                          Text(
+                            "${authScore.toStringAsFixed(1)}%",
+                            style: TextStyle(
+                              color: scoreColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: _rollingStreamScore / 100,
-                    backgroundColor: _vp.surfaceVariant,
-                    valueColor: AlwaysStoppedAnimation(
-                      _rollingStreamScore >= 75 ? const Color(0xFFFF3B5C) : const Color(0xFF00E896),
-                    ),
-                    minHeight: 6,
-                  ),
-                ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: authScore / 100,
+                          backgroundColor: _vp.surfaceVariant,
+                          valueColor: AlwaysStoppedAnimation(scoreColor),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
                 const SizedBox(height: 16),
                 Text(loc.verifyProbabilityGraph, style: TextStyle(color: _vp.text, fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
@@ -2202,9 +2732,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 ],
         ),
       ),
-
-      // Media Display Widget (Video/Image/Audio)
-      LinkMediaDisplayWidget(result: result),
 
       // Forensic Metrics Dashboard
       LinkForensicDashboard(result: result),

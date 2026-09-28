@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
+import 'package:veriframe_app/widgets/main_scaffold.dart';
 
 class ImagePage extends StatefulWidget {
   const ImagePage({super.key});
@@ -190,36 +191,33 @@ class _ImagePageState extends State<ImagePage> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF0F172A) : Colors.white;
     final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC);
+    final onAppBar = Theme.of(context).colorScheme.onPrimary;
 
-    return Scaffold(
+    return MainScaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        title: const Text(
-          'Image Forensics',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      showBack: true,
+      title: const Text(
+        'Image Forensics',
+        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      ),
+      extraActions: [
+        IconButton(
+          icon: const Icon(Icons.dns_outlined),
+          tooltip: 'Backend Server',
+          onPressed: _showServerDialog,
         ),
-        elevation: 0,
-        backgroundColor: surfaceColor,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.dns_outlined),
-            tooltip: 'Backend Server',
-            onPressed: _showServerDialog,
-          ),
+      ],
+      appBarBottom: TabBar(
+        controller: _tabController,
+        labelColor: onAppBar,
+        unselectedLabelColor: onAppBar.withValues(alpha: 0.7),
+        indicatorColor: onAppBar,
+        indicatorWeight: 3,
+        tabs: const [
+          Tab(icon: Icon(Icons.photo_library_rounded), text: 'Local Image'),
+          Tab(icon: Icon(Icons.link_rounded), text: 'Image Link'),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF10B981),
-          unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
-          indicatorColor: const Color(0xFF10B981),
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(icon: Icon(Icons.photo_library_rounded), text: 'Local Image'),
-            Tab(icon: Icon(Icons.link_rounded), text: 'Image Link'),
-          ],
-        ),
       ),
       body: _result != null
           ? _buildResultView(isDark)

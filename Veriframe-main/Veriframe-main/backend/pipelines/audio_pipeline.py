@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 from config import config as app_config
 from calibration.confidence_calibration import ConfidenceCalibrator
 from services.reality_defender_service import RealityDefenderService
+from utils.transparency import THRESHOLDS_IMAGE_AUDIO
 
 logger = logging.getLogger("veriframe.pipelines.audio")
 
@@ -19,8 +20,12 @@ class AudioPipeline:
     Audio Deepfake Verification Pipeline.
     Supports triple-track verification:
     1. Local Acoustic & Spectral Forensics (Vocoder cutoff frequency, noise floor analysis, digital silence detection)
-    2. Audio.tflite On-Device Model (wav2vec2-style 1536-dim spectral embedding → fake sigmoid)
+    2. Audio.tflite On-Device Model (experimental 1536-dim spectral projection -> fake sigmoid; disabled by default)
     3. Reality Defender Voice AI (State-of-the-art synthetic speech, voice cloning & audio manipulation detection)
+    
+    Note: The 1536-dim projection is a random Gaussian projection of mel spectrogram statistics,
+    NOT a wav2vec2 embedding. Audio.tflite outputs constant 1.0 on realistic inputs and is
+    excluded from the fusion score via AUDIO_TFLITE_ENABLED=False.
     """
 
     def __init__(
@@ -37,16 +42,18 @@ class AudioPipeline:
         self.aud_input_details = aud_input_details
         self.aud_output_details = aud_output_details
 
-        # Build a fixed deterministic projection matrix: spectral_features → 1536
-        # (acts as a learned-free wav2vec2-style embedding proxy)
+        # Build a fixed deterministic projection matrix: spectral_features -> 1536
+        # (acts as a random Gaussian projection of spectral statistics to 1536 dimensions)
         rng = np.random.default_rng(seed=42)
         self._projection = rng.standard_normal((128, 1536)).astype(np.float32)
 
     def _build_audio_embedding(self, audio_path: str) -> Optional[np.ndarray]:
         """
         Extract spectral features from audio file and project to 1536-dim embedding
-        compatible with Audio.tflite wav2vec2 input.
-        Uses 128-band mel spectrogram statistics → random Gaussian projection → [1, 1536].
+        compatible with Audio.tflite input tensor.
+        Uses 128-band mel spectrogram statistics -> random Gaussian projection -> [1, 1536].
+        This is NOT a wav2vec2 embedding; it is a deterministic random projection of
+        hand-crafted spectral features.
         """
         try:
             # Load raw PCM via wave (works for WAV; fall back for compressed)
@@ -231,52 +238,84 @@ class AudioPipeline:
         if local_eval.get("evidence"):
             detected_evidence.extend(local_eval["evidence"])
 
-        # 2. Audio.tflite On-Device Neural Inference (wav2vec2-style mel embedding → sigmoid)
-        tflite_fake_prob = self._run_tflite_inference(audio_path)
-        if tflite_fake_prob is not None:
-            forensic_observations.append(f"Audio.tflite On-Device Score: {round(tflite_fake_prob * 100, 1)}% synthetic probability.")
-            # Blend acoustic + TFLite for local score
-            local_composite = 0.40 * local_fake_prob + 0.60 * tflite_fake_prob
+        # 2. Audio.tflite On-Device Neural Inference (controlled by AUDIO_TFLITE_ENABLED)
+        tflite_fake_prob = None
+        if getattr(app_config, "AUDIO_TFLITE_ENABLED", False):
+            tflite_fake_prob = self._run_tflite_inference(audio_path)
+            if tflite_fake_prob is not None:
+                forensic_observations.append(f"Audio.tflite On-Device Score: {round(tflite_fake_prob * 100, 1)}% synthetic probability.")
+                local_composite = 0.40 * local_fake_prob + 0.60 * tflite_fake_prob
+            else:
+                local_composite = local_fake_prob
         else:
             local_composite = local_fake_prob
 
         # 3. Reality Defender Voice AI Detection
         rd_result = None
-        models_used = "VeriFrame Acoustic Forensics + Audio.tflite" if tflite_fake_prob is not None else "VeriFrame Local Acoustic Forensics"
+        rd_available = False
+        degraded = False
+        engines_used = ["acoustic_heuristics"]
+
+        if getattr(app_config, "AUDIO_TFLITE_ENABLED", False) and tflite_fake_prob is not None:
+            engines_used.append("audio_tflite")
+
+        models_used = "VeriFrame Local Acoustic Forensics"
+        if "audio_tflite" in engines_used:
+            models_used = "VeriFrame Acoustic Forensics + Audio.tflite"
+
         if self.rd_service and self.rd_service.detector.is_configured():
             try:
                 rd_result = self.rd_service.analyze_media(audio_path)
             except Exception as e:
                 logger.warning(f"[AudioPipeline] Reality Defender failed: {e}")
+                degraded = True
+        else:
+            degraded = True
 
         if rd_result and rd_result.get("status") == "success":
-            rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
-            # 3-model ensemble: 25% Acoustic + 25% Audio.tflite + 50% Reality Defender
-            final_fake_prob = 0.50 * local_composite + 0.50 * rd_fake_prob
-            models_used = "Ensemble: Audio.tflite (On-Device) + Spectral Forensics + Reality Defender Voice AI"
-            if rd_result.get("evidence"):
-                detected_evidence.extend(rd_result["evidence"])
-            if rd_result.get("observations"):
-                forensic_observations.extend(rd_result["observations"])
-            forensic_observations.append(f"Reality Defender Cloud Deepfake Voice Score: {rd_result.get('fake_probability')}%.")
+            if rd_result.get("partial"):
+                degraded = True
+                forensic_observations.extend(rd_result.get("observations") or [])
+                forensic_observations.append(
+                    "Reality Defender result was PARTIAL (models still ANALYZING at the deadline) and was "
+                    "excluded from the ensemble; local-only result."
+                )
+                models_used = (models_used + " (Reality Defender partial, excluded)")
+                detected_evidence.extend(rd_result.get("evidence") or [])
+                final_fake_prob = local_composite
+            else:
+                rd_available = True
+                engines_used.append("reality_defender")
+                rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
+                if "audio_tflite" in engines_used:
+                    final_fake_prob = 0.50 * local_composite + 0.50 * rd_fake_prob
+                    models_used = "Ensemble: Audio.tflite (On-Device) + Spectral Forensics + Reality Defender Voice AI"
+                else:
+                    final_fake_prob = 0.40 * local_composite + 0.60 * rd_fake_prob
+                    models_used = "Ensemble: Acoustic Forensics + Reality Defender Voice AI"
+                if rd_result.get("evidence"):
+                    detected_evidence.extend(rd_result["evidence"])
+                if rd_result.get("observations"):
+                    forensic_observations.extend(rd_result["observations"])
+                forensic_observations.append(f"Reality Defender Cloud Deepfake Voice Score: {rd_result.get('fake_probability')}%.")
         else:
+            degraded = True
             final_fake_prob = local_composite
             forensic_observations.append("Local acoustic spectral decomposition executed.")
+            forensic_observations.append("Audio deep model is unavailable; local-only result.")
 
         # Calibrate & Generate Verdict
         calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
         fake_percentage = round(calibrated_fake_prob * 100.0, 2)
         auth_percentage = round((1.0 - calibrated_fake_prob) * 100.0, 2)
 
-        if fake_percentage > 70.0:
+        if fake_percentage > THRESHOLDS_IMAGE_AUDIO["manipulated_above_pct"]:
             legacy_verdict = "MANIPULATED"
-            fine_verdict = "FAKE" if fake_percentage >= 85.0 else "LIKELY_FAKE"
+            fine_verdict = "FAKE" if fake_percentage >= THRESHOLDS_IMAGE_AUDIO["fake_confirmed_at_or_above_pct"] else "LIKELY_FAKE"
             risk_level = "HIGH"
-            if not detected_evidence:
-                detected_evidence.append("Synthetic neural speech markers / cloned voice signatures identified.")
-        elif fake_percentage < 30.0:
+        elif fake_percentage < THRESHOLDS_IMAGE_AUDIO["authentic_below_pct"]:
             legacy_verdict = "AUTHENTIC"
-            fine_verdict = "REAL" if fake_percentage <= 15.0 else "LIKELY_REAL"
+            fine_verdict = "REAL" if fake_percentage <= THRESHOLDS_IMAGE_AUDIO["real_confirmed_at_or_below_pct"] else "LIKELY_REAL"
             risk_level = "LOW"
             if not detected_evidence:
                 detected_evidence.append(f"Natural acoustic vocal timbre and continuous air pressure verified (Authenticity: {auth_percentage}%).")
@@ -288,6 +327,19 @@ class AudioPipeline:
                 detected_evidence.append("Voice features lie in ambiguous acoustic envelope range.")
 
         confidence_val = round(abs(calibrated_fake_prob - 0.5) * 200.0, 2)
+
+        # If Reality Defender is unavailable, do NOT return a MANIPULATED/HIGH verdict from acoustic heuristics alone.
+        # Return verdict INCONCLUSIVE, low confidence, and a field "engines_used": ["acoustic_heuristics"] with a message that the audio deep model is unavailable.
+        if not rd_available:
+            if legacy_verdict == "MANIPULATED" or risk_level == "HIGH":
+                legacy_verdict = "INCONCLUSIVE"
+                fine_verdict = "UNCERTAIN"
+                risk_level = "MEDIUM"
+            confidence_val = min(confidence_val, 30.0)
+            confidence_label = "Low"
+        else:
+            confidence_label = "High" if confidence_val >= 75.0 else ("Medium" if confidence_val >= 50.0 else "Low")
+
         processing_time = round(time.time() - start_time, 2)
 
         # Extract waveform thumbnail for report preview
@@ -311,9 +363,12 @@ class AudioPipeline:
             "durationSec": local_eval.get("duration", 0.0),
             "processingTimeSec": processing_time,
             "reality_defender": rd_result,
-            "confidence_label": "High" if confidence_val >= 75.0 else ("Medium" if confidence_val >= 50.0 else "Low"),
+            "confidence_label": confidence_label,
             "thumbnailBase64": thumbnail_base64,
+            "engines_used": engines_used,
+            "degraded": degraded,
         }
+
 
     def _extract_waveform_thumbnail(self, audio_path: str, width: int = 320, height: int = 180) -> Optional[str]:
         """Generate a waveform visualization as base64 JPEG thumbnail."""

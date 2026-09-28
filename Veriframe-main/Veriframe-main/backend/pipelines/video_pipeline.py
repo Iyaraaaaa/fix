@@ -17,6 +17,7 @@ from preprocessing.preprocessor import FramePreprocessor
 from utils.video import get_video_metadata, extract_video_thumbnail_base64
 from utils.image import resize_face, pad_to_square
 from services.reality_defender_service import RealityDefenderService
+from utils.transparency import THRESHOLDS_VIDEO
 
 logger = logging.getLogger("veriframe.pipelines.video")
 
@@ -77,6 +78,7 @@ class VideoPipeline:
         all_faces: List[np.ndarray] = []
         all_boxes: List[List[float]] = []
         all_quality_scores: List[float] = []
+        all_detectors: List[str] = []
         frames_skipped = 0
 
         for idx in frame_indices:
@@ -104,9 +106,17 @@ class VideoPipeline:
                 all_faces.append(face_resized)
                 all_boxes.append(best_det.box)
                 all_quality_scores.append(best_det.quality_score)
+                all_detectors.append(best_det.detector)
             else:
                 frames_skipped += 1
         cap.release()
+
+        face_detector_used = (
+            all_detectors[0] if all_detectors else (
+                self.face_detector.loaded_detectors[0].lower() if getattr(self.face_detector, "loaded_detectors", None) else "none"
+            )
+        )
+
 
         logger.info(f"[VideoPipeline] Raw scene frames: {len(raw_scene_frames)}, Quality face crops: {len(all_faces)}")
 
@@ -163,23 +173,43 @@ class VideoPipeline:
 
         # --- Reality Defender Cloud Forensics (Optional Ensemble) ---
         rd_result = None
+        degraded = False
+        engines_used = ["local"]
         models_used = "VeriFrame Local Neural Net (TFLite)"
         if self.rd_service and self.rd_service.detector.is_configured():
             try:
                 rd_result = self.rd_service.analyze_media(video_path)
             except Exception as e:
                 logger.warning(f"[VideoPipeline] Reality Defender analysis failed: {e}")
+                degraded = True
+                forensic_observations.append("Reality Defender timed out or failed; local-only result.")
 
         if rd_result and rd_result.get("status") == "success":
-            rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
-            # Ensemble: 50% Local Biometric & Scene Forensics + 50% Reality Defender
-            final_fake_prob = 0.50 * final_fake_prob + 0.50 * rd_fake_prob
-            models_used = "Ensemble: VeriFrame TFLite + Reality Defender AI"
-            if rd_result.get("evidence"):
-                detected_evidence.extend(rd_result["evidence"])
-            if rd_result.get("observations"):
-                forensic_observations.extend(rd_result["observations"])
-            forensic_observations.append(f"Reality Defender Cloud Deepfake Score: {rd_result.get('fake_probability')}%.")
+            if rd_result.get("partial"):
+                degraded = True
+                models_used = "VeriFrame Local Neural Net (TFLite) (Reality Defender partial, excluded)"
+                forensic_observations.extend(rd_result.get("observations") or [])
+                forensic_observations.append(
+                    "Reality Defender result was PARTIAL (models still ANALYZING at the deadline) and was "
+                    "excluded from the ensemble; local-only result."
+                )
+                detected_evidence.extend(rd_result.get("evidence") or [])
+            else:
+                engines_used.append("reality_defender")
+                rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
+                # Ensemble: 50% Local Biometric & Scene Forensics + 50% Reality Defender
+                final_fake_prob = 0.50 * final_fake_prob + 0.50 * rd_fake_prob
+                models_used = "Ensemble: VeriFrame TFLite + Reality Defender AI"
+                if rd_result.get("evidence"):
+                    detected_evidence.extend(rd_result["evidence"])
+                if rd_result.get("observations"):
+                    forensic_observations.extend(rd_result["observations"])
+                forensic_observations.append(f"Reality Defender Cloud Deepfake Score: {rd_result.get('fake_probability')}%.")
+        else:
+            if self.rd_service and self.rd_service.detector.is_configured() and rd_result is None:
+                degraded = True
+                if "Reality Defender timed out or failed; local-only result." not in forensic_observations:
+                    forensic_observations.append("Reality Defender timed out or failed; local-only result.")
 
         # Temporal calibration
         calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
@@ -196,16 +226,16 @@ class VideoPipeline:
 
         # 3-State Verdict & Risk Mapping
         # Thresholds widened to 30/70 for a broader UNCERTAIN zone — reduces false positives & negatives
-        if fake_probability > 70.0:
+        if fake_probability > THRESHOLDS_VIDEO["manipulated_above_pct"]:
             legacy_verdict = "MANIPULATED"
-            verdict = "FAKE" if fake_probability >= 85.0 else "LIKELY_FAKE"
+            verdict = "FAKE" if fake_probability >= THRESHOLDS_VIDEO["fake_confirmed_at_or_above_pct"] else "LIKELY_FAKE"
             risk_level = "HIGH"
             detectedEvidenceMsg = "Synthetic generative manipulation signatures identified in video."
             if not detected_evidence:
                 detected_evidence.append(detectedEvidenceMsg)
-        elif fake_probability < 30.0:
+        elif fake_probability < THRESHOLDS_VIDEO["authentic_below_pct"]:
             legacy_verdict = "AUTHENTIC"
-            verdict = "REAL" if fake_probability <= 15.0 else "LIKELY_REAL"
+            verdict = "REAL" if fake_probability <= THRESHOLDS_VIDEO["real_confirmed_at_or_below_pct"] else "LIKELY_REAL"
             risk_level = "LOW"
             if not detected_evidence:
                 detected_evidence.append(f"Visual metrics match genuine human / optical textures (Authenticity: {authenticity_score}%).")
@@ -249,6 +279,9 @@ class VideoPipeline:
             "fineVerdict": verdict,
             "riskLevel": risk_level,
             "modelsUsed": models_used,
+            "face_detector_used": face_detector_used,
+            "engines_used": engines_used,
+            "degraded": degraded,
             "detectedEvidence": detected_evidence,
             "forensicObservations": forensic_observations,
             "reportHash": video_hash,
@@ -265,6 +298,7 @@ class VideoPipeline:
             "confidence_label": "High" if fused_confidence >= 80.0 else ("Medium" if fused_confidence >= 60.0 else "Low"),
             "thumbnailBase64": thumbnail_base64,
         }
+
 
     def _run_inference(self, face_tensor: np.ndarray) -> float:
         self.interpreter.set_tensor(self.input_details[0]["index"], face_tensor)

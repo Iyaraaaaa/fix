@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
+import 'package:veriframe_app/widgets/main_scaffold.dart';
 
 class AudioPage extends StatefulWidget {
   const AudioPage({super.key});
@@ -140,26 +141,22 @@ class _AudioPageState extends State<AudioPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF0F172A) : Colors.white;
     final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC);
 
-    return Scaffold(
+    return MainScaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        title: const Text(
-          'Audio Voice Forensics',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
-        ),
-        elevation: 0,
-        backgroundColor: surfaceColor,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.dns_outlined),
-            tooltip: 'Backend Server',
-            onPressed: _showServerDialog,
-          ),
-        ],
+      showBack: true,
+      title: const Text(
+        'Audio Voice Forensics',
+        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
+      extraActions: [
+        IconButton(
+          icon: const Icon(Icons.dns_outlined),
+          tooltip: 'Backend Server',
+          onPressed: _showServerDialog,
+        ),
+      ],
       body: _result != null ? _buildResultView(isDark) : _buildUploadView(isDark),
     );
   }

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -702,74 +701,6 @@ class _ReportCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _MiniRing extends StatelessWidget {
-  const _MiniRing({
-    required this.value,
-    required this.color,
-    required this.isReal,
-    required this.trackColor,
-  });
-  final double value;
-  final Color color;
-  final bool isReal;
-  final Color trackColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final fraction = (value / 100).clamp(0.0, 1.0);
-    return SizedBox(
-      width: 54,
-      height: 54,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: const Size(54, 54),
-            painter: _MiniRingPainter(fraction: fraction, color: color, trackColor: trackColor),
-          ),
-          Icon(
-            isReal ? Icons.verified_user_rounded : Icons.gavel_rounded,
-            color: color,
-            size: 18,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniRingPainter extends CustomPainter {
-  final double fraction;
-  final Color color;
-  final Color trackColor;
-
-  _MiniRingPainter({required this.fraction, required this.color, required this.trackColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 2;
-    final bgPaint = Paint()
-      ..color = trackColor
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final fgPaint = Paint()
-      ..color = color
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    const startAngle = -math.pi / 2;
-    final sweep = 2 * math.pi * fraction.clamp(0.0, 1.0);
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, 2 * math.pi, false, bgPaint);
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweep, false, fgPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniRingPainter old) =>
-      old.fraction != fraction || old.color != color || old.trackColor != trackColor;
 }
 
 Widget _placeholderPreview(Color statusColor, bool isReal) => Container(

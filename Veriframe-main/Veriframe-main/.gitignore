@@ -51,6 +51,12 @@ __pycache__/
 .ipynb_checkpoints/
 
 # =========================
+# Evaluation dataset
+# =========================
+# Frames extracted by metrics/prepare_eval_set.py - regenerated, ~600 MB.
+eval_dataset/
+
+# =========================
 # Logs and Scratch
 # =========================
 *.log
