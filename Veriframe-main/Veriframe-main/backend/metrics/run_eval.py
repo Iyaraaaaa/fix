@@ -4,7 +4,7 @@ backend/metrics/run_eval.py
 Evaluation harness for the image deepfake detection pipeline.
 
 Usage:
-    py -3.12 backend/metrics/run_eval.py <folder> [--threshold 0.5]
+    py -3.12 backend/metrics/run_eval.py <folder> [--threshold 0.5] [--resume]
 
 <folder> must contain:
     real/   – images labelled AUTHENTIC  (label = 0)
@@ -15,8 +15,13 @@ Optionally a ``manifest.csv`` (as written by ``prepare_eval_set.py``) sitting in
 enables video-level metrics and per-method recall.
 
 Outputs:
-    <folder>/results.csv  – per-file scores, path used, video_id, method
-    Prints frame-level, video-level, per-path and per-method metrics to stdout.
+    <folder>/results.csv  – per-file scores, path used, video_id, method.
+        Written incrementally: the header goes out first and one row is
+        appended and flushed per image, so a crash or Ctrl-C never costs more
+        than the image in flight. ``--resume`` picks the run up from there.
+    Prints frame-level, video-level, per-path and per-method metrics to stdout,
+    always computed by re-reading results.csv, so a resumed run reports
+    exactly what an uninterrupted one would.
 
 Every number printed here is computed from files actually present on disk. No
 metric is invented, and any group with fewer than ``MIN_GROUP_ROWS`` rows is
@@ -27,6 +32,7 @@ import argparse
 import csv
 import os
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -46,6 +52,14 @@ from metrics.evaluator import MetricsEvaluator   # noqa: E402
 # A group smaller than this is not summarised: its accuracy/F1 would swing by
 # tens of points on a handful of samples and would misrepresent the model.
 MIN_GROUP_ROWS = 10
+
+# How often the in-flight run reports progress on stdout.
+PROGRESS_EVERY = 25
+
+# Column order of results.csv. Fixed so a resumed run appends rows in exactly
+# the shape the first run wrote.
+FIELDNAMES = ["file", "label", "score", "local_score", "rd_score", "rd_status",
+              "verdict", "path_used", "video_id", "method"]
 
 FACE = "face"
 FALLBACK = "fallback"
@@ -262,6 +276,172 @@ def _too_small(n: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Incremental result store
+# ---------------------------------------------------------------------------
+
+def read_results(csv_path: Path) -> List[Dict]:
+    """Read results.csv back into typed rows.
+
+    Every metric is computed from this, never from in-memory state, so a
+    resumed run and an uninterrupted one cannot disagree.
+    """
+    if not csv_path.is_file():
+        return []
+    rows: List[Dict] = []
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        for raw in csv.DictReader(fh):
+            if not (raw.get("file") or "").strip():
+                continue
+            rows.append({
+                "file": raw.get("file", "").strip(),
+                "label": int(float(raw.get("label") or 0)),
+                "score": float(raw.get("score") or 0.0),
+                "local_score": raw.get("local_score") or "",
+                "rd_score": raw.get("rd_score") or "",
+                "rd_status": raw.get("rd_status") or "",
+                "verdict": raw.get("verdict") or "UNKNOWN",
+                "path_used": raw.get("path_used") or "unknown",
+                "video_id": raw.get("video_id") or "",
+                "method": raw.get("method") or "",
+            })
+    return rows
+
+
+def _row_key(row: Dict) -> Tuple[str, str]:
+    """Identity of a scored image: name plus label, since real/ and fake/ can
+    legitimately hold the same filename."""
+    label = row.get("label")
+    return (row.get("file") or "", "" if label is None else str(label))
+
+
+def _hms(seconds: float) -> str:
+    seconds = int(max(0.0, seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def evaluate_image(pipeline, img_path: Path) -> Dict:
+    """Score one image, degrading to an ERROR row rather than losing the run."""
+    try:
+        result = pipeline.process(str(img_path))
+        return {
+            # fakeProbability is 0-100; normalise to [0, 1]
+            "score": result.get("fakeProbability", 50.0) / 100.0,
+            "verdict": result.get("verdict", "UNKNOWN"),
+            "path_used": classify_path_used(result),
+            "local_score": result.get("local_fake_probability"),
+            "rd_score": result.get("rd_fake_probability"),
+            "rd_status": result.get("rd_status", "not_run"),
+        }
+    except Exception as exc:
+        print(f"[WARN] {img_path.name}: pipeline error – {exc}", file=sys.stderr)
+        return {
+            "score": 0.5,
+            "verdict": "ERROR",
+            "path_used": "error",
+            "local_score": None,
+            "rd_score": None,
+            "rd_status": "error",
+        }
+
+
+def run_evaluation(files, manifest: Dict, pipeline, csv_path: Path,
+                   max_frames_per_video: int = 8, resume: bool = False,
+                   progress_every: int = PROGRESS_EVERY) -> List[Dict]:
+    """Score ``files`` into ``csv_path``, one flushed row per image.
+
+    The file is opened before the first image is scored, so the header and every
+    scored row survive a crash. With ``resume``, rows already present are kept
+    and their images are skipped; the per-video frame cap is re-seeded from
+    those rows so a resumed run selects the same frames as a single run.
+
+    Returns the rows read back from the CSV.
+    """
+    already: List[Dict] = read_results(csv_path) if resume else []
+    done_keys = {_row_key(r) for r in already}
+
+    # Re-seed the cap from the rows an earlier run already wrote, otherwise a
+    # resume would happily blow past --max-frames-per-video for the videos it
+    # had partly done.
+    seen_videos: Dict[str, int] = defaultdict(int)
+    for row in already:
+        if row["video_id"]:
+            seen_videos[row["video_id"]] += 1
+
+    todo = [(path, label) for path, label in files
+            if (path.name, str(label)) not in done_keys]
+    skipped_done = len(files) - len(todo)
+
+    if already:
+        print(f"[INFO] Resuming: {len(already)} row(s) already in {csv_path.name}, "
+              f"{len(todo)} image(s) left to score.")
+    if not todo:
+        if not already:
+            print("[WARN] Nothing to score.")
+        return read_results(csv_path)
+
+    # Append only when resuming onto rows an earlier run actually wrote.
+    # A fresh run truncates, and a truncated file always needs the header again.
+    appending = resume and csv_path.is_file() and csv_path.stat().st_size > 0
+    handle = open(csv_path, "a" if appending else "w", newline="", encoding="utf-8")
+    try:
+        writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
+        if not appending:
+            writer.writeheader()
+            handle.flush()
+
+        total = len(todo)
+        started = time.time()
+        skipped_by_cap = 0
+
+        for done, (img_path, label) in enumerate(todo, start=1):
+            meta = lookup_manifest(manifest, img_path)
+            video_id = meta.get("video_id", "")
+
+            # Cap frames per video so a RD run stays within quota.
+            if video_id and seen_videos[video_id] >= max_frames_per_video:
+                skipped_by_cap += 1
+                continue
+            if video_id:
+                seen_videos[video_id] += 1
+
+            scored = evaluate_image(pipeline, img_path)
+            writer.writerow({
+                "file": img_path.name,
+                "label": label,
+                "score": scored["score"],
+                "local_score": ("" if scored["local_score"] is None
+                                else round(float(scored["local_score"]), 6)),
+                "rd_score": ("" if scored["rd_score"] is None
+                             else round(float(scored["rd_score"]), 6)),
+                "rd_status": scored["rd_status"],
+                "verdict": scored["verdict"],
+                "path_used": scored["path_used"],
+                "video_id": video_id,
+                "method": meta.get("method", ""),
+            })
+            handle.flush()
+
+            if done % progress_every == 0 or done == total:
+                elapsed = time.time() - started
+                rate = done / elapsed if elapsed > 0 else 0.0
+                eta = (total - done) / rate if rate > 0 else 0.0
+                print(f"[PROGRESS] {done}/{total} scored | elapsed {_hms(elapsed)} | "
+                      f"ETA {_hms(eta)}")
+
+        if skipped_by_cap:
+            print(f"[INFO] Skipped {skipped_by_cap} frame(s) above the "
+                  f"--max-frames-per-video cap of {max_frames_per_video}.")
+    finally:
+        handle.close()
+
+    if skipped_done:
+        print(f"[INFO] {skipped_done} image(s) were already scored in an earlier run.")
+    return read_results(csv_path)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -297,6 +477,12 @@ def main():
         type=int,
         default=8,
         help="Evaluate at most this many frames per video. Caps RD cost. Needs a manifest.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue an interrupted run: keep the rows already in results.csv "
+             "and score only the images missing from it.",
     )
     args = parser.parse_args()
 
@@ -344,85 +530,40 @@ def main():
     print(f"[INFO] Engines: {args.engines}")
     pipeline = _load_pipeline(args.engines)
 
-    results = []          # list of dicts
-    y_true_list: List[int] = []
-    y_pred_list: List[float] = []
-    seen_videos: Dict[str, int] = defaultdict(int)
-    skipped_by_cap = 0
-
-    for img_path, label in files:
-        row = lookup_manifest(manifest, img_path)
-        video_id = row.get("video_id", "")
-
-        # Cap frames per video so a RD run stays within quota.
-        if video_id:
-            if seen_videos[video_id] >= args.max_frames_per_video:
-                skipped_by_cap += 1
-                continue
-            seen_videos[video_id] += 1
-
-        try:
-            result = pipeline.process(str(img_path))
-            # fakeProbability is 0-100; normalise to [0, 1]
-            score = result.get("fakeProbability", 50.0) / 100.0
-            verdict = result.get("verdict", "UNKNOWN")
-            path_used = classify_path_used(result)
-            local_score = result.get("local_fake_probability")
-            rd_score = result.get("rd_fake_probability")
-            rd_status = result.get("rd_status", "not_run")
-        except Exception as exc:
-            print(f"[WARN] {img_path.name}: pipeline error – {exc}", file=sys.stderr)
-            score = 0.5
-            verdict = "ERROR"
-            path_used = "error"
-            local_score = None
-            rd_score = None
-            rd_status = "error"
-
-        results.append({
-            "file": img_path.name,
-            "label": label,
-            "score": score,
-            "local_score": "" if local_score is None else round(float(local_score), 6),
-            "rd_score": "" if rd_score is None else round(float(rd_score), 6),
-            "rd_status": rd_status,
-            "verdict": verdict,
-            "path_used": path_used,
-            "video_id": video_id,
-            "method": row.get("method", ""),
-        })
-        y_true_list.append(label)
-        y_pred_list.append(score)
-
-    if skipped_by_cap:
-        print(f"[INFO] Skipped {skipped_by_cap} frame(s) above the "
-              f"--max-frames-per-video cap of {args.max_frames_per_video}.")
-
-    # Write CSV
-    csv_path = root / "results.csv"
-    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(
-            fh,
-            fieldnames=["file", "label", "score", "local_score", "rd_score", "rd_status",
-                        "verdict", "path_used", "video_id", "method"],
-        )
-        writer.writeheader()
-        writer.writerows(results)
-    print(f"[INFO] Results written to {csv_path}")
+    results = run_evaluation(
+        files=files,
+        manifest=manifest,
+        pipeline=pipeline,
+        csv_path=root / "results.csv",
+        max_frames_per_video=args.max_frames_per_video,
+        resume=args.resume,
+    )
+    print(f"[INFO] Results in {root / 'results.csv'} ({len(results)} row(s))")
     print(f"[INFO] Threshold applied: {threshold:.4f}")
 
+    report_metrics(results, threshold)
+
+
+def report_metrics(results: List[Dict], threshold: float) -> None:
+    """Print every metric block for a set of result rows.
+
+    Kept separate from the evaluation loop so the reporting can be exercised
+    directly on rows read back from results.csv.
+    """
     # -----------------------------------------------------------------------
     # Frame-level metrics (correlated: frames of one video are not independent)
     # -----------------------------------------------------------------------
-    frame_block = _metric_block(y_true_list, y_pred_list, threshold)
+    frame_block = _metric_block([r["label"] for r in results],
+                                [r["score"] for r in results], threshold)
     print()
     print("=" * 56)
     print("  FRAME-LEVEL METRICS")
     print("=" * 56)
-    print(f"  Files evaluated : {len(files)}")
+    print(f"  Rows in results.csv : {len(results)}")
     _print_metric_block("all frames", frame_block)
     print("  NOTE: frames from one video are correlated, so these numbers are")
     print("        optimistic. Use the video-level block below for reporting.")
+
 
     # -----------------------------------------------------------------------
     # Path used: face vs fallback

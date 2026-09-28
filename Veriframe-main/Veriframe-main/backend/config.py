@@ -14,13 +14,19 @@ class Config:
     GEMINI_API_KEY: str = ""
     INPUT_SIZE: tuple = (224, 224)
 
-    MAX_FRAMES: int = 40
     TARGET_FRAMES: int = 100
+    MAX_FRAMES: int = 120
     MIN_FACE_SIZE: int = 20
-    BLUR_VAR_THRESHOLD: float = 60.0        # Relaxed for compressed/downloaded videos
-    BRIGHTNESS_MIN: float = 10.0
+
+    # DIAGNOSTIC THRESHOLDS - Lowered to debug frame loss issue
+    # Original: BLUR_VAR_THRESHOLD: float = 60.0
+    # Original: BRIGHTNESS_MIN: float = 10.0
+    # Original: FACE_SIZE_RATIO_MIN: float = 0.02
+    # Original: QUALITY_SCORE_THRESHOLD: float = 0.4
+    BLUR_VAR_THRESHOLD: float = 30.0
+    BRIGHTNESS_MIN: float = 5.0
     BRIGHTNESS_MAX: float = 245.0
-    FACE_SIZE_RATIO_MIN: float = 0.02
+    FACE_SIZE_RATIO_MIN: float = 0.01
     FACE_SIZE_RATIO_MAX: float = 0.95
     HEAD_PITCH_THRESHOLD: float = 30.0
     HEAD_YAW_THRESHOLD: float = 30.0

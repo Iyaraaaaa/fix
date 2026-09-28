@@ -13,7 +13,7 @@ import base64
 import logging
 import io
 from urllib.parse import urlparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 from typing import Dict, Any, Optional
 import requests
 from starlette.concurrency import run_in_threadpool
@@ -417,7 +417,45 @@ def download_and_verify_task(job_id: str, url: str):
 
         jobs_db[job_id]["status"] = "downloading"
         jobs_db[job_id]["progress"] = 0.1
-        result = link_pipeline.process(url, source="Video Link", status_cb=_on_status)
+
+        # Safety-net: hard wall-clock timeout around the entire pipeline so a
+        # hung yt-dlp/analysis can never leave the job stuck in "downloading".
+        # The download step already enforces URL_DOWNLOAD_TIMEOUT; this margin
+        # covers frame extraction + inference.
+        overall_timeout = app_config.URL_DOWNLOAD_TIMEOUT + 180
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(link_pipeline.process, url, source="Video Link", status_cb=_on_status)
+            try:
+                result = future.result(timeout=overall_timeout)
+            except FuturesTimeoutError:
+                logger.error(
+                    f"[download_and_verify_task] job_id={job_id} pipeline exceeded "
+                    f"{overall_timeout}s wall-clock limit for URL: {url}"
+                )
+                jobs_db[job_id]["status"] = "failed"
+                jobs_db[job_id]["error"] = (
+                    f"Analysis timed out after {overall_timeout}s. The video may be "
+                    f"too large, the server may be under heavy load, or the platform "
+                    f"is blocking automated downloads. Try a direct video link or "
+                    f"upload the file directly."
+                )
+                return
+
+        # If the pipeline returned a failed report (download blocked, media
+        # decode error, etc.) propagate it as a "failed" job so the UI surfaces
+        # a clear error instead of an INCONCLUSIVE verdict with all-zero scores.
+        failed_statuses = ("DOWNLOAD_FAILED", "PROCESSING_ERROR", "UNSUPPORTED")
+        if result.get("analysis_status") in failed_statuses or result.get("video_retrieved") is False:
+            reason = result.get("reason") or "Unable to retrieve the video from this link."
+            jobs_db[job_id]["result"] = result
+            jobs_db[job_id]["progress"] = 1.0
+            jobs_db[job_id]["status"] = "failed"
+            jobs_db[job_id]["error"] = reason
+            logger.warning(
+                f"[download_and_verify_task] job_id={job_id} link verification failed: "
+                f"{result.get('analysis_status')} — {reason}"
+            )
+            return
 
         # Append Gemini AI forensic explanation to result
         try:

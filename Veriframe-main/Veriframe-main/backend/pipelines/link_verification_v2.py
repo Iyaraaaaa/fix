@@ -9,6 +9,7 @@ import requests
 import base64
 from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from config import config as app_config
 from detectors.face_detector import FaceDetector, FaceDetectionResult
@@ -145,6 +146,7 @@ class LinkVerificationV2:
             _emit("extracting", 0.45)
             frame_indices = self.extract_frames(video_path, media_meta["duration"], media_meta["frame_count"])
             logger.info(f"[LinkV2] Extracted {len(frame_indices)} frame indices for timeline duration {media_meta['duration']:.1f}s")
+            logger.info(f"[DEBUG] Sampled frame indices: {frame_indices}")
 
             # 6 & 7. Frame Extraction, Face Detection & Full-Scene Forensics
             _emit("detecting", 0.60)
@@ -153,6 +155,12 @@ class LinkVerificationV2:
             raw_scene_frames = detection_res.get("raw_scene_frames", [])
             total_faces_detected = detection_res["total_faces_detected"]
             face_boxes = detection_res["boxes"]
+
+            logger.info(f"[DEBUG] Frames sampled: {len(frame_indices)}")
+            logger.info(f"[DEBUG] Frames with faces detected: {len(raw_scene_frames)}")
+            logger.info(f"[DEBUG] Total faces detected: {total_faces_detected}")
+            logger.info(f"[DEBUG] Valid faces passing quality filter: {len(valid_face_crops)}")
+            logger.info(f"[DEBUG] Frames sent to model: {len(valid_face_crops)}")
 
             if not valid_face_crops and not raw_scene_frames:
                 logger.info("[LinkV2] No usable faces or frames detected. Returning INCONCLUSIVE report.")
@@ -243,12 +251,37 @@ class LinkVerificationV2:
             _emit("completed", 1.0)
             logger.info(f"[LinkV2] Completed successfully in {processing_time}s. Verdict: {fine_verdict} ({aggregated_prob:.4f})")
 
-            face_detectors = detection_res.get("detectors", [])
-            face_detector_used = (
-                face_detectors[0] if face_detectors else (
-                    self.face_detector.loaded_detectors[0].lower() if getattr(self.face_detector, "loaded_detectors", None) else "none"
-                )
+            # Build suspicious frames list from actual model outputs
+            suspicious_frames = []
+            if valid_face_crops and 'raw_scores' in locals():
+                for i, score in enumerate(raw_scores):
+                    if score >= 0.50:  # Frames displaying elevated fake probability
+                        f_idx = frame_indices[i] if i < len(frame_indices) else i
+                        suspicious_frames.append({
+                            "frameNo": int(f_idx),
+                            "faceConfidence": round(float(tracking_confidence), 1),
+                            "fakeProbability": round(float(score * 100.0), 1),
+                        })
+
+            face_detection_rate = (
+                round((len(valid_face_crops) / max(1, len(frame_indices))) * 100.0, 1)
+                if len(frame_indices) > 0 else 0.0
             )
+
+            dur_sec = int(media_meta.get("duration", 0))
+            video_length_str = f"{dur_sec // 60}:{dur_sec % 60:02d}"
+            res_str = f"{int(media_meta.get('width', 0))}x{int(media_meta.get('height', 0))}"
+            now_clock = time.strftime("%H:%M:%S", time.localtime())
+
+            timeline_logs = [
+                f"{now_clock} - URL verified ({url_sec['domain']})",
+                f"{now_clock} - Platform detected ({url_sec['platform']})",
+                f"{now_clock} - Video downloaded ({content_length_mb:.2f} MB in {download_time_sec}s)",
+                f"{now_clock} - Keyframes extracted ({len(frame_indices)} frames @ {res_str})",
+                f"{now_clock} - Biometric analysis ({len(valid_face_crops)} verified face regions)",
+                f"{now_clock} - AI neural evaluation completed in {processing_time}s",
+                f"{now_clock} - Final verdict: {fine_verdict}"
+            ]
 
             return {
                 # Legacy / standard API contract fields
@@ -276,6 +309,7 @@ class LinkVerificationV2:
                 "forensicObservations": forensic_observations,
                 "reportHash": video_hash,
                 "framesAnalyzed": len(frame_indices),
+                "framesAnalysedCount": len(frame_indices),
                 "framesSkipped": len(frame_indices) - len(valid_face_crops) if valid_face_crops else 0,
                 "downloadTimeSec": download_time_sec,
                 "processingTimeSec": processing_time,
@@ -286,6 +320,15 @@ class LinkVerificationV2:
                 "scene_forensics": scene_eval,
                 "confidence_label": "High" if confidence_val >= 80.0 else ("Medium" if confidence_val >= 60.0 else "Low"),
                 "thumbnailBase64": thumbnail_base64,
+
+                # Frontend Direct Binding Fields
+                "platform": url_sec["platform"],
+                "videoLength": video_length_str,
+                "resolution": res_str,
+                "faceDetectionRate": face_detection_rate,
+                "suspiciousFrames": suspicious_frames,
+                "suspiciousFramesCount": len(suspicious_frames),
+                "timelineLogs": timeline_logs,
 
                 # V2 Clean Specification fields
                 "source_type": "link",
@@ -340,11 +383,14 @@ class LinkVerificationV2:
             "status": "PASS" if (scheme in ("http", "https") and domain) else "INVALID_URL"
         }
 
-    def download_video(self, url: str, platform: str, timeout: int = 120) -> Dict[str, Any]:
+    def download_video(self, url: str, platform: str, timeout: int = None) -> Dict[str, Any]:
         """
         Stages 2 & 3: Video Resolution & Stream Downloading.
         Uses yt-dlp for social media links, direct HTTP streaming for raw/CDN links.
+        Enforces a hard wall-clock timeout via URL_DOWNLOAD_TIMEOUT.
         """
+        if timeout is None:
+            timeout = app_config.URL_DOWNLOAD_TIMEOUT
         if self._is_social_media_url(url):
             return self._download_via_ytdlp(url, timeout=timeout)
         else:
@@ -547,8 +593,16 @@ class LinkVerificationV2:
         except Exception:
             return False
 
-    def _download_via_ytdlp(self, url: str, timeout: int = 120) -> Dict[str, Any]:
-        """Download video from social media URL using yt-dlp."""
+    def _download_via_ytdlp(self, url: str, timeout: int = None) -> Dict[str, Any]:
+        """Download video from social media URL using yt-dlp.
+
+        A hard wall-clock timeout (URL_DOWNLOAD_TIMEOUT) is enforced via a
+        ThreadPoolExecutor so that yt-dlp cannot hang indefinitely on bot-detection
+        pages (e.g. YouTube's "Sign in to confirm you're not a bot" 403 response)
+        or slow/retrying extractions.
+        """
+        if timeout is None:
+            timeout = app_config.URL_DOWNLOAD_TIMEOUT
         import yt_dlp
         import glob
 
@@ -562,41 +616,87 @@ class LinkVerificationV2:
             "no_warnings": True,
             "socket_timeout": timeout,
             "noprogress": True,
+            "retries": 3,
+            "fragment_retries": 3,
             "extractor_args": {"youtube": {"player_client": ["ios", "android", "web", "mweb"]}},
         }
 
-        downloaded_path = None
-        try:
+        def _run_yt_dlp():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 video_id = info.get("id", "")
                 candidate = ydl.prepare_filename(info)
                 if os.path.exists(candidate):
-                    downloaded_path = candidate
-                else:
-                    for ext in (".mp4", ".webm", ".mkv", ".mov", ".m4a"):
-                        c = os.path.join(tmp_dir, f"vrf_v2_{video_id}{ext}")
-                        if os.path.exists(c):
-                            downloaded_path = c
-                            break
-                    if not downloaded_path:
-                        recent = sorted(
-                            glob.glob(os.path.join(tmp_dir, "vrf_v2_*")),
-                            key=os.path.getmtime, reverse=True
-                        )
-                        if recent:
-                            downloaded_path = recent[0]
+                    return candidate, video_id
+                for ext in (".mp4", ".webm", ".mkv", ".mov", ".m4a"):
+                    c = os.path.join(tmp_dir, f"vrf_v2_{video_id}{ext}")
+                    if os.path.exists(c):
+                        return c, video_id
+                recent = sorted(
+                    glob.glob(os.path.join(tmp_dir, "vrf_v2_*")),
+                    key=os.path.getmtime, reverse=True,
+                )
+                if recent:
+                    return recent[0], video_id
+                return None, video_id
 
-            if not downloaded_path or not os.path.exists(downloaded_path):
-                return {"success": False, "video_path": None, "content_length_mb": 0.0, "reason": "yt-dlp download target not found on disk."}
-
-            size_mb = os.path.getsize(downloaded_path) / (1024.0 * 1024.0)
-            return {"success": True, "video_path": downloaded_path, "content_length_mb": round(size_mb, 2), "reason": None}
+        downloaded_path = None
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_run_yt_dlp)
+                try:
+                    downloaded_path, _ = future.result(timeout=timeout)
+                except FuturesTimeoutError:
+                    logger.warning(
+                        f"[LinkV2] yt-dlp download exceeded hard timeout of "
+                        f"{timeout}s for URL: {url}"
+                    )
+                    return {
+                        "success": False,
+                        "video_path": None,
+                        "content_length_mb": 0.0,
+                        "reason": (
+                            f"Download timed out after {timeout}s. The platform "
+                            f"may be blocking automated downloads (bot-detection "
+                            f"page or geo-restricted stream). Try a direct video "
+                            f"link or upload the file directly."
+                        ),
+                    }
         except Exception as e:
             return {"success": False, "video_path": None, "content_length_mb": 0.0, "reason": str(e)}
 
-    def _download_via_requests(self, url: str, timeout: int = 120) -> Dict[str, Any]:
+        # SUCCESS PATH
+        if downloaded_path and os.path.exists(downloaded_path):
+            size_mb = os.path.getsize(downloaded_path) / (1024.0 * 1024.0)
+            if size_mb < 0.001:
+                try:
+                    os.remove(downloaded_path)
+                except Exception:
+                    pass
+                return {
+                    "success": False,
+                    "video_path": None,
+                    "content_length_mb": 0.0,
+                    "reason": "Downloaded media file size is 0 bytes."
+                }
+            return {
+                "success": True,
+                "video_path": downloaded_path,
+                "content_length_mb": round(size_mb, 2),
+                "reason": "Video downloaded successfully"
+            }
+
+        return {
+            "success": False,
+            "video_path": None,
+            "content_length_mb": 0.0,
+            "reason": "Video download completed but output file was not found"
+        }
+
+    def _download_via_requests(self, url: str, timeout: int = None) -> Dict[str, Any]:
         """Download direct media stream via HTTP."""
+        if timeout is None:
+            timeout = app_config.URL_DOWNLOAD_TIMEOUT
         parsed = urlparse(url)
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
@@ -667,19 +767,27 @@ class LinkVerificationV2:
             reason,
         ]
 
+        now_clock = time.strftime("%H:%M:%S", time.localtime())
+        timeline_logs = [
+            f"{now_clock} - URL checked ({url_sec.get('domain', 'URL')})",
+            f"{now_clock} - Platform detected ({url_sec.get('platform', 'Web')})",
+            f"{now_clock} - Analysis status: {analysis_status}",
+            f"{now_clock} - Diagnostic: {reason}",
+        ]
+
         return {
             "verificationId": f"VRF-LNK-V2-{int(time.time() * 1000)}",
             "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "mediaType": "application/x-url",
             "source": f"URL Verification Engine ({url_sec['domain']})",
-            "authenticityScore": None,
-            "fakeProbability": None,
+            "authenticityScore": 0.0,
+            "fakeProbability": 0.0,
             "confidence": 0.0,
             "metadataScore": 0.0,
             "frameConsistency": 0.0,
             "ocrConfidence": 0.0,
             "trackingConfidence": 0.0,
-            "manipulationScore": None,
+            "manipulationScore": 0.0,
             "verdict": verdict,
             "fineVerdict": "INCONCLUSIVE",
             "riskLevel": "UNKNOWN",
@@ -693,13 +801,23 @@ class LinkVerificationV2:
             "forensicObservations": forensic_observations,
             "reportHash": url_hash,
             "framesAnalyzed": frames_analyzed,
+            "framesAnalysedCount": frames_analyzed,
             "framesSkipped": 0,
             "downloadTimeSec": download_time,
             "processingTimeSec": processing_time,
-            "averageScore": None,
+            "averageScore": 0.0,
             "inferenceTimeMs": 0.0,
             "is_fake": False,
             "confidence_label": "Low",
+
+            # Frontend Direct Binding Fields
+            "platform": url_sec.get("platform", "Web"),
+            "videoLength": "N/A",
+            "resolution": "N/A",
+            "faceDetectionRate": 0.0,
+            "suspiciousFrames": [],
+            "suspiciousFramesCount": 0,
+            "timelineLogs": timeline_logs,
 
             # Clean Specification Fields
             "source_type": "link",
@@ -707,8 +825,8 @@ class LinkVerificationV2:
             "frames_analyzed": frames_analyzed,
             "faces_detected": faces_detected,
             "valid_faces": valid_faces,
-            "raw_model_probability": None,
-            "aggregated_probability": None,
+            "raw_model_probability": 0.0,
+            "aggregated_probability": 0.0,
             "verdict": "INCONCLUSIVE",
             "analysis_status": analysis_status,
             "reason": reason,

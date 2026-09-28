@@ -669,6 +669,22 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           if (results.isEmpty) {
             throw Exception("Link analysis returned empty results.");
           }
+          // Defensive: backend may still return "completed" with a download
+          // failure result (e.g. if the safety-net timeout path was taken).
+          final analysisStatus = results['analysis_status']?.toString() ?? '';
+          final videoRetrieved = results['video_retrieved'] as bool? ?? true;
+          if (analysisStatus == 'DOWNLOAD_FAILED' ||
+              analysisStatus == 'PROCESSING_ERROR' ||
+              !videoRetrieved) {
+            if (mounted) {
+              setState(() {
+                _isAnalyzing = false;
+                _errorMessage = results['reason'] ??
+                    'Unable to retrieve video from this link. The platform may be blocking automated downloads.';
+              });
+            }
+            return;
+          }
           final linkResult = VerificationResult.fromJson(results);
           final linkVerdict = linkResult.verdict.toLowerCase();
           final linkModelUsed = linkResult.forensicObservations.isNotEmpty
@@ -697,10 +713,20 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
             frameConsistency: linkResult.frameConsistency,
             trackingConfidence: linkResult.trackingConfidence,
             processingTimeSec: linkResult.processingTimeSec,
+            faceDetectionRate: linkResult.faceDetectionRate,
+            detectedEvidence: linkResult.detectedEvidence,
+            forensicObservations: linkResult.forensicObservations,
           );
         } else if (status == 'failed') {
           timer.cancel();
-          throw Exception(res['error'] ?? "Forensic server failed to process link.");
+          if (mounted) {
+            setState(() {
+              _isAnalyzing = false;
+              _errorMessage = res['error'] ??
+                  (res['result']?['reason'] ?? 'Forensic server failed to process link.');
+            });
+          }
+          return;
         }
       } catch (e) {
         consecutiveErrors++;
@@ -942,6 +968,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     double? frameConsistency,
     double? trackingConfidence,
     double? processingTimeSec,
+    double? faceDetectionRate,
+    List<String>? detectedEvidence,
+    List<String>? forensicObservations,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
@@ -1027,20 +1056,26 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               ? 'MEDIUM'
               : (finalVerdict == 'AUTHENTIC' ? 'LOW' : 'HIGH')),
       processingTimeSec: processingTimeSec,
-      detectedEvidence: finalVerdict == 'UNVERIFIED'
-          ? ['AI neural network inference unavailable or no valid face predictions obtained.']
-          : (finalVerdict == 'AUTHENTIC'
-              ? []
-              : [
-                  'Biometric inconsistency detected across temporal frames.',
-                  'Face texture anomalies detected in classified regions.',
-                ]),
-      forensicObservations: [
-        'TFLite deep-learning classifier output: $prediction (${fakeProbability.toStringAsFixed(1)}% confidence).',
-        'Frame consistency score: ${derivedFrameConsistency.toStringAsFixed(1)}%.',
-        'Biometric tracking stability: ${derivedTrackingConfidence.toStringAsFixed(1)}%.',
-        explanation,
-      ],
+      faceDetectionRate: faceDetectionRate,
+      suspiciousFramesCount: suspiciousFrames?.length,
+      detectedEvidence: (detectedEvidence != null && detectedEvidence.isNotEmpty)
+          ? detectedEvidence
+          : (finalVerdict == 'UNVERIFIED'
+              ? ['AI neural network inference unavailable or no valid face predictions obtained.']
+              : (finalVerdict == 'AUTHENTIC'
+                  ? ['Optical textures display genuine camera sensor noise and natural motion gradients.']
+                  : [
+                      'Biometric inconsistency detected across temporal frames.',
+                      'Face texture anomalies detected in classified regions.',
+                    ])),
+      forensicObservations: (forensicObservations != null && forensicObservations.isNotEmpty)
+          ? forensicObservations
+          : [
+              'TFLite deep-learning classifier output: $prediction (${fakeProbability.toStringAsFixed(1)}% confidence).',
+              'Frame consistency score: ${derivedFrameConsistency.toStringAsFixed(1)}%.',
+              'Biometric tracking stability: ${derivedTrackingConfidence.toStringAsFixed(1)}%.',
+              explanation,
+            ],
       reportHash: reportId.hashCode.toRadixString(16).padLeft(16, '0'),
       mediaPath: videoPath.isEmpty ? null : videoPath,
       mediaName: videoName,

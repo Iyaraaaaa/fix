@@ -21,6 +21,7 @@ import 'package:veriframe_app/theme/app_theme.dart';
 import 'package:veriframe_app/utils/navigator_key.dart';
 import 'package:veriframe_app/screens/video_link_verification_page.dart';
 import 'package:veriframe_app/screens/download_analysis_page.dart';
+import 'package:veriframe_app/screens/media_modality_selection_page.dart';
 import 'package:veriframe_app/widgets/error_screen.dart';
 
 Future<void> _initializeApp() async {
@@ -92,6 +93,9 @@ class MyApp extends StatelessWidget {
             '/download_analysis': (context) => DownloadAnalysisPage(
               videoUrl: ModalRoute.of(context)?.settings.arguments as String? ?? '',
             ),
+            '/media_selection': (_) => const MediaModalitySelectionPage(),
+            '/modality_selection': (_) => const MediaModalitySelectionPage(),
+            '/model_selection': (_) => const MediaModalitySelectionPage(),
           },
         ),
       ),
