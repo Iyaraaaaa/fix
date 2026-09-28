@@ -587,6 +587,13 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           suspiciousFrames: result.suspiciousFrames,
           timelineLogs: result.timelineLogs,
           framesAnalysedCount: result.framesAnalysedCount,
+          faceDetectionRate: result.faceDetectionRate,
+          detectedEvidence: result.detectedEvidence,
+          forensicObservations: result.forensicObservations,
+          confidence: result.confidence,
+          frameConsistency: result.frameConsistency,
+          trackingConfidence: result.trackingConfidence,
+          processingTimeSec: result.processingTimeSec,
         );
       } catch (e) {
         if (mounted) {
@@ -1880,7 +1887,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
-                      hintText: 'Paste your ${_selectedPlatform} link here...',
+                      hintText: 'Paste your $_selectedPlatform link here...',
                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
                     ),
                   ),
@@ -2741,110 +2748,96 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     final isLinkResult = _activeTab == 1 || result.platform != null || (result.videoUrl != null && result.videoUrl!.isNotEmpty) || result.source.contains('Link');
 
     if (isLinkResult) {
-      final consistentScore = isReal ? result.authenticityScore : result.fakeProbability;
-
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: _vp.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _vp.borderBright),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'LINK VERIFICATION RESULT',
-                  style: TextStyle(color: _vp.textMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                ),
-                const SizedBox(height: 20),
-                LinkCircularConfidenceGauge(
-                  verdict: result.verdict,
-                  confidenceScore: consistentScore,
-                ),
-],
-        ),
-      ),
+          // 1. Video Platform & Metadata Header
+          LinkVideoHeaderCard(result: result),
 
-      // Forensic Metrics Dashboard
-      LinkForensicDashboard(result: result),
+          // 2. Verdict Hero & Dual Authenticity Meter
+          LinkVerdictHeroCard(result: result),
 
-          // Suspicious Frames Gallery
-          if (result.suspiciousFrames != null && result.suspiciousFrames!.isNotEmpty)
-            SuspiciousFramesGallery(suspiciousFrames: result.suspiciousFrames!)
-          else if (!isReal)
-            const SuspiciousFramesGallery(suspiciousFrames: [
-              {'frameNo': 18, 'faceConfidence': 98.0, 'fakeProbability': 91.0},
-              {'frameNo': 42, 'faceConfidence': 96.0, 'fakeProbability': 94.0},
-              {'frameNo': 56, 'faceConfidence': 97.0, 'fakeProbability': 96.0},
-            ]),
+          // 3. Forensic Diagnostics Dashboard (Real Metrics)
+          LinkForensicDashboard(result: result),
 
-          // AI Analysis Checklist Section
-          Container(
-            margin: const EdgeInsets.only(top: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _vp.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _vp.borderBright),
+          // 4. Suspicious Frames Gallery (or Reassuring Clean Audit)
+          SuspiciousFramesGallery(suspiciousFrames: result.suspiciousFrames ?? []),
+
+          // 5. Forensic Observations & Evidence
+          if (result.forensicObservations.isNotEmpty || result.detectedEvidence.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: _vp.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _vp.borderBright, width: 1.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.security_rounded, color: Color(0xFF0284C7), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Forensic Observations & Evidence',
+                        style: TextStyle(color: _vp.text, fontSize: 14.5, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (result.detectedEvidence.isNotEmpty) ...[
+                    ...result.detectedEvidence.map((ev) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            isReal ? Icons.check_circle_outline_rounded : Icons.report_problem_outlined,
+                            size: 16,
+                            color: isReal ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ev,
+                              style: TextStyle(color: _vp.text, fontSize: 12.5, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 8),
+                  ],
+                  ...result.forensicObservations.map((obs) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('• ', style: TextStyle(color: _vp.textMuted, fontSize: 13, fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text(
+                            obs,
+                            style: TextStyle(color: _vp.textMuted, fontSize: 12, height: 1.3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AI Forensic Checklist',
-                  style: TextStyle(color: _vp.text, fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                _buildChecklistItem('Face Consistency', isReal),
-                _buildChecklistItem('Temporal Consistency', isReal),
-                _buildChecklistItem('Compression Analysis', true),
-                _buildChecklistItem('Frame Integrity', isReal),
-              ],
-            ),
+
+          // 6. Chronological Audit Log
+          LinkProcessingTimelineLog(
+            logs: (result.timelineLogs != null && result.timelineLogs!.isNotEmpty)
+                ? result.timelineLogs!
+                : [
+                    '${DateFormat("HH:mm:ss").format(result.verifiedAt)} - Link verification completed',
+                    '${DateFormat("HH:mm:ss").format(result.verifiedAt)} - Cryptographic report hash: ${result.reportHash.substring(0, result.reportHash.length.clamp(0, 16))}...',
+                  ],
           ),
-
-          // AI Summary Explanation Section
-          Container(
-            margin: const EdgeInsets.only(top: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _vp.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _vp.borderBright),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AI Forensic Summary',
-                  style: TextStyle(color: _vp.text, fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text('• ${result.framesAnalysedCount ?? 64} frames analysed', style: TextStyle(color: _vp.textMuted, fontSize: 12)),
-                Text('• ${isReal ? "0" : "3"} frames showed abnormal facial inconsistencies', style: TextStyle(color: _vp.textMuted, fontSize: 12)),
-                Text('• ${isReal ? "Facial alignment matched across frames" : "Mouth movement mismatch detected"}', style: TextStyle(color: _vp.textMuted, fontSize: 12)),
-                Text('• ${isReal ? "Blinking rate natural" : "Eye blinking pattern inconsistent"}', style: TextStyle(color: _vp.textMuted, fontSize: 12)),
-                const SizedBox(height: 8),
-                Text('Overall Confidence: ${result.confidence.toStringAsFixed(1)}%', style: TextStyle(color: _vp.text, fontSize: 12, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-
-          // Processing Timeline Log
-          if (result.timelineLogs != null && result.timelineLogs!.isNotEmpty)
-            LinkProcessingTimelineLog(logs: result.timelineLogs!)
-          else
-            LinkProcessingTimelineLog(logs: [
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - URL validated',
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - Platform detected (${result.platform ?? "YouTube"})',
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - Video downloaded',
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - Frames extracted',
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - AI inference started',
-              '${DateFormat("HH:mm:ss").format(DateTime.now())} - Report generated',
-            ]),
 
           const SizedBox(height: 20),
           Row(
@@ -3087,32 +3080,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         ),
       ],
     );
-  }
-
-  Widget _buildChecklistItem(String title, bool isPassed) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            isPassed ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            size: 16,
-            color: isPassed ? const Color(0xFF00E896) : const Color(0xFFFF3B5C),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              color: isPassed ? _vp.text : const Color(0xFFFF3B5C),
-              fontSize: 12,
-              fontWeight: isPassed ? FontWeight.normal : FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+} // end _VerifyPageState
+
 
 // Custom Deepfake probability chart builder
 class DeepfakeGraph extends StatelessWidget {

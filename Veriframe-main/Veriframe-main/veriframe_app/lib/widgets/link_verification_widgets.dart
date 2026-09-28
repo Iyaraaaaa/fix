@@ -1,6 +1,4 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -474,7 +472,7 @@ class LinkVerdictHeroCard extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                isUnverified ? 'N/A' : '${displayScore.toStringAsFixed(1)}',
+                isUnverified ? 'N/A' : displayScore.toStringAsFixed(1),
                 style: TextStyle(
                   fontSize: 52,
                   fontWeight: FontWeight.w900,
@@ -854,7 +852,7 @@ class LinkProcessingTimelineLog extends StatelessWidget {
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
     final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-    final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
 
     if (logs.isEmpty) return const SizedBox.shrink();
 
