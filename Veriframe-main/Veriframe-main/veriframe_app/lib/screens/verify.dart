@@ -738,12 +738,16 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       } catch (e) {
         consecutiveErrors++;
         debugPrint('[VerifyPage] Poll error (attempt $consecutiveErrors): $e');
-        if (consecutiveErrors >= 5) {
+        if (consecutiveErrors >= 15) {
           timer.cancel();
           if (mounted) {
+            final rawErr = e.toString().replaceAll('Exception: ', '').trim();
+            final friendlyErr = rawErr.contains('Failed to retrieve analysis status')
+                ? 'Backend server lost connection or restarted during analysis. Please try again or upload the video directly.'
+                : rawErr;
             setState(() {
               _isAnalyzing = false;
-              _errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+              _errorMessage = friendlyErr;
             });
           }
         }

@@ -114,11 +114,17 @@ class VerifyBackendService {
   Future<bool> isBackendAvailable(String baseUrl) async {
     if (baseUrl.isEmpty) return false;
     try {
-      final uri = Uri.parse(baseUrl);
-      final response = await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 4));
+      final uri = Uri.parse('$baseUrl/health');
+      final response = await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 15));
       return response.statusCode == 200 || response.statusCode == 404;
     } catch (_) {
-      return false;
+      try {
+        final rootUri = Uri.parse(baseUrl);
+        final response = await _client.get(rootUri, headers: _headers()).timeout(const Duration(seconds: 8));
+        return response.statusCode == 200 || response.statusCode == 404;
+      } catch (_) {
+        return false;
+      }
     }
   }
 
