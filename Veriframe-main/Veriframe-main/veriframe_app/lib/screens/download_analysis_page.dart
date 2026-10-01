@@ -1,5 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:veriframe_app/models/notification_model.dart';
+import 'package:veriframe_app/provider/verification_notifier.dart';
 import 'package:veriframe_app/service/engines/link_verification_engine.dart';
+import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
 import 'package:veriframe_app/screens/report_detail_screen.dart' show ReportDetailPage;
 
@@ -17,16 +23,16 @@ class TimelineStep {
   });
 }
 
-class DownloadAnalysisPage extends StatefulWidget {
+class DownloadAnalysisPage extends ConsumerStatefulWidget {
   final String videoUrl;
 
   const DownloadAnalysisPage({super.key, required this.videoUrl});
 
   @override
-  State<DownloadAnalysisPage> createState() => _DownloadAnalysisPageState();
+  ConsumerState<DownloadAnalysisPage> createState() => _DownloadAnalysisPageState();
 }
 
-class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
+class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
     with SingleTickerProviderStateMixin {
   double currentProgress = 0.0;
   int currentStageIndex = 0;
@@ -105,6 +111,55 @@ class _DownloadAnalysisPageState extends State<DownloadAnalysisPage>
           steps[i].status = TimelineStatus.completed;
         }
       });
+
+      // Save to forensic repository and trigger notification
+      try {
+        await ref.read(verificationRepositoryProvider).saveResult(result);
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final notifId = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('notifications')
+              .doc()
+              .id;
+          final isAuthentic = result.verdict.toUpperCase() == 'AUTHENTIC';
+          final score = isAuthentic ? result.authenticityScore : result.fakeProbability;
+          final mediaLabel = result.mediaName?.isNotEmpty == true
+              ? result.mediaName!
+              : (widget.videoUrl.length > 50
+                  ? '${widget.videoUrl.substring(0, 47)}...'
+                  : widget.videoUrl);
+
+          final notification = NotificationModel(
+            id: notifId,
+            title: 'VeriFrame — Link Verification Complete',
+            message:
+                'Analysis complete. Verdict: ${result.verdict}. '
+                '${isAuthentic ? 'Authenticity' : 'Manipulation'}: '
+                '${score.toStringAsFixed(1)}%. Tap to view report.',
+            type: 'verification_completed',
+            reportId: result.verificationId,
+            createdAt: DateTime.now(),
+            isRead: false,
+            score: score,
+            prediction: isAuthentic ? 'REAL' : 'FAKE',
+            videoName: mediaLabel,
+          );
+
+          await NotificationService.instance.createNotification(uid, notification);
+          await NotificationService.instance.showLocalNotification(
+            id: notifId.hashCode,
+            title: 'VeriFrame — Link Verification Complete',
+            body:
+                '${result.verdict}: ${score.toStringAsFixed(1)}% '
+                '${isAuthentic ? 'authentic' : 'manipulated'}. Tap to view report.',
+            payload: result.verificationId,
+          );
+        }
+      } catch (e) {
+        debugPrint('[DownloadAnalysisPage] Failed to save result or notify: $e');
+      }
 
       // Auto-navigate to report after a brief pause
       await Future.delayed(const Duration(milliseconds: 600));

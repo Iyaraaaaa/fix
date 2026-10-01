@@ -1771,7 +1771,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get reportsTitle => 'Forensic reports';
 
   @override
-  String get reportsHistoryTitle => 'Video history';
+  String get reportsHistoryTitle => 'Media history';
 
   @override
   String get reportsHistorySubtitle => 'History of media Verification';

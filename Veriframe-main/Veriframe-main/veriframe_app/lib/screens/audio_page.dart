@@ -1,17 +1,25 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:veriframe_app/models/notification_model.dart';
+import 'package:veriframe_app/models/verification_result.dart';
+import 'package:veriframe_app/provider/verification_notifier.dart';
+import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
+import 'package:veriframe_app/widgets/forensic_result_card.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
 
-class AudioPage extends StatefulWidget {
+class AudioPage extends ConsumerStatefulWidget {
   const AudioPage({super.key});
 
   @override
-  State<AudioPage> createState() => _AudioPageState();
+  ConsumerState<AudioPage> createState() => _AudioPageState();
 }
 
-class _AudioPageState extends State<AudioPage> {
+class _AudioPageState extends ConsumerState<AudioPage> {
   File? _selectedAudio;
   String? _audioFileName;
   int _audioFileSize = 0;
@@ -130,11 +138,100 @@ class _AudioPageState extends State<AudioPage> {
         _result = res;
         _isAnalyzing = false;
       });
+
+      final mediaName = _audioFileName ?? _selectedAudio!.path.split('/').last.split('\\').last;
+      await _saveResultAndNotify(res, mediaName);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _isAnalyzing = false;
       });
+    }
+  }
+
+  /// Builds a [VerificationResult] from an audio pipeline response map, saves
+  /// it to Firestore history, creates an in-app notification, and shows a
+  /// local system notification.
+  Future<void> _saveResultAndNotify(
+    Map<String, dynamic> r,
+    String mediaName,
+  ) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final verdict = (r['verdict'] as String? ?? 'UNKNOWN');
+      final fakeProbability = (r['fakeProbability'] as num?)?.toDouble() ?? 0.0;
+      final authenticityScore = (r['authenticityScore'] as num?)?.toDouble() ?? 0.0;
+
+      final result = VerificationResult(
+        verificationId: r['verificationId'] as String? ??
+            'VRF-AUD-${DateTime.now().millisecondsSinceEpoch}',
+        verifiedAt:
+            DateTime.tryParse(r['verifiedAt'] as String? ?? '') ?? DateTime.now(),
+        mediaType: r['mediaType'] as String? ?? 'audio/mp3',
+        source: r['source'] as String? ?? 'Audio Forensics',
+        authenticityScore: authenticityScore,
+        fakeProbability: fakeProbability,
+        confidence: (r['confidence'] as num?)?.toDouble() ?? 0.0,
+        metadataScore: 0.0,
+        frameConsistency: 0.0,
+        ocrConfidence: 0.0,
+        trackingConfidence: 0.0,
+        manipulationScore: fakeProbability,
+        verdict: verdict,
+        riskLevel: r['riskLevel'] as String? ?? 'MEDIUM',
+        detectedEvidence: List<String>.from(r['detectedEvidence'] ?? []),
+        forensicObservations: List<String>.from(r['forensicObservations'] ?? []),
+        reportHash: r['reportHash'] as String? ?? '',
+        mediaName: mediaName,
+        thumbnailBase64: r['thumbnailBase64'] as String?,
+        aiExplanation: r['aiExplanation'] as Map<String, dynamic>?,
+      );
+
+      await ref.read(verificationRepositoryProvider).saveResult(result);
+
+      // Build notification
+      final notifId = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('notifications')
+          .doc()
+          .id;
+
+      final isAuthentic = verdict.toUpperCase() == 'AUTHENTIC' ||
+          verdict.toUpperCase() == 'REAL' ||
+          verdict.toUpperCase() == 'LIKELY_REAL';
+      final prediction = isAuthentic ? 'REAL' : 'FAKE';
+      final notifScore = isAuthentic ? authenticityScore : fakeProbability;
+
+      final notification = NotificationModel(
+        id: notifId,
+        title: 'VeriFrame — Audio Analysis Complete',
+        message:
+            'Analysis complete. Verdict: $verdict. '
+            '${isAuthentic ? 'Authenticity' : 'Manipulation'}: '
+            '${notifScore.toStringAsFixed(1)}%. Tap to view report.',
+        type: 'verification_completed',
+        reportId: result.verificationId,
+        createdAt: DateTime.now(),
+        isRead: false,
+        score: notifScore,
+        prediction: prediction,
+        videoName: mediaName,
+      );
+
+      await NotificationService.instance.createNotification(uid, notification);
+      await NotificationService.instance.showLocalNotification(
+        id: notifId.hashCode,
+        title: 'VeriFrame — Audio Analysis Complete',
+        body:
+            '$verdict: ${notifScore.toStringAsFixed(1)}% '
+            '${isAuthentic ? 'authentic' : 'manipulated'}. Tap to view report.',
+        payload: result.verificationId,
+      );
+    } catch (e) {
+      debugPrint('[AudioPage] Failed to save result or send notification: $e');
     }
   }
 
@@ -352,185 +449,43 @@ class _AudioPageState extends State<AudioPage> {
     final r = _result!;
     final authScore = (r['authenticityScore'] as num?)?.toDouble() ?? 0.0;
     final fakeProb = (r['fakeProbability'] as num?)?.toDouble() ?? 0.0;
-    final verdict = r['fineVerdict'] ?? r['verdict'] ?? 'UNKNOWN';
-    final riskLevel = r['riskLevel'] ?? 'MEDIUM';
-    final modelsUsed = r['modelsUsed'] ?? 'Voice AI Ensemble';
-    final observations = (r['forensicObservations'] as List<dynamic>?) ?? [];
-    final evidence = (r['detectedEvidence'] as List<dynamic>?) ?? [];
+    final verdict = (r['fineVerdict'] ?? r['verdict'] ?? 'UNKNOWN').toString();
+    final riskLevel = (r['riskLevel'] ?? 'LOW').toString();
 
-    final isAuthentic = verdict == 'REAL' || verdict == 'LIKELY_REAL' || verdict == 'AUTHENTIC';
-    final isFake = verdict == 'FAKE' || verdict == 'LIKELY_FAKE' || verdict == 'MANIPULATED';
-
-    final verdictColor = isAuthentic
-        ? const Color(0xFF10B981)
-        : (isFake ? const Color(0xFFEF4444) : const Color(0xFFF59E0B));
-
-    final verdictLabel = isAuthentic
-        ? 'AUTHENTIC HUMAN VOICE'
-        : (isFake ? 'SYNTHETIC / CLONED VOICE' : 'UNCERTAIN SPEECH');
+    final verificationResult = VerificationResult(
+      verificationId: r['verificationId'] as String? ?? 'VRF-AUD-${DateTime.now().millisecondsSinceEpoch}',
+      verifiedAt: DateTime.tryParse(r['verifiedAt'] as String? ?? '') ?? DateTime.now(),
+      mediaType: r['mediaType'] as String? ?? 'audio/mpeg',
+      source: r['source'] as String? ?? 'Voice Forensics',
+      authenticityScore: authScore,
+      fakeProbability: fakeProb,
+      confidence: (r['confidence'] as num?)?.toDouble() ?? 0.0,
+      metadataScore: 0.0,
+      frameConsistency: 0.0,
+      ocrConfidence: 0.0,
+      trackingConfidence: 0.0,
+      manipulationScore: fakeProb,
+      verdict: verdict,
+      riskLevel: riskLevel,
+      detectedEvidence: List<String>.from(r['detectedEvidence'] ?? []),
+      forensicObservations: List<String>.from(r['forensicObservations'] ?? []),
+      reportHash: r['reportHash'] as String? ?? '',
+      mediaName: _selectedAudio?.path.split(Platform.pathSeparator).last ?? _audioFileName ?? 'audio_file',
+      thumbnailBase64: r['thumbnailBase64'] as String?,
+      aiExplanation: r['aiExplanation'] as Map<String, dynamic>?,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Verdict Header Card
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [verdictColor.withValues(alpha: 0.18), verdictColor.withValues(alpha: 0.04)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: verdictColor.withValues(alpha: 0.4), width: 1.5),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: verdictColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        verdictLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'RISK: $riskLevel',
-                        style: TextStyle(
-                          color: verdictColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildMetricCol('Vocal Authenticity', '$authScore%', const Color(0xFF10B981)),
-                    Container(width: 1, height: 40, color: Colors.grey.withValues(alpha: 0.3)),
-                    _buildMetricCol('Clone Risk', '$fakeProb%', const Color(0xFFEF4444)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Models Used
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF162032) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.graphic_eq_rounded, color: Color(0xFFF59E0B), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    modelsUsed,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Detected Evidence
-          if (evidence.isNotEmpty) ...[
-            const Text(
-              'Acoustic Anomalies Detected',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            ...evidence.map((e) => Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(e.toString(), style: const TextStyle(fontSize: 12))),
-                    ],
-                  ),
-                )),
-            const SizedBox(height: 16),
-          ],
-
-          // Observations
-          if (observations.isNotEmpty) ...[
-            const Text(
-              'Spectral & Timeline Breakdown',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            ...observations.map((obs) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('• ', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(obs.toString(), style: const TextStyle(fontSize: 12, height: 1.3))),
-                    ],
-                  ),
-                )),
-            const SizedBox(height: 24),
-          ],
-
-          OutlinedButton(
-            onPressed: () => setState(() {
-              _result = null;
-              _selectedAudio = null;
-              _audioFileName = null;
-            }),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: const Text('Verify Another Audio File'),
-          ),
-        ],
+      child: ForensicResultCard(
+        result: verificationResult,
+        scanAnotherText: 'Verify Another Audio File',
+        onScanAnother: () => setState(() {
+          _result = null;
+          _selectedAudio = null;
+          _audioFileName = null;
+        }),
       ),
-    );
-  }
-
-  Widget _buildMetricCol(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
     );
   }
 }

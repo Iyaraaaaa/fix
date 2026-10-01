@@ -561,7 +561,7 @@
   "accountDeleted": "Your account has been deleted successfully.",
 
   "reportsTitle": "Forensic reports",
-  "reportsHistoryTitle": "Video history",
+  "reportsHistoryTitle": "Media history",
   "reportsHistorySubtitle": "History of media Verification",
   "reportsNotLoggedIn": "User not logged in.",
   "reportsNoReports": "No reports yet\nYour completed forensic analyses will appear here once a verification has finished.",

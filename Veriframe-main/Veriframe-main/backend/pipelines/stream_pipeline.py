@@ -264,10 +264,28 @@ class StreamPipeline:
 
     def _build_frame_response(self, session: Dict[str, Any]) -> Dict[str, Any]:
         if not session["scores"]:
-            # No frame has passed biometric detection + quality scoring yet.
-            # "UNCERTAIN" is mapped to "authentic" by the /analyze/stream/frame
-            # contract, which would present a firm AUTHENTIC verdict derived
-            # from zero evidence, so this state is reported distinctly.
+            if session["scene_scores"]:
+                rolling = session["scene_scores"][-30:]
+                avg_fake_prob = float(np.mean(rolling))
+                fake_probability = round(avg_fake_prob * 100.0, 2)
+                authenticity_score = round((1.0 - avg_fake_prob) * 100.0, 2)
+                if fake_probability > THRESHOLDS_STREAM["manipulated_above_pct"]:
+                    verdict = "MANIPULATED"
+                elif fake_probability < THRESHOLDS_STREAM["authentic_below_pct"]:
+                    verdict = "AUTHENTIC"
+                else:
+                    verdict = "UNCERTAIN"
+                return {
+                    "session_confidence_score": authenticity_score,
+                    "verdict": verdict,
+                    "authenticity_score": authenticity_score,
+                    "fake_probability": fake_probability,
+                    "model_used": "Veriframe Live Stream Full-Scene Detector",
+                    "frames_processed": session["frame_count"],
+                    "faces_detected": session["faces_detected"],
+                    "scored_frames": len(session["scene_scores"]),
+                    "scene_frames_scored": len(session["scene_scores"]),
+                }
             return {
                 "session_confidence_score": 0.0,
                 "verdict": "INSUFFICIENT_DATA",

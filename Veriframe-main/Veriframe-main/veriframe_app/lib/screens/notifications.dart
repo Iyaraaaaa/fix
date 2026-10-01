@@ -318,6 +318,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
             if (!notif.isRead && _uid != null) {
               await NotificationService.instance.markAsRead(_uid, notif.id);
             }
+            if (notif.reportId.isNotEmpty && mounted) {
+              Navigator.pushNamed(context, '/reports', arguments: notif.reportId);
+            }
           },
           child: Container(
           decoration: BoxDecoration(
@@ -338,6 +341,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   statusColor: statusColor,
                   statusBg: statusBg,
                   statusBgDark: statusBgDark,
+                  mediaType: _getNotificationMediaType(notif),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -391,6 +395,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 _NotificationChip(
+                                  label: _getNotificationMediaType(notif).toUpperCase(),
+                                  color: accent,
+                                  bg: accent.withValues(alpha: 0.12),
+                                ),
+                                _NotificationChip(
                                   label: isFake ? loc.verifyManipulatedLabel : loc.verifyAuthenticLabel,
                                   color: statusColor,
                                   bg: isDark ? statusBgDark : statusBg,
@@ -425,6 +434,28 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
     );
   }
+
+  String _getNotificationMediaType(NotificationModel notif) {
+    final titleLower = notif.title.toLowerCase();
+    final msgLower = notif.message.toLowerCase();
+    final nameLower = notif.videoName.toLowerCase();
+
+    if (titleLower.contains('image') || msgLower.contains('image') ||
+        nameLower.endsWith('.jpg') || nameLower.endsWith('.png') ||
+        nameLower.endsWith('.jpeg') || nameLower.endsWith('.webp')) {
+      return 'Image';
+    } else if (titleLower.contains('audio') || titleLower.contains('voice') ||
+        msgLower.contains('audio') || msgLower.contains('speech') ||
+        nameLower.endsWith('.mp3') || nameLower.endsWith('.wav') ||
+        nameLower.endsWith('.m4a') || nameLower.endsWith('.aac') ||
+        nameLower.endsWith('.flac') || nameLower.endsWith('.ogg')) {
+      return 'Audio';
+    } else if (titleLower.contains('link') || msgLower.contains('link') ||
+        nameLower.startsWith('http')) {
+      return 'Link';
+    }
+    return 'Video';
+  }
 }
 
 class _StatusIcon extends StatelessWidget {
@@ -434,6 +465,7 @@ class _StatusIcon extends StatelessWidget {
     required this.statusColor,
     required this.statusBg,
     required this.statusBgDark,
+    this.mediaType = 'Video',
   });
 
   final bool isFake;
@@ -441,9 +473,21 @@ class _StatusIcon extends StatelessWidget {
   final Color statusColor;
   final Color statusBg;
   final Color statusBgDark;
+  final String mediaType;
 
   @override
   Widget build(BuildContext context) {
+    IconData iconData;
+    if (mediaType == 'Image') {
+      iconData = isFake ? Icons.broken_image_rounded : Icons.image_rounded;
+    } else if (mediaType == 'Audio') {
+      iconData = isFake ? Icons.voice_over_off_rounded : Icons.graphic_eq_rounded;
+    } else if (mediaType == 'Link') {
+      iconData = Icons.link_rounded;
+    } else {
+      iconData = isFake ? Icons.warning_amber_rounded : Icons.verified_user_rounded;
+    }
+
     return Container(
       width: 36,
       height: 36,
@@ -452,7 +496,7 @@ class _StatusIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Icon(
-        isFake ? Icons.warning_amber_rounded : Icons.verified_user_rounded,
+        iconData,
         color: statusColor,
         size: 18,
       ),

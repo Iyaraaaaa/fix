@@ -79,13 +79,12 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
 
   Future<void> _stopStreaming() async {
     setState(() => _isStreaming = false);
-    if (_capturedFrames.isNotEmpty && mounted) {
+    if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => VerifyPage(
-            initialVideoPath: _capturedFrames.last,
-            initialStreamUrl: widget.streamUrl,
+            initialStreamUrl: widget.streamUrl ?? 'device-camera://live',
           ),
         ),
       );

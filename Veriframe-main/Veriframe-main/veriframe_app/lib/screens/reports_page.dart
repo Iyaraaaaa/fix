@@ -456,7 +456,7 @@ class _DashboardHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(11),
             ),
             child: Icon(
-              Icons.description_rounded,
+              Icons.perm_media_rounded,
               color: pal.data,
               size: 20,
             ),
@@ -513,10 +513,10 @@ class _ReportCard extends StatelessWidget {
           ),
         );
       } catch (_) {
-        mediaPreview = _placeholderPreview(statusColor, isReal);
+        mediaPreview = _placeholderPreview(statusColor, isReal, mediaType: report.mediaType);
       }
     } else {
-      mediaPreview = _placeholderPreview(statusColor, isReal);
+      mediaPreview = _placeholderPreview(statusColor, isReal, mediaType: report.mediaType);
     }
 
     return Container(
@@ -703,21 +703,32 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
-Widget _placeholderPreview(Color statusColor, bool isReal) => Container(
-  width: 80,
-  height: 60,
-  decoration: BoxDecoration(
-    color: statusColor.withValues(alpha: 0.12),
-    borderRadius: BorderRadius.circular(8),
-    border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
-  ),
-  child: Center(
-    child: Icon(
-      isReal ? Icons.verified_user_rounded : Icons.gavel_rounded,
-      color: statusColor,
-      size: 24,
+Widget _placeholderPreview(Color statusColor, bool isReal, {String mediaType = ''}) {
+  IconData iconData;
+  if (mediaType.startsWith('image')) {
+    iconData = isReal ? Icons.image_rounded : Icons.broken_image_rounded;
+  } else if (mediaType.startsWith('audio')) {
+    iconData = isReal ? Icons.mic_rounded : Icons.voice_over_off_rounded;
+  } else {
+    iconData = isReal ? Icons.verified_user_rounded : Icons.gavel_rounded;
+  }
+  return Container(
+    width: 80,
+    height: 60,
+    decoration: BoxDecoration(
+      color: statusColor.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
     ),
-  ),
-);
+    child: Center(
+      child: Icon(
+        iconData,
+        color: statusColor,
+        size: 24,
+      ),
+    ),
+  );
+}
+
 
 

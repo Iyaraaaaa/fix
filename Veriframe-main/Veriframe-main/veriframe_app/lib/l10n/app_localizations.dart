@@ -3331,7 +3331,7 @@ abstract class AppLocalizations {
   /// No description provided for @reportsHistoryTitle.
   ///
   /// In en, this message translates to:
-  /// **'Video history'**
+  /// **'Media history'**
   String get reportsHistoryTitle;
 
   /// No description provided for @reportsHistorySubtitle.

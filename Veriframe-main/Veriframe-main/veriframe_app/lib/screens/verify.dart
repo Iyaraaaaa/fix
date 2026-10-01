@@ -24,6 +24,7 @@ import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:veriframe_app/widgets/forensic_progress_timeline.dart';
 import 'package:veriframe_app/service/engines/link_verification_engine.dart';
+import 'package:veriframe_app/widgets/forensic_result_card.dart';
 import 'package:veriframe_app/widgets/link_verification_widgets.dart';
 import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 
@@ -329,6 +330,16 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         fakeProbability: result.fakeProbability,
         explanation: explanation,
         modelUsed: "MobileNet Ensemble (Cloud Server)",
+        detectedEvidence: result.detectedEvidence,
+        forensicObservations: result.forensicObservations,
+        confidence: result.confidence,
+        frameConsistency: result.frameConsistency,
+        trackingConfidence: result.trackingConfidence,
+        processingTimeSec: result.processingTimeSec,
+        framesAnalysedCount: result.framesAnalysedCount,
+        faceDetectionRate: result.faceDetectionRate,
+        suspiciousFrames: result.suspiciousFrames,
+        timelineLogs: result.timelineLogs,
       );
 
     } catch (e) {
@@ -483,6 +494,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     double authenticityScore = 0.0;
     double fakeProbability = 0.0;
     String explanation = '';
+    int avgInferenceMs = 0;
 
     if (scores.isEmpty) {
       verdict = 'unverified';
@@ -491,7 +503,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       explanation = "No usable keyframe facial predictions obtained from '$filename'. Verification status: UNVERIFIED.";
     } else {
       final avgFakeScore = scores.reduce((a, b) => a + b) / scores.length;
-      final avgInferenceMs = inferenceMsSum ~/ scores.length;
+      avgInferenceMs = inferenceMsSum ~/ scores.length;
       authenticityScore = ((1.0 - avgFakeScore) * 100).clamp(0.0, 100.0);
       fakeProbability = (avgFakeScore * 100).clamp(0.0, 100.0);
       verdict = authenticityScore > 60.0 ? 'authentic' : (authenticityScore >= 40.0 ? 'inconclusive' : 'manipulated');
@@ -506,6 +518,16 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       _uploadProgress = 0.70;
     });
 
+    final obs = [
+      'Inference mode: On-Device TFLite (veriframe_model)',
+      'Analyzed frames: ${scores.length} keyframes',
+      'Average inference time: ${avgInferenceMs}ms per frame',
+      'Deepfake risk confidence: ${fakeProbability.toStringAsFixed(1)}%',
+    ];
+    final ev = verdict == 'authentic'
+        ? ['Optical textures display genuine camera sensor noise and natural motion gradients.']
+        : ['Biometric texture anomalies detected across sampled keyframes.'];
+
     // Trigger the full post-verification pipeline (PDF, Firestore, notification)
     await _executePostVerificationFlow(
       videoName: filename,
@@ -515,6 +537,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       fakeProbability: fakeProbability,
       explanation: explanation,
       modelUsed: "On-Device TFLite (veriframe_model)",
+      confidence: (authenticityScore > 60.0 ? authenticityScore : fakeProbability).clamp(50.0, 99.0),
+      detectedEvidence: ev,
+      forensicObservations: obs,
     );
   }
 
@@ -930,6 +955,16 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         fakeProbability: serverResult.fakeProbability,
         explanation: serverExplanation,
         modelUsed: serverModelUsed,
+        detectedEvidence: serverResult.detectedEvidence,
+        forensicObservations: serverResult.forensicObservations,
+        confidence: serverResult.confidence,
+        frameConsistency: serverResult.frameConsistency,
+        trackingConfidence: serverResult.trackingConfidence,
+        processingTimeSec: serverResult.processingTimeSec,
+        framesAnalysedCount: serverResult.framesAnalysedCount ?? _framesAnalyzed,
+        faceDetectionRate: serverResult.faceDetectionRate,
+        suspiciousFrames: serverResult.suspiciousFrames,
+        timelineLogs: serverResult.timelineLogs,
       );
     } catch (e) {
       final errMsg = e.toString().replaceAll('Exception: ', '').trim();
@@ -2745,9 +2780,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   Widget _buildForensicResultsDashboard(VerificationResult result, AppColors colors) {
     final loc = AppLocalizations.of(context)!;
     final isReal = result.verdict.toUpperCase() == 'AUTHENTIC';
-    final verdictColor = isReal
-        ? const Color(0xFF00E896)
-        : const Color(0xFFFF3B5C);
 
     final isLinkResult = _activeTab == 1 || result.platform != null || (result.videoUrl != null && result.videoUrl!.isNotEmpty) || result.source.contains('Link');
 
@@ -2873,6 +2905,20 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openEscalationSheet(result),
+              icon: const Icon(Icons.flag_outlined, size: 19),
+              label: Text(loc.verifyReportMedia),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           OutlinedButton(
             onPressed: () {
@@ -2889,202 +2935,21 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       );
     }
 
-    final isHighRisk = result.riskLevel == 'HIGH';
-    final consistentScore = isReal ? result.authenticityScore : result.fakeProbability;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: _vp.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _vp.borderBright),
-          ),
-          child: Column(
-            children: [
-              Text(
-                loc.verifyForensicConclusion.toUpperCase(),
-                style: TextStyle(color: _vp.textMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 20),
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: CircularProgressIndicator(
-                      value: consistentScore / 100,
-                      strokeWidth: 8,
-                      backgroundColor: _vp.surfaceVariant,
-                      valueColor: AlwaysStoppedAnimation(verdictColor),
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "${consistentScore.toStringAsFixed(1)}%",
-                        style: TextStyle(color: _vp.text, fontSize: 26, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        result.verdict.toUpperCase(),
-                        style: TextStyle(color: verdictColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Biometric Heatmap mockup
-              Container(
-                height: 100,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: _vp.canvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _vp.surfaceVariant),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Icon(Icons.face_retouching_natural_rounded, color: verdictColor.withValues(alpha: 0.15), size: 64),
-                      ),
-                      Positioned(
-                        top: 20,
-                        left: 40,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(border: Border.all(color: verdictColor, width: 1)),
-                          child: Text("EYE_L", style: TextStyle(color: _vp.textMuted, fontSize: 8)),
-                        ),
-                      ),
-                      Positioned(
-                        top: 22,
-                        right: 40,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(border: Border.all(color: verdictColor, width: 1)),
-                          child: Text("EYE_R", style: TextStyle(color: _vp.textMuted, fontSize: 8)),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 18,
-                        left: 80,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(border: Border.all(color: verdictColor, width: 1)),
-                          child: Text("MOUTH", style: TextStyle(color: _vp.textMuted, fontSize: 8)),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(
-                            loc.verifyLandmarkMap(83),
-                            style: TextStyle(color: verdictColor.withValues(alpha: 0.6), fontSize: 9),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "${loc.verifyModelUsed} ${result.source}",
-                style: TextStyle(color: _vp.textMuted, fontSize: 11),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _vp.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _vp.borderBright),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                loc.verifyExplainableAiStatement,
-                style: TextStyle(color: _vp.text, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                result.forensicObservations.join('\n'),
-                style: TextStyle(color: _vp.textMuted, fontSize: 12, height: 1.5, fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _getPdfForensicReport(result),
-                icon: Icon(Icons.picture_as_pdf_outlined),
-                label: Text(loc.verifyGetReportPdf),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _shareForensicLink(result),
-                icon: Icon(Icons.share_outlined),
-                label: Text(loc.verifyLinkCopied),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (isHighRisk) ...[
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: () => _openEscalationSheet(result),
-            icon: const Icon(Icons.gavel_rounded),
-            label: Text(loc.verifyReportMedia),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF3B5C),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-        OutlinedButton(
-          onPressed: () {
-            setState(() {
-              _showResults = false;
-              _rollingStreamScore = 0.0;
-              _streamSessionId = "";
-              _errorMessage = null;
-            });
-          },
-          child: Text(loc.verifyScanAnotherMedia),
-        ),
-      ],
+    return ForensicResultCard(
+      result: result,
+      scanAnotherText: loc.verifyScanAnotherMedia,
+      onScanAnother: () {
+        setState(() {
+          _showResults = false;
+          _rollingStreamScore = 0.0;
+          _streamSessionId = "";
+          _errorMessage = null;
+        });
+      },
     );
 }
+
 } // end _VerifyPageState
 
 

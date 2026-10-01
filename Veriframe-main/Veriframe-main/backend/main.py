@@ -760,8 +760,8 @@ def get_analysis(id: str):
 
     if id in streams_db:
         session = streams_db[id]
-        if len(session["scores"]) == 0:
-            return {"status": "failed", "error": "No biometric frames analyzed in the active stream session."}
+        if len(session.get("scores", [])) == 0 and len(session.get("scene_scores", [])) == 0:
+            return {"status": "failed", "error": "No frames analyzed in the active stream session."}
         try:
             return _attach_engine(stream_pipeline.get_session_summary(session), "stream")
         except ValueError as ve:
@@ -782,8 +782,8 @@ def report_create(request: dict):
 
     if session_id and session_id in streams_db:
         session = streams_db[session_id]
-        if len(session["scores"]) == 0:
-            raise HTTPException(status_code=400, detail="Biometric stream analysis failed: No frames with faces detected.")
+        if len(session.get("scores", [])) == 0 and len(session.get("scene_scores", [])) == 0:
+            raise HTTPException(status_code=400, detail="Live stream analysis failed: No frames captured in session.")
         try:
             summary = stream_pipeline.get_session_summary(session)
             return _attach_engine(summary["result"], "stream")
