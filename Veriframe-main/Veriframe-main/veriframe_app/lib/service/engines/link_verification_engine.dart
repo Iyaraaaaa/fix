@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 import 'package:veriframe_app/service/download_manager.dart';
@@ -181,6 +182,7 @@ class LinkVerificationEngine {
         final elapsedSec = DateTime.now().difference(startTime).inMilliseconds / 1000.0;
         final urlHash = sha256.convert(utf8.encode(trimmedUrl)).toString();
         final isTrusted = _trustedDomains.contains(Uri.tryParse(trimmedUrl)?.host.toLowerCase());
+        final ytThumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
 
         return VerificationResult(
           verificationId: 'VRF-LNK-${DateTime.now().millisecondsSinceEpoch}',
@@ -212,6 +214,7 @@ class LinkVerificationEngine {
           mediaPath: trimmedUrl,
           videoUrl: trimmedUrl,
           platform: detectedPlatform,
+          thumbnailBase64: ytThumb,
           framesAnalysedCount: 0,
           suspiciousFramesCount: 0,
           faceDetectionRate: 0.0,
@@ -267,12 +270,18 @@ class LinkVerificationEngine {
             ? result.suspiciousFrames!
             : <Map<String, dynamic>>[];
 
+        String? thumb = result.thumbnailBase64;
+        if (thumb == null || thumb.isEmpty) {
+          thumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
+        }
+
         return result.copyWith(
           videoUrl: trimmedUrl,
           mediaName: trimmedUrl.length > 60
               ? '${trimmedUrl.substring(0, 57)}...'
               : trimmedUrl,
           platform: detectedPlatform,
+          thumbnailBase64: thumb,
           framesAnalysedCount: totalFrames,
           suspiciousFramesCount: suspiciousFrameList.length,
           faceDetectionRate: result.faceDetectionRate ?? (result.trackingConfidence > 0 ? result.trackingConfidence : 0.0),
@@ -391,6 +400,8 @@ class LinkVerificationEngine {
 
     onProgress?.call(8, 1.0, 'URL Security Analysis complete.');
 
+    final ytThumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
+
     return VerificationResult(
       verificationId: 'VRF-URL-SEC-${DateTime.now().millisecondsSinceEpoch}',
       verifiedAt: DateTime.now(),
@@ -421,6 +432,7 @@ class LinkVerificationEngine {
       mediaPath: trimmedUrl,
       videoUrl: trimmedUrl,
       platform: detectedPlatform,
+      thumbnailBase64: ytThumb,
       framesAnalysedCount: 0,
       suspiciousFramesCount: 0,
       faceDetectionRate: 0.0,
@@ -428,6 +440,24 @@ class LinkVerificationEngine {
       suspiciousFrames: const [],
       timelineLogs: const [],
     );
+  }
+
+  Future<String?> _fetchYoutubeThumbnailBase64(String url) async {
+    final regExp = RegExp(
+      r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/ ]{11})',
+      caseSensitive: false,
+    );
+    final match = regExp.firstMatch(url);
+    if (match != null && match.groupCount >= 1) {
+      final videoId = match.group(1);
+      try {
+        final resp = await http.get(Uri.parse('https://img.youtube.com/vi/$videoId/hqdefault.jpg')).timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+          return base64Encode(resp.bodyBytes);
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   Future<void> _cleanupTempFile(String filePath) async {

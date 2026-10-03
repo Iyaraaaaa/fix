@@ -168,14 +168,18 @@ class ElegantVerifyModal extends StatelessWidget {
                 badgeTextColor: const Color(0xFF0E8C56),
                 title: 'Image Verification',
                 description: 'Detect diffusion artifacts, face swaps, GAN photos & web image links',
-                tags: const ['Local Photo', 'Image Link', 'FFT Grid'],
+                tags: const ['Local Photo', 'Image Link'],
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/image');
                 },
                 onTagTap: (tag) {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/image');
+                  Navigator.pushNamed(
+                    context,
+                    '/image',
+                    arguments: tag == 'Local Photo' ? 0 : 1,
+                  );
                 },
               ),
               const SizedBox(height: 14),
@@ -190,7 +194,7 @@ class ElegantVerifyModal extends StatelessWidget {
                 badgeTextColor: const Color(0xFFB85A08),
                 title: 'Audio Voice Verification',
                 description: 'Identify cloned voices, ElevenLabs speech synthesis & vocoder artifacts',
-                tags: const ['Local Audio', 'Voice Cloning', 'Acoustic Forensics'],
+                tags: const ['Local Audio'],
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/audio');

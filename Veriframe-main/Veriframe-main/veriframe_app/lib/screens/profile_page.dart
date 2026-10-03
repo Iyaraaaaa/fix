@@ -1,4 +1,4 @@
-ï»¿import 'dart:io';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -437,7 +437,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -457,7 +457,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               boxShadow: [
                 BoxShadow(
                   color: (isDark ? Colors.grey[700] : Colors.blueAccent)!
-                      .withOpacity(0.4),
+                      .withValues(alpha: 0.4),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -485,7 +485,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.red[500]!.withOpacity(0.4),
+                    color: Colors.red[500]!.withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -617,8 +617,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.grey[900]?.withOpacity(0.4)
-                : Colors.blue[50]?.withOpacity(0.7),
+                ? Colors.grey[900]?.withValues(alpha: 0.4)
+                : Colors.blue[50]?.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isDark ? Colors.grey[700]! : Colors.blue[200]!,
@@ -651,10 +651,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'â€¢ ${loc.profileTip1}\n'
-                'â€¢ ${loc.profileTip2}\n'
-                'â€¢ ${loc.profileTip3}\n'
-                'â€¢ ${loc.profileTip4}',
+                '• ${loc.profileTip1}\n'
+                '• ${loc.profileTip2}\n'
+                '• ${loc.profileTip3}\n'
+                '• ${loc.profileTip4}',
                 style: TextStyle(
                   fontSize: 11,
                   color: isDark ? Colors.white70 : Colors.grey[700],
@@ -753,7 +753,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           disabledBackgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
           elevation: 4,
           shadowColor: (isDark ? Colors.blue[700] : Colors.blueAccent)
-              ?.withOpacity(0.3),
+              ?.withValues(alpha: 0.3),
         ),
         child: _isLoading
             ? const SizedBox(

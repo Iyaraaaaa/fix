@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -140,7 +141,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
       });
 
       final mediaName = _audioFileName ?? _selectedAudio!.path.split('/').last.split('\\').last;
-      await _saveResultAndNotify(res, mediaName);
+      await _saveResultAndNotify(res, mediaName, mediaPath: _selectedAudio?.path);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -154,8 +155,9 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   /// local system notification.
   Future<void> _saveResultAndNotify(
     Map<String, dynamic> r,
-    String mediaName,
-  ) async {
+    String mediaName, {
+    String? mediaPath,
+  }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
@@ -185,6 +187,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
         forensicObservations: List<String>.from(r['forensicObservations'] ?? []),
         reportHash: r['reportHash'] as String? ?? '',
         mediaName: mediaName,
+        mediaPath: mediaPath,
         thumbnailBase64: r['thumbnailBase64'] as String?,
         aiExplanation: r['aiExplanation'] as Map<String, dynamic>?,
       );
@@ -238,13 +241,13 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC);
+    final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF6F8FC);
 
     return MainScaffold(
       backgroundColor: bg,
       showBack: true,
       title: const Text(
-        'Audio Voice Forensics',
+        'Audio Verification',
         style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       extraActions: [
@@ -259,188 +262,324 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   }
 
   Widget _buildUploadView(bool isDark) {
+    final bannerBg = isDark ? const Color(0xFF26190E) : const Color(0xFFFFF6E9);
+    final bannerBorder = isDark ? const Color(0xFF4C270A) : const Color(0xFFFDE8CD);
+    final bannerTitleColor = isDark ? const Color(0xFFFDBA74) : const Color(0xFF78350F);
+    final bannerDescColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+    final iconBoxBg = isDark ? const Color(0xFF352010) : Colors.white;
+
     final cardBg = isDark ? const Color(0xFF162032) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final dashedBorderColor = isDark ? const Color(0xFF334155) : const Color(0xFFBAC7D5);
+    final circleBg = isDark ? const Color(0xFF2D2115) : const Color(0xFFFFF4DE);
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    const primaryColor = Color(0xFFB45309);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banner
+          // ── Top Card: Voice authenticity check ───────────────────────
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+              color: bannerBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+              border: Border.all(color: bannerBorder, width: 1.2),
             ),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.record_voice_over_rounded, color: Color(0xFFF59E0B), size: 26),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Voice Cloning & Synthetic Speech Detection',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFF59E0B),
-                          fontSize: 14,
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: iconBoxBg,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.mic_none_rounded,
+                          color: primaryColor,
+                          size: 26,
                         ),
                       ),
-                      SizedBox(height: 3),
-                      Text(
-                        'Detects ElevenLabs, TTS vocoders, and AI speech synthesis using spectral band decomposition and Reality Defender Voice AI.',
-                        style: TextStyle(fontSize: 12, height: 1.35, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'Voice authenticity check',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: bannerTitleColor,
+                          fontSize: 16.5,
+                          letterSpacing: -0.2,
+                        ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Breaks speech into spectral bands and runs the VeriFrame Audio model to catch cloned voices and synthetic speech.',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: bannerDescColor,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Audio Selection Box
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: borderColor, width: 1.5),
+          // ── Middle Card: Upload Box with Dashed Border ───────────────
+          CustomPaint(
+            painter: _DashedRRectPainter(
+              color: dashedBorderColor,
+              strokeWidth: 1.2,
+              dashWidth: 4.5,
+              dashSpace: 3.5,
+              radius: 20.0,
             ),
-            child: Column(
-              children: [
-                if (_selectedAudio != null) ...[
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Warm Circle
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      color: circleBg,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.audiotrack_rounded,
-                      size: 34,
-                      color: Color(0xFFF59E0B),
+                    child: Center(
+                      child: Icon(
+                        _selectedAudio != null
+                            ? Icons.audiotrack_rounded
+                            : Icons.graphic_eq_rounded,
+                        color: primaryColor,
+                        size: 34,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
                   Text(
-                    _audioFileName ?? 'audio_file',
+                    _selectedAudio != null
+                        ? (_audioFileName ?? 'Audio file selected')
+                        : 'Select an audio file to analyze',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      color: titleColor,
+                      letterSpacing: -0.2,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    '${(_audioFileSize / 1024).toStringAsFixed(1)} KB • ${(_audioFileName ?? '').split('.').last.toUpperCase()}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    _selectedAudio != null
+                        ? '${(_audioFileSize / 1024).toStringAsFixed(1)} KB • ${(_audioFileName ?? '').split('.').last.toUpperCase()}'
+                        : 'MP3, WAV, M4A, AAC, FLAC up to 20 MB',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: subtitleColor,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  TextButton.icon(
+                  const SizedBox(height: 20),
+                  ElevatedButton(
                     onPressed: _isAnalyzing ? null : _pickAudioFile,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Choose Different Audio'),
-                  ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.mic_none_rounded,
-                      size: 40,
-                      color: Color(0xFFF59E0B),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Select Audio File to Verify',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Supports MP3, WAV, M4A, AAC, FLAC up to 20MB',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 18),
-                  ElevatedButton.icon(
-                    onPressed: _pickAudioFile,
-                    icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('Browse Files'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF59E0B),
+                      backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
+                      elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _selectedAudio != null
+                              ? Icons.refresh_rounded
+                              : Icons.file_upload_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedAudio != null ? 'Change file' : 'Browse files',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
+          // ── Error Message Banner (if any) ───────────────────────────
           if (_errorMessage != null) ...[
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.red),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 13))),
+                  const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
 
+          // ── Analyzing Status Indicator ──────────────────────────────
           if (_isAnalyzing) ...[
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
+                color: primaryColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
               ),
               child: Column(
                 children: [
-                  const LinearProgressIndicator(color: Color(0xFFF59E0B)),
-                  const SizedBox(height: 12),
-                  Text(_statusMessage, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                    child: LinearProgressIndicator(
+                      color: primaryColor,
+                      backgroundColor: Color(0xFFFFF4DE),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _statusMessage,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                      color: primaryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
 
-          ElevatedButton(
-            onPressed: (_selectedAudio != null && !_isAnalyzing) ? _analyzeAudio : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 4,
-            ),
-            child: Text(
-              _isAnalyzing ? 'Analyzing Speech Patterns...' : 'Verify Audio Authenticity',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          // ── Verify Audio Button ─────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isAnalyzing
+                  ? null
+                  : () {
+                      if (_selectedAudio == null) {
+                        _pickAudioFile();
+                      } else {
+                        _analyzeAudio();
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isAnalyzing
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Verify audio',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16.5,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
+          const SizedBox(height: 18),
+
+          // ── Bottom Chips: Audio.tflite & Runs on device ──────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildPill('Audio.tflite', isDark),
+              const SizedBox(width: 12),
+              _buildPill('Runs on device', isDark),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPill(String label, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8EDF7),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+        ),
       ),
     );
   }
@@ -488,4 +627,60 @@ class _AudioPageState extends ConsumerState<AudioPage> {
       ),
     );
   }
+}
+
+/// Custom painter for dashed rounded rectangle border.
+class _DashedRRectPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashSpace;
+  final double radius;
+
+  const _DashedRRectPainter({
+    required this.color,
+    this.strokeWidth = 1.2,
+    this.dashWidth = 4.5,
+    this.dashSpace = 3.5,
+    this.radius = 20.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final halfStroke = strokeWidth / 2;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        halfStroke,
+        halfStroke,
+        size.width - strokeWidth,
+        size.height - strokeWidth,
+      ),
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    for (final metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final length = math.min(dashWidth, metric.length - distance);
+        final extract = metric.extractPath(distance, distance + length);
+        canvas.drawPath(extract, paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRRectPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.strokeWidth != strokeWidth ||
+      oldDelegate.dashWidth != dashWidth ||
+      oldDelegate.dashSpace != dashSpace ||
+      oldDelegate.radius != radius;
 }

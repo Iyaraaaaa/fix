@@ -117,7 +117,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _accent.withOpacity(0.18),
+              color: _accent.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
@@ -135,7 +135,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                 Text(
                   obj["badgeLabel"] as String,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.65),
+                    color: Colors.white.withValues(alpha: 0.65),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.2,
@@ -165,7 +165,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           Text(
             obj["subtitle"] as String,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 13,
               height: 1.6,
             ),
@@ -183,7 +183,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                 width: active ? 20 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: active ? Colors.white : Colors.white.withOpacity(0.25),
+                  color: active ? Colors.white : Colors.white.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -199,8 +199,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
       height: size.height * 0.36,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withOpacity(0.04),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       clipBehavior: Clip.hardEdge,
       child: Stack(
@@ -237,9 +237,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -296,7 +296,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
               Text(
                 "Frame Analysis",
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 10,
                   letterSpacing: 0.8,
                 ),
@@ -311,15 +311,15 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                 physics: const NeverScrollableScrollPhysics(),
                 children: statuses.map((s) {
                   final bg = s == null
-                      ? Colors.white.withOpacity(0.04)
+                      ? Colors.white.withValues(alpha: 0.04)
                       : s
-                      ? Colors.green.withOpacity(0.12)
-                      : Colors.red.withOpacity(0.10);
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.red.withValues(alpha: 0.10);
                   final border = s == null
-                      ? Colors.white.withOpacity(0.08)
+                      ? Colors.white.withValues(alpha: 0.08)
                       : s
-                      ? Colors.green.withOpacity(0.3)
-                      : Colors.red.withOpacity(0.25);
+                      ? Colors.green.withValues(alpha: 0.3)
+                      : Colors.red.withValues(alpha: 0.25);
                   return Container(
                     decoration: BoxDecoration(
                       color: bg,
@@ -363,7 +363,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
         children: [
           Icon(
             Icons.bar_chart_rounded,
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             size: 30,
           ),
           const SizedBox(height: 14),
@@ -374,7 +374,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           Text(
             "97.4% confidence",
             style: TextStyle(
-              color: _scan.withOpacity(0.8),
+              color: _scan.withValues(alpha: 0.8),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -394,7 +394,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.55),
+                color: Colors.white.withValues(alpha: 0.55),
                 fontSize: 11,
               ),
             ),
@@ -414,7 +414,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             Container(
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -423,7 +423,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
               child: Container(
                 height: 4,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.7),
+                  color: color.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -441,14 +441,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
       children: [
         Icon(
           Icons.verified_user_outlined,
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           size: 44,
         ),
         const SizedBox(height: 12),
         Text(
           "Explainable Results",
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -458,7 +458,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           "Step-by-step reasoning\nwith confidence scores",
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.35),
+            color: Colors.white.withValues(alpha: 0.35),
             fontSize: 11,
             height: 1.6,
           ),
@@ -482,7 +482,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
               child: Text(
                 "Skip",
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -541,7 +541,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = Colors.white.withValues(alpha: 0.04)
       ..strokeWidth = 0.5;
     const spacing = 32.0;
     for (double x = 0; x < size.width; x += spacing) {

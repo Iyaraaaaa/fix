@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:veriframe_app/screens/image_page.dart';
 import 'package:veriframe_app/screens/verify.dart';
 import 'package:veriframe_app/widgets/home_top_bar.dart';
 
@@ -185,9 +186,23 @@ class _MediaModalitySelectionPageState
               badgeText: 'IMAGE & URL',
               badgeColor: const Color(0xFF166534),
               badgeBg: const Color(0xFF22C55E).withValues(alpha: 0.15),
-              options: const ['Local Photo', 'Image Link', 'FFT Grid'],
+              options: const ['Local Photo', 'Image Link'],
               onOptionTap: (option) {
-                _navigate(() => Navigator.pushNamed(context, '/image'));
+                if (option == 'Image Link') {
+                  _navigate(() => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ImagePage(initialTab: 1),
+                        ),
+                      ));
+                } else {
+                  _navigate(() => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ImagePage(initialTab: 0),
+                        ),
+                      ));
+                }
               },
             ),
             const SizedBox(height: 16),
@@ -206,7 +221,7 @@ class _MediaModalitySelectionPageState
               badgeText: 'VOICE CLONE AI',
               badgeColor: const Color(0xFF92400E),
               badgeBg: const Color(0xFFF97316).withValues(alpha: 0.15),
-              options: const ['Local Audio', 'Voice Clone', 'Forensics'],
+              options: const ['Local Audio'],
               onOptionTap: (option) {
                 _navigate(() => Navigator.pushNamed(context, '/audio'));
               },

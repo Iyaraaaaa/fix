@@ -6,6 +6,7 @@
 // inference, face region extraction, temporal consistency analysis, and quality
 // assessment to produce a VerificationResult.
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -67,10 +68,19 @@ class VideoVerificationEngine {
     onProgress?.call(7, 0.95, 'Synthesizing multi-modal forensic verdict...');
     await Future.delayed(const Duration(milliseconds: 100));
 
+    String? thumbnailBase64;
+    if (rawFramePaths.isNotEmpty && File(rawFramePaths.first).existsSync()) {
+      try {
+        final bytes = await File(rawFramePaths.first).readAsBytes();
+        thumbnailBase64 = base64Encode(bytes);
+      } catch (_) {}
+    }
+
     final result = _synthesizeVerdict(
       fileName: fileName,
       filePath: filePath,
       reportHash: reportHash,
+      thumbnailBase64: thumbnailBase64,
       trackingResults: trackingResults,
       qualityMetrics: qualityMetrics,
       inferenceResults: inferenceResults,
@@ -394,6 +404,7 @@ class VideoVerificationEngine {
     required String fileName,
     required String filePath,
     required String reportHash,
+    String? thumbnailBase64,
     required Map<String, double> trackingResults,
     required Map<String, double> qualityMetrics,
     required List<Map<String, dynamic>> inferenceResults,
@@ -490,6 +501,7 @@ class VideoVerificationEngine {
       detectedEvidence: detectedEvidence,
       forensicObservations: forensicObservations,
       reportHash: reportHash,
+      thumbnailBase64: thumbnailBase64,
       mediaName: fileName,
       mediaPath: filePath,
       framesAnalysedCount: hasFaces ? validFaceCount : extractedFrameCount,

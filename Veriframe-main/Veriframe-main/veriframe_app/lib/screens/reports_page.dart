@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +7,7 @@ import 'package:veriframe_app/models/verification_result.dart';
 import 'package:veriframe_app/provider/verification_notifier.dart';
 import 'package:veriframe_app/screens/report_detail_screen.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
+import 'package:veriframe_app/widgets/veri_media_preview.dart';
 
 import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 
@@ -339,7 +339,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   _DashboardHeader(_pal, onDeleteAll: _deleteAllReports, showDeleteAll: reports.isNotEmpty),
                   Expanded(
                     child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
                       itemCount: reports.length,
                       itemBuilder: (ctx, i) => _ReportCard(
                         report: reports[i],
@@ -500,24 +500,14 @@ class _ReportCard extends StatelessWidget {
         : '${displayScore.toStringAsFixed(1)}%';
 
     // Media preview thumbnail
-    Widget mediaPreview;
-    if (report.thumbnailBase64 != null && report.thumbnailBase64!.isNotEmpty) {
-      try {
-        mediaPreview = ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            base64Decode(report.thumbnailBase64!),
-            width: 80,
-            height: 60,
-            fit: BoxFit.cover,
-          ),
-        );
-      } catch (_) {
-        mediaPreview = _placeholderPreview(statusColor, isReal, mediaType: report.mediaType);
-      }
-    } else {
-      mediaPreview = _placeholderPreview(statusColor, isReal, mediaType: report.mediaType);
-    }
+    final mediaPreview = VeriMediaPreview(
+      report: report,
+      width: 80,
+      height: 60,
+      borderRadius: BorderRadius.circular(8),
+      showPlayBadge: true,
+      showLiveBadge: true,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -701,33 +691,6 @@ class _ReportCard extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget _placeholderPreview(Color statusColor, bool isReal, {String mediaType = ''}) {
-  IconData iconData;
-  if (mediaType.startsWith('image')) {
-    iconData = isReal ? Icons.image_rounded : Icons.broken_image_rounded;
-  } else if (mediaType.startsWith('audio')) {
-    iconData = isReal ? Icons.mic_rounded : Icons.voice_over_off_rounded;
-  } else {
-    iconData = isReal ? Icons.verified_user_rounded : Icons.gavel_rounded;
-  }
-  return Container(
-    width: 80,
-    height: 60,
-    decoration: BoxDecoration(
-      color: statusColor.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1),
-    ),
-    child: Center(
-      child: Icon(
-        iconData,
-        color: statusColor,
-        size: 24,
-      ),
-    ),
-  );
 }
 
 

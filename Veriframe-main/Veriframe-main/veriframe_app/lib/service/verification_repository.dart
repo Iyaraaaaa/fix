@@ -283,8 +283,30 @@ class VerificationRepositoryImpl implements VerificationRepository {
       mediaName: map['mediaName'] ?? '',
       mediaPath: map['mediaPath'] ?? '',
       pdfPath: map['pdfPath'] ?? '',
-      thumbnailBase64: map['thumbnailBase64'] ?? '',
+      thumbnailBase64: (map['thumbnailBase64'] as String?)?.isNotEmpty == true
+          ? (map['thumbnailBase64'] as String)
+          : ((map['thumbnail'] as String?)?.isNotEmpty == true
+              ? (map['thumbnail'] as String)
+              : (map['thumbnail_base64'] as String? ?? '')),
       videoUrl: map['videoUrl'] as String?,
+      platform: map['platform'] as String?,
+      videoLength: map['videoLength'] as String?,
+      resolution: map['resolution'] as String?,
+      framesAnalysedCount: (map['framesAnalysedCount'] as num?)?.toInt(),
+      suspiciousFramesCount: (map['suspiciousFramesCount'] as num?)?.toInt(),
+      faceDetectionRate: (map['faceDetectionRate'] as num?)?.toDouble(),
+      processingTimeSec: (map['processingTimeSec'] as num?)?.toDouble(),
+      suspiciousFrames: (map['suspiciousFrames'] as List?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
+      timelineLogs: (map['timelineLogs'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
+      aiExplanation: map['aiExplanation'] != null
+          ? Map<String, dynamic>.from(map['aiExplanation'] as Map)
+          : null,
+      videoStoragePath: map['videoStoragePath'] as String?,
+      pdfUrl: map['pdfUrl'] as String?,
     );
   }
 }

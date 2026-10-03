@@ -76,7 +76,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   // Controllers and state
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _streamUrlController = TextEditingController();
-  String _selectedPlatform = 'Instagram';
+  String _selectedPlatform = 'YouTube';
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isStreaming = false;
@@ -123,6 +123,8 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   double _streamFps = 0.0;
   DateTime? _streamStartTime;
   final List<double> _confidenceHistory = [];
+  String? _videoThumbnailBase64;
+  String? _lastStreamFrameBase64;
 
   // Animations
   late AnimationController _pulseController;
@@ -253,6 +255,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     }
 
     setState(() {
+      _videoThumbnailBase64 = null;
       _isAnalyzing = true;
       _showResults = false;
       _errorMessage = null;
@@ -414,6 +417,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         if (thumbPath != null) {
           final bytes = await File(thumbPath).readAsBytes();
           frameBytes.add(bytes);
+          _videoThumbnailBase64 ??= base64Encode(bytes);
           File(thumbPath).deleteSync();
         }
       } catch (e) {
@@ -1017,6 +1021,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     double? faceDetectionRate,
     List<String>? detectedEvidence,
     List<String>? forensicObservations,
+    String? thumbnailBase64,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
@@ -1123,6 +1128,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               explanation,
             ],
       reportHash: reportId.hashCode.toRadixString(16).padLeft(16, '0'),
+      thumbnailBase64: thumbnailBase64 ?? _videoThumbnailBase64 ?? _lastStreamFrameBase64,
       mediaPath: videoPath.isEmpty ? null : videoPath,
       mediaName: videoName,
       videoUrl: resolvedVideoUrl,
@@ -1714,19 +1720,20 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor, width: 1.2),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: 1.1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Center(
             child: Column(
@@ -1734,233 +1741,244 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                 Text(
                   'Select Platform',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: titleColor,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
                   'Choose where your video is hosted',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 12,
                     color: subtitleColor,
-                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 14),
 
-          // 2x2 Platform Grid
-          GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.15,
+          // Horizontal 3-Platform Selector Row (Instagram removed)
+          Row(
             children: [
-              _buildVerifyPlatformItem(
-                name: 'YouTube',
-                brandColor: const Color(0xFFFF0000),
-                isDark: isDark,
-                customIcon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF0000),
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFF0000).withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ),
-              _buildVerifyPlatformItem(
-                name: 'Instagram',
-                brandColor: const Color(0xFFE1306C),
-                isDark: isDark,
-                customIcon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFF58529),
-                        Color(0xFFDD2A7B),
-                        Color(0xFF8134AF),
+              Expanded(
+                child: _buildVerifyPlatformItem(
+                  name: 'YouTube',
+                  brandColor: const Color(0xFFFF0000),
+                  isDark: isDark,
+                  customIcon: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF0000),
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF0000).withValues(alpha: 0.28),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
                     ),
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFDD2A7B).withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Colors.white,
-                    size: 24,
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
-              _buildVerifyPlatformItem(
-                name: 'Facebook',
-                brandColor: const Color(0xFF1877F2),
-                isDark: isDark,
-                customIcon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1877F2),
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1877F2).withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'f',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVerifyPlatformItem(
+                  name: 'Facebook',
+                  brandColor: const Color(0xFF1877F2),
+                  isDark: isDark,
+                  customIcon: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1877F2),
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1877F2).withValues(alpha: 0.28),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'f',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'sans-serif',
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              _buildVerifyPlatformItem(
-                name: 'TikTok',
-                brandColor: Colors.black,
-                isDark: isDark,
-                customIcon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: const [
-                      Positioned(
-                        left: 13,
-                        top: 11,
-                        child: Icon(Icons.music_note_rounded, color: Color(0xFF00F2FE), size: 22),
-                      ),
-                      Positioned(
-                        right: 13,
-                        bottom: 11,
-                        child: Icon(Icons.music_note_rounded, color: Color(0xFFFE2C55), size: 22),
-                      ),
-                      Icon(Icons.music_note_rounded, color: Colors.white, size: 22),
-                    ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVerifyPlatformItem(
+                  name: 'TikTok',
+                  brandColor: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A),
+                  isDark: isDark,
+                  customIcon: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: const [
+                        Positioned(
+                          left: 7.5,
+                          top: 6.5,
+                          child: Icon(Icons.music_note_rounded, color: Color(0xFF00F2FE), size: 16),
+                        ),
+                        Positioned(
+                          right: 7.5,
+                          bottom: 6.5,
+                          child: Icon(Icons.music_note_rounded, color: Color(0xFFFE2C55), size: 16),
+                        ),
+                        Icon(Icons.music_note_rounded, color: Colors.white, size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 14),
 
-          Text(
-            'VIDEO LINK',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: subtitleColor,
-              letterSpacing: 0.6,
-            ),
+          // VIDEO LINK Label with Quick Action
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'VIDEO LINK',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: subtitleColor,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (_urlController.text.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _urlController.clear()),
+                  child: Text(
+                    'Clear',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: subtitleColor,
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: () async {
+                    final data = await Clipboard.getData(Clipboard.kTextPlain);
+                    if (data?.text != null && data!.text!.trim().isNotEmpty) {
+                      setState(() {
+                        _urlController.text = data.text!.trim();
+                      });
+                    }
+                  },
+                  child: const Text(
+                    'Paste',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8B5CF6),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Container(
+            height: 44,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor, width: 1.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor, width: 1.1),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
                     color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(7),
                   ),
-                  child: const Icon(Icons.link_rounded, color: Color(0xFF8B5CF6), size: 20),
+                  child: const Icon(Icons.link_rounded, color: Color(0xFF8B5CF6), size: 16),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _urlController,
-                    style: TextStyle(fontSize: 13.5, color: titleColor, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 13, color: titleColor, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
+                      contentPadding: EdgeInsets.zero,
                       hintText: 'Paste your $_selectedPlatform link here...',
-                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
+                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w400),
                     ),
+                    onSubmitted: (_) => _verifyUrlLink(),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
 
           SizedBox(
-            height: 52,
+            height: 44,
             child: ElevatedButton(
               onPressed: _verifyUrlLink,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: EdgeInsets.zero,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(3.5),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.2),
                     ),
-                    child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 16),
+                    child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 14),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   const Text(
                     'VERIFY NOW',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.6),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Colors.white),
                   ),
                 ],
               ),
@@ -1980,13 +1998,11 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     final isSelected = _selectedPlatform == name;
     final cardBg = isDark
         ? (isSelected ? const Color(0xFF1E293B) : const Color(0xFF111C2E))
-        : (isSelected ? const Color(0xFFF0F9FF) : Colors.white);
+        : (isSelected ? const Color(0xFFF1F5F9) : const Color(0xFFFAFAFA));
 
-    final activeBorderColor = name == 'Instagram'
-        ? const Color(0xFFE1306C)
-        : (name == 'YouTube'
-            ? const Color(0xFFFF0000)
-            : (name == 'Facebook' ? const Color(0xFF1877F2) : const Color(0xFF0F172A)));
+    final activeBorderColor = name == 'YouTube'
+        ? const Color(0xFFFF0000)
+        : (name == 'Facebook' ? const Color(0xFF1877F2) : (isDark ? Colors.white : const Color(0xFF0F172A)));
 
     final cardBorder = isSelected ? activeBorderColor : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0));
 
@@ -1994,41 +2010,40 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       color: Colors.transparent,
       child: InkWell(
         onTap: () => setState(() => _selectedPlatform = name),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
           decoration: BoxDecoration(
             color: cardBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: cardBorder, width: isSelected ? 1.8 : 1.2),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cardBorder, width: isSelected ? 1.6 : 1.0),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: activeBorderColor.withValues(alpha: 0.14),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                      color: activeBorderColor.withValues(alpha: 0.12),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
-                  ],
+                  ]
+                : null,
           ),
-          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               customIcon,
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Text(
                 name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected
+                      ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                   letterSpacing: -0.2,
                 ),
               ),
@@ -2229,6 +2244,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       try {
         final XFile file = await _cameraController!.takePicture();
         final bytes = await File(file.path).readAsBytes();
+        _lastStreamFrameBase64 = base64Encode(bytes);
 
         if (isOnline) {
           final base64Image = "data:image/jpeg;base64,${base64Encode(bytes)}";

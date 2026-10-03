@@ -156,12 +156,12 @@ class _ForensicProgressTimelineState extends State<ForensicProgressTimeline>
                                   height: 22,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF00C8FF)
-                                        .withOpacity(_pulseAnim.value),
+                                        .withValues(alpha: _pulseAnim.value),
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFF00C8FF)
-                                            .withOpacity(0.5 * _pulseAnim.value),
+                                            .withValues(alpha: 0.5 * _pulseAnim.value),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       )
@@ -198,7 +198,7 @@ class _ForensicProgressTimelineState extends State<ForensicProgressTimeline>
                               width: 2,
                               height: isActive ? 24 : 16,
                               color: isCompleted
-                                  ? const Color(0xFF00E896).withOpacity(0.5)
+                                  ? const Color(0xFF00E896).withValues(alpha: 0.5)
                                   : const Color(0xFF1C2740),
                             ),
                         ],
