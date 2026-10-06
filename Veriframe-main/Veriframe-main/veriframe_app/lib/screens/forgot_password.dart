@@ -1,5 +1,7 @@
 ﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
+import 'package:veriframe_app/widgets/language_selector_button.dart';
 
 class ForgetPasswordPage extends StatefulWidget {
   const ForgetPasswordPage({super.key});
@@ -93,6 +95,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenHeight < 700;
@@ -122,19 +125,32 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
               Positioned(
                 top: 10,
                 right: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha:0.2),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                      color: isDarkMode ? Colors.amber : Colors.white,
-                      size: 24,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const LanguageSelectorButton(iconColor: Colors.white),
                     ),
-                    onPressed: () => setState(() => isDarkMode = !isDarkMode),
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                          color: isDarkMode ? Colors.amber : Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: () => setState(() => isDarkMode = !isDarkMode),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // Main content
@@ -172,7 +188,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                 children: [
                                   // Title and subtitle
                                   Text(
-                                    'FORGOT PASSWORD',
+                                    loc.forgotPasswordTitle,
                                     style: TextStyle(
                                       fontSize: isSmallScreen ? 24 : 28,
                                       fontWeight: FontWeight.bold,
@@ -182,7 +198,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                   ),
                                   SizedBox(height: isSmallScreen ? 4 : 8),
                                   Text(
-                                    'Enter your email to reset password',
+                                    loc.enterEmailReset,
                                     style: TextStyle(
                                       fontSize: isSmallScreen ? 14 : 16,
                                       color: isDarkMode ? Colors.white60 : Colors.black54,
@@ -193,7 +209,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                   // Email field
                                   _buildTextField(
                                     controller: emailController,
-                                    label: 'Email',
+                                    label: loc.emailLabel,
                                     prefixIcon: Icons.email_outlined,
                                     validator: _validateEmail,
                                     keyboardType: TextInputType.emailAddress,
@@ -227,7 +243,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                               ),
                                             )
                                           : Text(
-                                              'SEND RESET LINK',
+                                              loc.sendResetLink,
                                               style: TextStyle(
                                                 fontSize: isSmallScreen ? 16 : 18,
                                                 fontWeight: FontWeight.bold,
@@ -250,7 +266,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                       Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 16),
                                         child: Text(
-                                          'OR',
+                                          loc.orText,
                                           style: TextStyle(
                                             color: isDarkMode ? Colors.white60 : Colors.black54,
                                             fontWeight: FontWeight.w500,
@@ -280,9 +296,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                                           color: isDarkMode ? Colors.white70 : Colors.black87,
                                         ),
                                         children: [
-                                          const TextSpan(text: "Remembered your password? "),
+                                          TextSpan(text: "${loc.rememberedPassword} "),
                                           TextSpan(
-                                            text: "LOGIN",
+                                            text: loc.loginAction,
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: const Color(0xFF0D40DA),

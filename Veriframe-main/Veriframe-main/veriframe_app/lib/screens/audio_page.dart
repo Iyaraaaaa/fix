@@ -12,6 +12,7 @@ import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
 import 'package:veriframe_app/widgets/forensic_result_card.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
 
 class AudioPage extends ConsumerStatefulWidget {
   const AudioPage({super.key});
@@ -35,10 +36,11 @@ class _AudioPageState extends ConsumerState<AudioPage> {
     if (!mounted) return;
     final controller = TextEditingController(text: currentUrl);
 
+    final loc = AppLocalizations.of(context)!;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Backend Server Settings'),
+        title: Text(loc.backendServerSettingsTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,11 +72,11 @@ class _AudioPageState extends ConsumerState<AudioPage> {
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Reset to Default'),
+            child: Text(loc.resetToDefaultBtn),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(loc.verifyCancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -89,7 +91,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Save'),
+            child: Text(loc.verifyBackendSave),
           ),
         ],
       ),
@@ -132,7 +134,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
 
     try {
       final baseUrl = await VerifyBackendService.instance.getBaseUrl();
-      setState(() => _statusMessage = 'Scanning acoustic spectrum & querying Reality Defender Voice AI...');
+      setState(() => _statusMessage = 'Scanning acoustic spectrum & querying Cloud Voice AI...');
       final res = await VerifyBackendService.instance.verifyAudio(baseUrl, _selectedAudio!);
 
       setState(() {
@@ -242,13 +244,14 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF6F8FC);
+    final loc = AppLocalizations.of(context)!;
 
     return MainScaffold(
       backgroundColor: bg,
       showBack: true,
-      title: const Text(
-        'Audio Verification',
-        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      title: Text(
+        loc.audioVerificationTitle,
+        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       extraActions: [
         IconButton(
@@ -257,24 +260,25 @@ class _AudioPageState extends ConsumerState<AudioPage> {
           onPressed: _showServerDialog,
         ),
       ],
-      body: _result != null ? _buildResultView(isDark) : _buildUploadView(isDark),
+      body: _result != null ? _buildResultView(isDark, loc) : _buildUploadView(isDark, loc),
     );
   }
 
-  Widget _buildUploadView(bool isDark) {
-    final bannerBg = isDark ? const Color(0xFF26190E) : const Color(0xFFFFF6E9);
-    final bannerBorder = isDark ? const Color(0xFF4C270A) : const Color(0xFFFDE8CD);
-    final bannerTitleColor = isDark ? const Color(0xFFFDBA74) : const Color(0xFF78350F);
+  Widget _buildUploadView(bool isDark, AppLocalizations loc) {
+    const primaryColor = Color(0xFFEA580C);
+    final bannerBg = isDark ? const Color(0xFF7C2D12).withValues(alpha: 0.2) : const Color(0xFFFFF7ED);
+    final bannerBorder = isDark ? const Color(0xFF9A3412).withValues(alpha: 0.4) : const Color(0xFFFED7AA);
+    final bannerTitleColor = isDark ? const Color(0xFFFED7AA) : const Color(0xFF9A3412);
     final bannerDescColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
-    final iconBoxBg = isDark ? const Color(0xFF352010) : Colors.white;
+    final iconBoxBg = isDark ? const Color(0xFF431407) : Colors.white;
+    final iconBoxBorder = isDark ? const Color(0xFF9A3412) : const Color(0xFFFDBA74);
 
-    final cardBg = isDark ? const Color(0xFF162032) : Colors.white;
-    final dashedBorderColor = isDark ? const Color(0xFF334155) : const Color(0xFFBAC7D5);
-    final circleBg = isDark ? const Color(0xFF2D2115) : const Color(0xFFFFF4DE);
+    final cardBg = isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : Colors.white;
+    final circleBg = isDark ? const Color(0xFF431407).withValues(alpha: 0.4) : const Color(0xFFFFF7ED);
+    final circleBorder = isDark ? const Color(0xFF9A3412).withValues(alpha: 0.4) : const Color(0xFFFED7AA);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
     final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-
-    const primaryColor = Color(0xFFB45309);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -287,7 +291,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
             decoration: BoxDecoration(
               color: bannerBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: bannerBorder, width: 1.2),
+              border: Border.all(color: bannerBorder, width: 1.0),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,11 +299,12 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                 Row(
                   children: [
                     Container(
-                      width: 46,
-                      height: 46,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: iconBoxBg,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(color: iconBoxBorder, width: 1.0),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
@@ -312,14 +317,14 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                         child: Icon(
                           Icons.mic_none_rounded,
                           color: primaryColor,
-                          size: 26,
+                          size: 24,
                         ),
                       ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Text(
-                        'Voice authenticity check',
+                        loc.audioVoiceDeepfakeTitle,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: bannerTitleColor,
@@ -332,7 +337,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Breaks speech into spectral bands and runs the VeriFrame Audio model to catch cloned voices and synthetic speech.',
+                  loc.audioVoiceDeepfakeDesc,
                   style: TextStyle(
                     fontSize: 13.5,
                     height: 1.45,
@@ -348,10 +353,10 @@ class _AudioPageState extends ConsumerState<AudioPage> {
           // ── Middle Card: Upload Box with Dashed Border ───────────────
           CustomPaint(
             painter: _DashedRRectPainter(
-              color: dashedBorderColor,
-              strokeWidth: 1.2,
-              dashWidth: 4.5,
-              dashSpace: 3.5,
+              color: borderColor,
+              strokeWidth: 1.5,
+              dashWidth: 5.5,
+              dashSpace: 4.0,
               radius: 20.0,
             ),
             child: Container(
@@ -366,11 +371,12 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                 children: [
                   // Warm Circle
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 68,
+                    height: 68,
                     decoration: BoxDecoration(
                       color: circleBg,
                       shape: BoxShape.circle,
+                      border: Border.all(color: circleBorder, width: 1.0),
                     ),
                     child: Center(
                       child: Icon(
@@ -378,7 +384,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                             ? Icons.audiotrack_rounded
                             : Icons.graphic_eq_rounded,
                         color: primaryColor,
-                        size: 34,
+                        size: 32,
                       ),
                     ),
                   ),
@@ -386,11 +392,11 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                   Text(
                     _selectedAudio != null
                         ? (_audioFileName ?? 'Audio file selected')
-                        : 'Select an audio file to analyze',
+                        : loc.uploadAudioClipTitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 17,
+                      fontSize: 16.5,
                       color: titleColor,
                       letterSpacing: -0.2,
                     ),
@@ -401,10 +407,10 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                   Text(
                     _selectedAudio != null
                         ? '${(_audioFileSize / 1024).toStringAsFixed(1)} KB • ${(_audioFileName ?? '').split('.').last.toUpperCase()}'
-                        : 'MP3, WAV, M4A, AAC, FLAC up to 20 MB',
+                        : loc.supportedAudioFormatsHint,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: subtitleColor,
                     ),
@@ -429,11 +435,11 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                               ? Icons.refresh_rounded
                               : Icons.file_upload_outlined,
                           color: Colors.white,
-                          size: 20,
+                          size: 19,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _selectedAudio != null ? 'Change file' : 'Browse files',
+                          _selectedAudio != null ? 'Change file' : loc.browseAudioFileBtn,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14.5,
@@ -454,9 +460,9 @@ class _AudioPageState extends ConsumerState<AudioPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
+                color: Colors.red.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3), width: 1.0),
               ),
               child: Row(
                 children: [
@@ -481,15 +487,18 @@ class _AudioPageState extends ConsumerState<AudioPage> {
               decoration: BoxDecoration(
                 color: primaryColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: primaryColor.withValues(alpha: 0.25),
+                  width: 1.0,
+                ),
               ),
               child: Column(
                 children: [
-                  const ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(6)),
                     child: LinearProgressIndicator(
                       color: primaryColor,
-                      backgroundColor: Color(0xFFFFF4DE),
+                      backgroundColor: primaryColor.withValues(alpha: 0.15),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -539,9 +548,9 @@ class _AudioPageState extends ConsumerState<AudioPage> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Verify audio',
-                      style: TextStyle(
+                  : Text(
+                      loc.verifyAudioBtn,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16.5,
                         color: Colors.white,
@@ -552,12 +561,13 @@ class _AudioPageState extends ConsumerState<AudioPage> {
           const SizedBox(height: 18),
 
           // ── Bottom Chips: Audio.tflite & Runs on device ──────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
               _buildPill('Audio.tflite', isDark),
-              const SizedBox(width: 12),
-              _buildPill('Runs on device', isDark),
+              _buildPill(loc.verifyRunsOnDevice, isDark),
             ],
           ),
           const SizedBox(height: 24),
@@ -567,24 +577,26 @@ class _AudioPageState extends ConsumerState<AudioPage> {
   }
 
   Widget _buildPill(String label, bool isDark) {
+    final pillBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8EDF7),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: pillBorder, width: 1.0),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w500,
-          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
         ),
       ),
     );
   }
 
-  Widget _buildResultView(bool isDark) {
+  Widget _buildResultView(bool isDark, AppLocalizations loc) {
     final r = _result!;
     final authScore = (r['authenticityScore'] as num?)?.toDouble() ?? 0.0;
     final fakeProb = (r['fakeProbability'] as num?)?.toDouble() ?? 0.0;
@@ -618,7 +630,7 @@ class _AudioPageState extends ConsumerState<AudioPage> {
       padding: const EdgeInsets.all(20),
       child: ForensicResultCard(
         result: verificationResult,
-        scanAnotherText: 'Verify Another Audio File',
+        scanAnotherText: loc.scanAnotherAudioBtn,
         onScanAnother: () => setState(() {
           _result = null;
           _selectedAudio = null;

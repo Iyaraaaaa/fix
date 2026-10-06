@@ -23,8 +23,8 @@ class $AssetsImagesGen {
   /// File path: assets/images/logo.jpg
   AssetGenImage get logo => const AssetGenImage('assets/images/logo.jpg');
 
-  /// File path: assets/images/on_board_1.avif
-  String get onBoard1 => 'assets/images/on_board_1.avif';
+  /// File path: assets/images/on_board_1.jpg
+  String get onBoard1 => 'assets/images/on_board_1.jpg';
 
   /// File path: assets/images/on_board_2.jpg
   AssetGenImage get onBoard2 =>

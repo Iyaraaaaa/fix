@@ -6,6 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:veriframe_app/service/user_service.dart';
 import 'package:veriframe_app/service/user_profile_cache.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
+import 'package:veriframe_app/widgets/language_selector_button.dart';
 
 class LoginPage extends StatefulWidget {
   final Future<void> Function(bool isDark) onThemeChanged;
@@ -319,6 +321,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenHeight < 700;
@@ -350,19 +353,32 @@ class _LoginPageState extends State<LoginPage> {
               Positioned(
                 top: 10,
                 right: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha:0.2),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                      color: isDarkMode ? Colors.amber : Colors.white,
-                      size: 24,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const LanguageSelectorButton(iconColor: Colors.white),
                     ),
-                    onPressed: _toggleDarkMode,
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha:0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                          color: isDarkMode ? Colors.amber : Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: _toggleDarkMode,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Positioned.fill(
@@ -398,7 +414,7 @@ class _LoginPageState extends State<LoginPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'SIGN IN',
+                                    loc.signInTitle,
                                     style: TextStyle(
                                       fontSize: isSmallScreen ? 24 : 28,
                                       fontWeight: FontWeight.bold,
@@ -408,7 +424,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   SizedBox(height: isSmallScreen ? 4 : 8),
                                   Text(
-                                    'Sign in to continue',
+                                    loc.signInSubtitle,
                                     style: TextStyle(
                                       fontSize: isSmallScreen ? 14 : 16,
                                       color: isDarkMode ? Colors.white60 : Colors.black54,
@@ -426,7 +442,7 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: isSmallScreen ? 14 : 16,
                                     ),
                                     decoration: InputDecoration(
-                                      labelText: 'Email',
+                                      labelText: loc.emailLabel,
                                       prefixIcon: Icon(
                                         Icons.email_outlined,
                                         color: isDarkMode ? Colors.white60 : Colors.grey[600],
@@ -485,7 +501,7 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: isSmallScreen ? 14 : 16,
                                     ),
                                     decoration: InputDecoration(
-                                      labelText: 'Password',
+                                      labelText: loc.passwordLabel,
                                       prefixIcon: Icon(
                                         Icons.lock_outline,
                                         color: isDarkMode ? Colors.white60 : Colors.grey[600],
@@ -571,7 +587,7 @@ class _LoginPageState extends State<LoginPage> {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            'Remember me',
+                                            loc.rememberMe,
                                             style: TextStyle(
                                               fontSize: isSmallScreen ? 12 : 14,
                                               color: isDarkMode ? Colors.white70 : Colors.black54,
@@ -584,7 +600,7 @@ class _LoginPageState extends State<LoginPage> {
                                             ? null
                                             : () => Navigator.pushNamed(context, '/forgot_password'),
                                         child: Text(
-                                          'Forgot Password?',
+                                          loc.forgotPassword,
                                           style: TextStyle(
                                             fontSize: isSmallScreen ? 12 : 14,
                                             color: const Color(0xFF0D40DA),
@@ -622,7 +638,7 @@ class _LoginPageState extends State<LoginPage> {
                                               ),
                                             )
                                           : Text(
-                                              'LOGIN',
+                                              loc.loginButton,
                                               style: TextStyle(
                                                 fontSize: isSmallScreen ? 16 : 18,
                                                 fontWeight: FontWeight.bold,
@@ -644,7 +660,7 @@ class _LoginPageState extends State<LoginPage> {
                                       Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 16),
                                         child: Text(
-                                          'OR',
+                                          loc.orText,
                                           style: TextStyle(
                                             color: isDarkMode ? Colors.white60 : Colors.black54,
                                             fontWeight: FontWeight.w500,
@@ -703,7 +719,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                                 const SizedBox(width: 12),
                                                 Text(
-                                                  'GOOGLE SIGN IN',
+                                                  loc.googleSignIn,
                                                   style: TextStyle(
                                                     fontSize: isSmallScreen ? 16 : 18,
                                                     fontWeight: FontWeight.bold,
@@ -728,9 +744,9 @@ class _LoginPageState extends State<LoginPage> {
                                           color: isDarkMode ? Colors.white70 : Colors.black87,
                                         ),
                                         children: [
-                                          const TextSpan(text: "Need an account? "),
+                                          TextSpan(text: "${loc.needAccount} "),
                                           TextSpan(
-                                            text: "SIGN UP",
+                                            text: loc.signUpLink,
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: const Color(0xFF0D40DA),

@@ -18,6 +18,8 @@ from utils.video import get_video_metadata, extract_video_thumbnail_base64
 from utils.image import resize_face, pad_to_square
 from services.reality_defender_service import RealityDefenderService
 from utils.transparency import THRESHOLDS_VIDEO
+from pipelines.rppg_pipeline import RppgForensicsDetector
+from pipelines.undeepfake_pipeline import UnDeepfakeReverser
 
 logger = logging.getLogger("veriframe.pipelines.video")
 
@@ -55,6 +57,8 @@ class VideoPipeline:
         self.preprocessor = preprocessor
         self.scene_analyzer = scene_analyzer or SceneForensicsAnalyzer()
         self.rd_service = rd_service or RealityDefenderService()
+        self.rppg_detector = RppgForensicsDetector()
+        self.undeepfake_reverser = UnDeepfakeReverser()
 
     def process(self, video_path: str, source: str = "Local Upload") -> Dict[str, Any]:
         start_time = time.time()
@@ -182,34 +186,34 @@ class VideoPipeline:
             except Exception as e:
                 logger.warning(f"[VideoPipeline] Reality Defender analysis failed: {e}")
                 degraded = True
-                forensic_observations.append("Reality Defender timed out or failed; local-only result.")
+                forensic_observations.append("Cloud verification timed out or unavailable; local-only result.")
 
         if rd_result and rd_result.get("status") == "success":
             if rd_result.get("partial"):
                 degraded = True
-                models_used = "VeriFrame Local Neural Net (TFLite) (Reality Defender partial, excluded)"
+                models_used = "VeriFrame Local Neural Net (TFLite) (Cloud verification partial, excluded)"
                 forensic_observations.extend(rd_result.get("observations") or [])
                 forensic_observations.append(
-                    "Reality Defender result was PARTIAL (models still ANALYZING at the deadline) and was "
+                    "Cloud verification result was PARTIAL (models still ANALYZING at the deadline) and was "
                     "excluded from the ensemble; local-only result."
                 )
                 detected_evidence.extend(rd_result.get("evidence") or [])
             else:
                 engines_used.append("reality_defender")
                 rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
-                # Ensemble: 50% Local Biometric & Scene Forensics + 50% Reality Defender
+                # Ensemble: 50% Local Biometric & Scene Forensics + 50% Cloud Deepfake AI
                 final_fake_prob = 0.50 * final_fake_prob + 0.50 * rd_fake_prob
-                models_used = "Ensemble: VeriFrame TFLite + Reality Defender AI"
+                models_used = "Ensemble: VeriFrame TFLite + Cloud Deepfake AI"
                 if rd_result.get("evidence"):
                     detected_evidence.extend(rd_result["evidence"])
                 if rd_result.get("observations"):
                     forensic_observations.extend(rd_result["observations"])
-                forensic_observations.append(f"Reality Defender Cloud Deepfake Score: {rd_result.get('fake_probability')}%.")
+                forensic_observations.append(f"Cloud Deepfake AI Score: {rd_result.get('fake_probability')}%.")
         else:
             if self.rd_service and self.rd_service.detector.is_configured() and rd_result is None:
                 degraded = True
-                if "Reality Defender timed out or failed; local-only result." not in forensic_observations:
-                    forensic_observations.append("Reality Defender timed out or failed; local-only result.")
+                if "Cloud verification timed out or unavailable; local-only result." not in forensic_observations:
+                    forensic_observations.append("Cloud verification timed out or unavailable; local-only result.")
 
         # Temporal calibration
         calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
@@ -254,6 +258,19 @@ class VideoPipeline:
         if ocr_confidence > 0.0:
             forensic_observations.append(f"OCR Scan active: High-contrast text overlay detected (Confidence: {ocr_confidence}%).")
 
+        # 4. Biophysical rPPG pulse analysis
+        fps_val = float(metadata.get("fps", 30.0))
+        rppg_result = self.rppg_detector.process_frames(raw_scene_frames, all_boxes, fps=fps_val)
+        if rppg_result.get("observation"):
+            forensic_observations.append(rppg_result["observation"])
+
+        # 5. Un-Deepfake Reverser analysis on representative face crop
+        undeepfake_result = {}
+        if all_faces:
+            undeepfake_result = self.undeepfake_reverser.process_face(all_faces[0])
+            if undeepfake_result.get("observation"):
+                forensic_observations.append(undeepfake_result["observation"])
+
         verification_id = f"VRF-LOC-{int(time.time() * 1000)}"
         processing_time = round(time.time() - start_time, 2)
 
@@ -295,6 +312,8 @@ class VideoPipeline:
             "has_faces": len(all_faces) > 0,
             "scene_forensics": scene_eval,
             "reality_defender": rd_result,
+            "rppg": rppg_result,
+            "undeepfake": undeepfake_result,
             "confidence_label": "High" if fused_confidence >= 80.0 else ("Medium" if fused_confidence >= 60.0 else "Low"),
             "thumbnailBase64": thumbnail_base64,
         }

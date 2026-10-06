@@ -1063,7 +1063,7 @@ abstract class AppLocalizations {
   /// No description provided for @rememberMe.
   ///
   /// In en, this message translates to:
-  /// **'Remember me'**
+  /// **'Remember Me'**
   String get rememberMe;
 
   /// No description provided for @forgotPassword.
@@ -1105,7 +1105,7 @@ abstract class AppLocalizations {
   /// No description provided for @createAccount.
   ///
   /// In en, this message translates to:
-  /// **'Create your account'**
+  /// **'Create Account'**
   String get createAccount;
 
   /// No description provided for @confirmPassword.
@@ -4627,6 +4627,1314 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No actions available for this report'**
   String get reportActionsUnavailable;
+
+  /// No description provided for @modalitySelectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Verification Type'**
+  String get modalitySelectTitle;
+
+  /// No description provided for @modalitySelectSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what type of media you want to inspect for deepfakes and AI generation.'**
+  String get modalitySelectSubtitle;
+
+  /// No description provided for @modalityVideoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Verification'**
+  String get modalityVideoTitle;
+
+  /// No description provided for @modalityVideoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze videos, YouTube links & live streams for authenticity'**
+  String get modalityVideoDesc;
+
+  /// No description provided for @modalityVideoBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'VIDEO & STREAM'**
+  String get modalityVideoBadge;
+
+  /// No description provided for @modalityLocalVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Video'**
+  String get modalityLocalVideo;
+
+  /// No description provided for @modalityVideoLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Link'**
+  String get modalityVideoLink;
+
+  /// No description provided for @modalityLiveStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Stream'**
+  String get modalityLiveStream;
+
+  /// No description provided for @modalityImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Verification'**
+  String get modalityImageTitle;
+
+  /// No description provided for @modalityImageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect AI artifacts, face swaps, GAN images & deep fakes'**
+  String get modalityImageDesc;
+
+  /// No description provided for @modalityImageBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'IMAGE & URL'**
+  String get modalityImageBadge;
+
+  /// No description provided for @modalityLocalPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Photo'**
+  String get modalityLocalPhoto;
+
+  /// No description provided for @modalityImageLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Link'**
+  String get modalityImageLink;
+
+  /// No description provided for @modalityAudioTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Voice Verification'**
+  String get modalityAudioTitle;
+
+  /// No description provided for @modalityAudioDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect voice cloning, synthetic speech & audio artifacts'**
+  String get modalityAudioDesc;
+
+  /// No description provided for @modalityAudioBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'VOICE CLONE AI'**
+  String get modalityAudioBadge;
+
+  /// No description provided for @modalityLocalAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Audio'**
+  String get modalityLocalAudio;
+
+  /// No description provided for @imageForensicsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Forensics'**
+  String get imageForensicsTitle;
+
+  /// No description provided for @localImageTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Image'**
+  String get localImageTab;
+
+  /// No description provided for @imageLinkTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Link'**
+  String get imageLinkTab;
+
+  /// No description provided for @inspectImageFilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspect Image Files'**
+  String get inspectImageFilesTitle;
+
+  /// No description provided for @inspectImageFilesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze JPEG, PNG, WEBP files for deepfakes, face swaps, GAN generation artifacts, and synthetic manipulations using our forensic AI model.'**
+  String get inspectImageFilesDesc;
+
+  /// No description provided for @localImageAnalysisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Image Analysis'**
+  String get localImageAnalysisTitle;
+
+  /// No description provided for @selectImageFileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Image File'**
+  String get selectImageFileHint;
+
+  /// No description provided for @browseImageBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'BROWSE IMAGE'**
+  String get browseImageBtn;
+
+  /// No description provided for @analyzeImageBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze Image'**
+  String get analyzeImageBtn;
+
+  /// No description provided for @scanImageUrlTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Image URL'**
+  String get scanImageUrlTitle;
+
+  /// No description provided for @scanImageUrlDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify images directly from public web addresses, news links, and image hosting services.'**
+  String get scanImageUrlDesc;
+
+  /// No description provided for @imageUrlVerificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image URL Verification'**
+  String get imageUrlVerificationTitle;
+
+  /// No description provided for @pasteImageUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Image URL'**
+  String get pasteImageUrlHint;
+
+  /// No description provided for @enterImageUrlPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter direct image URL (JPG, PNG, WebP)...'**
+  String get enterImageUrlPlaceholder;
+
+  /// No description provided for @analyzeLinkBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'ANALYZE LINK'**
+  String get analyzeLinkBtn;
+
+  /// No description provided for @imageForensicReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'IMAGE FORENSIC REPORT'**
+  String get imageForensicReportTitle;
+
+  /// No description provided for @scanAnotherImageBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Another Image'**
+  String get scanAnotherImageBtn;
+
+  /// No description provided for @backendServerSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backend Server Settings'**
+  String get backendServerSettingsTitle;
+
+  /// No description provided for @resetToDefaultBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get resetToDefaultBtn;
+
+  /// No description provided for @audioVerificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Verification'**
+  String get audioVerificationTitle;
+
+  /// No description provided for @audioVoiceDeepfakeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Voice Deepfake Detection'**
+  String get audioVoiceDeepfakeTitle;
+
+  /// No description provided for @audioVoiceDeepfakeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze audio clips for voice cloning, synthetic speech synthesis, and acoustic manipulation.'**
+  String get audioVoiceDeepfakeDesc;
+
+  /// No description provided for @uploadAudioClipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Audio Clip'**
+  String get uploadAudioClipTitle;
+
+  /// No description provided for @supportedAudioFormatsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported formats: MP3, WAV, M4A, AAC, OGG'**
+  String get supportedAudioFormatsHint;
+
+  /// No description provided for @browseAudioFileBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'BROWSE AUDIO FILE'**
+  String get browseAudioFileBtn;
+
+  /// No description provided for @verifyAudioBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Audio'**
+  String get verifyAudioBtn;
+
+  /// No description provided for @audioForensicReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO FORENSIC REPORT'**
+  String get audioForensicReportTitle;
+
+  /// No description provided for @scanAnotherAudioBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Another Audio'**
+  String get scanAnotherAudioBtn;
+
+  /// No description provided for @forensicReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic Report'**
+  String get forensicReportTitle;
+
+  /// No description provided for @escalateToAuthority.
+  ///
+  /// In en, this message translates to:
+  /// **'Escalate to Authority'**
+  String get escalateToAuthority;
+
+  /// No description provided for @pdfReportBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Report'**
+  String get pdfReportBtn;
+
+  /// No description provided for @evidenceBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence'**
+  String get evidenceBtn;
+
+  /// No description provided for @escalateBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Escalate'**
+  String get escalateBtn;
+
+  /// No description provided for @openVideoLinkBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Video Link'**
+  String get openVideoLinkBtn;
+
+  /// No description provided for @playLiveStreamRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play Live Stream Recording'**
+  String get playLiveStreamRecording;
+
+  /// No description provided for @doneViewingBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Done Viewing'**
+  String get doneViewingBtn;
+
+  /// No description provided for @openImageLinkInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Image Link in Browser'**
+  String get openImageLinkInBrowser;
+
+  /// No description provided for @openInEvidencePlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Evidence Player'**
+  String get openInEvidencePlayer;
+
+  /// No description provided for @forensicAnalysisSignals.
+  ///
+  /// In en, this message translates to:
+  /// **'FORENSIC ANALYSIS SIGNALS'**
+  String get forensicAnalysisSignals;
+
+  /// No description provided for @aiExplainabilityReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'AI EXPLAINABILITY & REASONING'**
+  String get aiExplainabilityReasoning;
+
+  /// No description provided for @investigativeSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'INVESTIGATIVE SUMMARY'**
+  String get investigativeSummary;
+
+  /// No description provided for @mediaDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'MEDIA DETAILS'**
+  String get mediaDetails;
+
+  /// No description provided for @videoAnalysisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Analysis'**
+  String get videoAnalysisTitle;
+
+  /// No description provided for @stepValidatingUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Validating URL'**
+  String get stepValidatingUrl;
+
+  /// No description provided for @stepDetectingPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting Platform'**
+  String get stepDetectingPlatform;
+
+  /// No description provided for @stepDownloadingVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading Video'**
+  String get stepDownloadingVideo;
+
+  /// No description provided for @stepExtractingFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting Frames'**
+  String get stepExtractingFrames;
+
+  /// No description provided for @stepDetectingFaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting Faces'**
+  String get stepDetectingFaces;
+
+  /// No description provided for @stepRunningAiAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Running AI Analysis'**
+  String get stepRunningAiAnalysis;
+
+  /// No description provided for @stepGeneratingReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating Report'**
+  String get stepGeneratingReport;
+
+  /// No description provided for @stepVerificationComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Complete'**
+  String get stepVerificationComplete;
+
+  /// No description provided for @analyzingVideoStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing Video Stream'**
+  String get analyzingVideoStream;
+
+  /// No description provided for @analyzingVideoStreamDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait while VeriFrame downloads and inspects the media.'**
+  String get analyzingVideoStreamDesc;
+
+  /// No description provided for @viewReportBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'View Report'**
+  String get viewReportBtn;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @dontHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account?'**
+  String get dontHaveAccount;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account?'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @fullNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullNameLabel;
+
+  /// No description provided for @verificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Failed'**
+  String get verificationFailed;
+
+  /// No description provided for @goBackAndTryAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Go Back & Try Another URL'**
+  String get goBackAndTryAnother;
+
+  /// No description provided for @pauseOrCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'PAUSE / CANCEL'**
+  String get pauseOrCancel;
+
+  /// No description provided for @processingStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing...'**
+  String get processingStatus;
+
+  /// No description provided for @stageOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage {current} of {total}'**
+  String stageOf(int current, int total);
+
+  /// No description provided for @orText.
+  ///
+  /// In en, this message translates to:
+  /// **'OR'**
+  String get orText;
+
+  /// No description provided for @audioLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get audioLabel;
+
+  /// No description provided for @imageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get imageLabel;
+
+  /// No description provided for @evidenceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence'**
+  String get evidenceLabel;
+
+  /// No description provided for @openPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Open PDF'**
+  String get openPdf;
+
+  /// No description provided for @localVideoEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Video Evidence'**
+  String get localVideoEvidence;
+
+  /// No description provided for @videoLinkEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Link Evidence'**
+  String get videoLinkEvidence;
+
+  /// No description provided for @liveStreamEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Stream Evidence'**
+  String get liveStreamEvidence;
+
+  /// No description provided for @imageEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Evidence'**
+  String get imageEvidence;
+
+  /// No description provided for @audioEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Evidence'**
+  String get audioEvidence;
+
+  /// No description provided for @verifySelectPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Platform'**
+  String get verifySelectPlatform;
+
+  /// No description provided for @verifyChoosePlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where your video is hosted'**
+  String get verifyChoosePlatform;
+
+  /// No description provided for @verifyVideoLinkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'VIDEO LINK'**
+  String get verifyVideoLinkLabel;
+
+  /// No description provided for @verifyClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get verifyClear;
+
+  /// No description provided for @verifyPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get verifyPaste;
+
+  /// No description provided for @verifyPasteLinkPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your {platform} link here...'**
+  String verifyPasteLinkPlaceholder(String platform);
+
+  /// No description provided for @verifyNowButton.
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFY NOW'**
+  String get verifyNowButton;
+
+  /// No description provided for @verifyLiveTelemetryHud.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE STREAM TELEMETRY HUD'**
+  String get verifyLiveTelemetryHud;
+
+  /// No description provided for @verifyStreamProtocols.
+  ///
+  /// In en, this message translates to:
+  /// **'RTSP / RTMP / CAMERA'**
+  String get verifyStreamProtocols;
+
+  /// No description provided for @verifyRealTimeStreamTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-Time Continuous Stream Verification'**
+  String get verifyRealTimeStreamTitle;
+
+  /// No description provided for @verifyRealTimeStreamDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor live video streams in real-time with continuous sliding-window temporal confidence tracking.'**
+  String get verifyRealTimeStreamDesc;
+
+  /// No description provided for @verifyEnterStreamUrlOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter RTSP, RTMP, or HLS stream URL (optional)...'**
+  String get verifyEnterStreamUrlOptional;
+
+  /// No description provided for @verifyLiveCameraStreamBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Camera Stream'**
+  String get verifyLiveCameraStreamBtn;
+
+  /// No description provided for @verifyRtspNetworkStreamBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'RTSP/Network Stream'**
+  String get verifyRtspNetworkStreamBtn;
+
+  /// No description provided for @verifyEnterStreamUrlAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter an RTSP/RTMP/HLS stream URL or select Live Camera Stream.'**
+  String get verifyEnterStreamUrlAlert;
+
+  /// No description provided for @verifyRunsOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs on device'**
+  String get verifyRunsOnDevice;
+
+  /// No description provided for @verifySecondsRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'~{seconds}s remaining'**
+  String verifySecondsRemaining(int seconds);
+
+  /// No description provided for @linkStageValidatingUrlTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Validating URL'**
+  String get linkStageValidatingUrlTitle;
+
+  /// No description provided for @linkStageValidatingUrlDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking URL syntax, cryptographic schema, and domain reputation'**
+  String get linkStageValidatingUrlDesc;
+
+  /// No description provided for @linkStageDetectingPlatformTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting Platform'**
+  String get linkStageDetectingPlatformTitle;
+
+  /// No description provided for @linkStageDetectingPlatformDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Identifying video host, CDN endpoint, and extractor profile'**
+  String get linkStageDetectingPlatformDesc;
+
+  /// No description provided for @linkStageDownloadingStreamTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading Stream'**
+  String get linkStageDownloadingStreamTitle;
+
+  /// No description provided for @linkStageDownloadingStreamDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrieving media payload into secure forensic sandbox'**
+  String get linkStageDownloadingStreamDesc;
+
+  /// No description provided for @linkStageSamplingKeyframesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampling Keyframes'**
+  String get linkStageSamplingKeyframesTitle;
+
+  /// No description provided for @linkStageSamplingKeyframesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Decoding video container and extracting scene-aware keyframes'**
+  String get linkStageSamplingKeyframesDesc;
+
+  /// No description provided for @linkStageBiometricDetectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Detection'**
+  String get linkStageBiometricDetectionTitle;
+
+  /// No description provided for @linkStageBiometricDetectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Locating facial boundaries, landmarks, and spatial tracking vectors'**
+  String get linkStageBiometricDetectionDesc;
+
+  /// No description provided for @linkStageNeuralDeepfakeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Neural Deepfake Inference'**
+  String get linkStageNeuralDeepfakeTitle;
+
+  /// No description provided for @linkStageNeuralDeepfakeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Evaluating keyframe crops with on-device & cloud forensic classifiers'**
+  String get linkStageNeuralDeepfakeDesc;
+
+  /// No description provided for @linkStageForensicAggregationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic Aggregation'**
+  String get linkStageForensicAggregationTitle;
+
+  /// No description provided for @linkStageForensicAggregationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fusing spatial, temporal, frequency, and sensor noise evidence'**
+  String get linkStageForensicAggregationDesc;
+
+  /// No description provided for @linkStageVerificationCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Complete'**
+  String get linkStageVerificationCompleteTitle;
+
+  /// No description provided for @linkStageVerificationCompleteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Compiling cryptographic forensic report and audit trail'**
+  String get linkStageVerificationCompleteDesc;
+
+  /// No description provided for @linkVerdictAuthenticTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFIED AUTHENTIC'**
+  String get linkVerdictAuthenticTitle;
+
+  /// No description provided for @linkVerdictSyntheticTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SYNTHETIC / MANIPULATED'**
+  String get linkVerdictSyntheticTitle;
+
+  /// No description provided for @linkVerdictInconclusiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'INCONCLUSIVE EVIDENCE'**
+  String get linkVerdictInconclusiveTitle;
+
+  /// No description provided for @linkVerdictUnverifiedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'UNVERIFIED LINK'**
+  String get linkVerdictUnverifiedTitle;
+
+  /// No description provided for @linkVerdictAuthenticDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural optical camera sensor noise and consistent temporal facial motion verified across all sampled keyframes.'**
+  String get linkVerdictAuthenticDesc;
+
+  /// No description provided for @linkVerdictSyntheticDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Generative synthetic artifacts and inter-frame facial texture warping detected across video timeline.'**
+  String get linkVerdictSyntheticDesc;
+
+  /// No description provided for @linkVerdictInconclusiveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Borderline biometric indicators or compressed resolution. Deepfake probability lies in the neutral range.'**
+  String get linkVerdictInconclusiveDesc;
+
+  /// No description provided for @linkVerdictUnverifiedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Video payload could not be extracted directly. Please upload the raw video file for analysis.'**
+  String get linkVerdictUnverifiedDesc;
+
+  /// No description provided for @linkAuthenticityIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'AUTHENTICITY INDEX'**
+  String get linkAuthenticityIndex;
+
+  /// No description provided for @linkDeepfakeRiskIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'DEEPFAKE RISK INDEX'**
+  String get linkDeepfakeRiskIndex;
+
+  /// No description provided for @linkConfidenceScore.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIDENCE SCORE'**
+  String get linkConfidenceScore;
+
+  /// No description provided for @linkAuthenticPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentic: {score}%'**
+  String linkAuthenticPercent(String score);
+
+  /// No description provided for @linkManipulationPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'Manipulation: {score}%'**
+  String linkManipulationPercent(String score);
+
+  /// No description provided for @linkFramesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} frames'**
+  String linkFramesCount(int count);
+
+  /// No description provided for @linkKeyframesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} keyframes'**
+  String linkKeyframesCount(int count);
+
+  /// No description provided for @linkDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic AI Diagnostics'**
+  String get linkDiagnosticsTitle;
+
+  /// No description provided for @linkMetricConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall Confidence'**
+  String get linkMetricConfidence;
+
+  /// No description provided for @linkMetricSampledFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampled Frames'**
+  String get linkMetricSampledFrames;
+
+  /// No description provided for @linkMetricFaceCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Face Coverage'**
+  String get linkMetricFaceCoverage;
+
+  /// No description provided for @linkMetricTrackingStability.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking Stability'**
+  String get linkMetricTrackingStability;
+
+  /// No description provided for @linkMetricFrameConsistency.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame Consistency'**
+  String get linkMetricFrameConsistency;
+
+  /// No description provided for @linkMetricLatency.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis Latency'**
+  String get linkMetricLatency;
+
+  /// No description provided for @linkNoSuspiciousFrames.
+  ///
+  /// In en, this message translates to:
+  /// **'No Manipulated Keyframes Detected'**
+  String get linkNoSuspiciousFrames;
+
+  /// No description provided for @linkNoSuspiciousFramesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'All sampled keyframes passed temporal consistency and facial boundary checks.'**
+  String get linkNoSuspiciousFramesDesc;
+
+  /// No description provided for @linkSuspiciousFramesDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspicious Keyframes Detected ({count})'**
+  String linkSuspiciousFramesDetected(int count);
+
+  /// No description provided for @linkFrameNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame #{number}'**
+  String linkFrameNumber(int number);
+
+  /// No description provided for @linkFakePercent.
+  ///
+  /// In en, this message translates to:
+  /// **'Fake: {percent}%'**
+  String linkFakePercent(String percent);
+
+  /// No description provided for @linkTrackingPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking: {percent}%'**
+  String linkTrackingPercent(String percent);
+
+  /// No description provided for @linkAuditTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic Audit Timeline'**
+  String get linkAuditTimeline;
+
+  /// No description provided for @linkRetrievalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Video Stream Retrieval Failed'**
+  String get linkRetrievalFailed;
+
+  /// No description provided for @linkRetrievalFailedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform access restricted or stream protected.'**
+  String get linkRetrievalFailedDesc;
+
+  /// No description provided for @linkUploadDirectlyBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Video File Directly'**
+  String get linkUploadDirectlyBtn;
+
+  /// No description provided for @surpriseRevealBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Surprise Reveal'**
+  String get surpriseRevealBtn;
+
+  /// No description provided for @howToIdentifyBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Identify'**
+  String get howToIdentifyBtn;
+
+  /// No description provided for @realVerdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Real'**
+  String get realVerdict;
+
+  /// No description provided for @manipulatedVerdict.
+  ///
+  /// In en, this message translates to:
+  /// **'Manipulated'**
+  String get manipulatedVerdict;
+
+  /// No description provided for @assessmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ASSESSMENT: '**
+  String get assessmentLabel;
+
+  /// No description provided for @lowRiskLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'LOW RISK'**
+  String get lowRiskLabel;
+
+  /// No description provided for @highRiskLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'HIGH RISK'**
+  String get highRiskLabel;
+
+  /// No description provided for @authenticityUpperLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'AUTHENTICITY'**
+  String get authenticityUpperLabel;
+
+  /// No description provided for @authenticStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentic'**
+  String get authenticStatus;
+
+  /// No description provided for @manipulatedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Manipulated'**
+  String get manipulatedStatus;
+
+  /// No description provided for @whyMediaReal.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this media is Real'**
+  String get whyMediaReal;
+
+  /// No description provided for @whyMediaManipulated.
+  ///
+  /// In en, this message translates to:
+  /// **'Why this media is Manipulated'**
+  String get whyMediaManipulated;
+
+  /// No description provided for @sensorMatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Optical Sensor Match: '**
+  String get sensorMatchLabel;
+
+  /// No description provided for @sensorMismatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Optical Sensor Mismatch: '**
+  String get sensorMismatchLabel;
+
+  /// No description provided for @sensorMatchDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Silicon sensor pattern noise (PRNU) verified across all keyframes without AI smoothing.'**
+  String get sensorMatchDesc;
+
+  /// No description provided for @sensorMismatchDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'High-frequency spectral anomalies and generative warping patterns detected.'**
+  String get sensorMismatchDesc;
+
+  /// No description provided for @motionFlowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural Motion Flow: '**
+  String get motionFlowLabel;
+
+  /// No description provided for @unnaturalMotionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnatural Motion Vectors: '**
+  String get unnaturalMotionLabel;
+
+  /// No description provided for @motionFlowDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Facial boundaries and specular lighting vectors remain continuous without seam jitter.'**
+  String get motionFlowDesc;
+
+  /// No description provided for @unnaturalMotionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Generative flickering and temporal inconsistency detected in facial boundaries.'**
+  String get unnaturalMotionDesc;
+
+  /// No description provided for @whyMediaMarginNoteReal.
+  ///
+  /// In en, this message translates to:
+  /// **'The remaining {score}% margin is standard H.264 compression quantization, not neural manipulation.'**
+  String whyMediaMarginNoteReal(String score);
+
+  /// No description provided for @whyMediaMarginNoteFake.
+  ///
+  /// In en, this message translates to:
+  /// **'The high manipulation confidence indicates this is highly likely an AI generated deepfake.'**
+  String get whyMediaMarginNoteFake;
+
+  /// No description provided for @forensicObservations.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic observations'**
+  String get forensicObservations;
+
+  /// No description provided for @inferenceEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Inference engine'**
+  String get inferenceEngine;
+
+  /// No description provided for @onDeviceTflite.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device TFLite'**
+  String get onDeviceTflite;
+
+  /// No description provided for @analyzedKeyframes.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed\\nkeyframes'**
+  String get analyzedKeyframes;
+
+  /// No description provided for @analyzedImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed\\nimage'**
+  String get analyzedImage;
+
+  /// No description provided for @analyzedSegments.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzed\\nsegments'**
+  String get analyzedSegments;
+
+  /// No description provided for @avgInferencePerFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Average\\ninference/frame'**
+  String get avgInferencePerFrame;
+
+  /// No description provided for @avgInferencePerImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Average\\ninference\\nper image'**
+  String get avgInferencePerImage;
+
+  /// No description provided for @manipulationConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Manipulation\\nconfidence'**
+  String get manipulationConfidence;
+
+  /// No description provided for @creatingPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating PDF...'**
+  String get creatingPdf;
+
+  /// No description provided for @reportPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Report PDF'**
+  String get reportPdf;
+
+  /// No description provided for @shareLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Share link'**
+  String get shareLink;
+
+  /// No description provided for @reportMediaBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Report media'**
+  String get reportMediaBtn;
+
+  /// No description provided for @scanAnotherBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan another'**
+  String get scanAnotherBtn;
+
+  /// No description provided for @howToIdentifyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Identify Real vs Fake'**
+  String get howToIdentifyTitle;
+
+  /// No description provided for @howToIdentifySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic algorithms & analysts verify these physical principles:'**
+  String get howToIdentifySubtitle;
+
+  /// No description provided for @pillar1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Optical Silicon Sensor Noise'**
+  String get pillar1Title;
+
+  /// No description provided for @pillar1Real.
+  ///
+  /// In en, this message translates to:
+  /// **'Microscopic noise from camera sensors across pixels.'**
+  String get pillar1Real;
+
+  /// No description provided for @pillar1Fake.
+  ///
+  /// In en, this message translates to:
+  /// **'Mathematical pixels with unnatural neural smoothing.'**
+  String get pillar1Fake;
+
+  /// No description provided for @pillar2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Corneal Light Reflection'**
+  String get pillar2Title;
+
+  /// No description provided for @pillar2Real.
+  ///
+  /// In en, this message translates to:
+  /// **'Identical ambient light reflection angles in both eye pupils.'**
+  String get pillar2Real;
+
+  /// No description provided for @pillar2Fake.
+  ///
+  /// In en, this message translates to:
+  /// **'Mismatched catchlights or distorted corneal reflection.'**
+  String get pillar2Fake;
+
+  /// No description provided for @gotItBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Got It'**
+  String get gotItBtn;
+
+  /// No description provided for @linkCopiedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Report verification link copied to clipboard!'**
+  String get linkCopiedSuccess;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @onboardingSlide1Headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect Deepfakes.\\nTrust What\'s Real.'**
+  String get onboardingSlide1Headline;
+
+  /// No description provided for @onboardingSlide1Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'An AI system built to detect\\ndeepfake videos automatically.'**
+  String get onboardingSlide1Subtitle;
+
+  /// No description provided for @onboardingSlide1Badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Deepfake Detection'**
+  String get onboardingSlide1Badge;
+
+  /// No description provided for @onboardingSlide2Headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-Time Video &\\nVoice Forensics'**
+  String get onboardingSlide2Headline;
+
+  /// No description provided for @onboardingSlide2Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI models analyze facial landmarks,\\noptical noise, and temporal consistency.'**
+  String get onboardingSlide2Subtitle;
+
+  /// No description provided for @onboardingSlide2Badge.
+  ///
+  /// In en, this message translates to:
+  /// **'VeriFrame AI'**
+  String get onboardingSlide2Badge;
+
+  /// No description provided for @onboardingSlide3Headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Explainable Results &\\nForensic Reports'**
+  String get onboardingSlide3Headline;
+
+  /// No description provided for @onboardingSlide3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Step-by-step forensic reasoning with\\nclear confidence scores and evidence.'**
+  String get onboardingSlide3Subtitle;
+
+  /// No description provided for @onboardingSlide3Badge.
+  ///
+  /// In en, this message translates to:
+  /// **'Forensic Audit'**
+  String get onboardingSlide3Badge;
+
+  /// No description provided for @onboardingFrameAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame Analysis'**
+  String get onboardingFrameAnalysis;
+
+  /// No description provided for @onboardingConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'{score}% confidence'**
+  String onboardingConfidence(String score);
+
+  /// No description provided for @onboardingExplainableResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Explainable Results'**
+  String get onboardingExplainableResults;
+
+  /// No description provided for @onboardingExplainableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Step-by-step reasoning\\nwith confidence scores'**
+  String get onboardingExplainableDesc;
+
+  /// No description provided for @modalityPhotoShield.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo Shield'**
+  String get modalityPhotoShield;
 }
 
 class _AppLocalizationsDelegate

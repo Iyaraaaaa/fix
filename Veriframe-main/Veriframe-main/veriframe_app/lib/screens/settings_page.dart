@@ -182,7 +182,15 @@ class _ThemeTile extends StatelessWidget {
           children: [
             Icon(option.icon, color: selected ? c.accent : c.textMuted, size: 22),
             const SizedBox(height: 8),
-            Text(option.label, style: TextStyle(color: selected ? c.accent : c.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                option.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: selected ? c.accent : c.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
       ),

@@ -114,8 +114,11 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           color: Colors.black54,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               Text(
                                 loc.cameraLiveStreamFrames(_framesCaptured),

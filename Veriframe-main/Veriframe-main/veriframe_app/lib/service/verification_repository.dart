@@ -245,6 +245,11 @@ class VerificationRepositoryImpl implements VerificationRepository {
         reportHash: map['reportHash'] ?? 'LEGACY-HASH',
         mediaName: map['videoName'] ?? '',
         mediaPath: map['videoPath'] ?? '',
+        videoUrl: (map['videoPath'] as String?)?.startsWith('http') == true
+            ? (map['videoPath'] as String)
+            : ((map['videoName'] as String?)?.startsWith('http') == true
+                ? (map['videoName'] as String)
+                : null),
         pdfPath: map['pdfPath'] ?? '',
         thumbnailBase64: map['thumbnail'] ?? '',
       );
@@ -288,7 +293,13 @@ class VerificationRepositoryImpl implements VerificationRepository {
           : ((map['thumbnail'] as String?)?.isNotEmpty == true
               ? (map['thumbnail'] as String)
               : (map['thumbnail_base64'] as String? ?? '')),
-      videoUrl: map['videoUrl'] as String?,
+      videoUrl: (map['videoUrl'] as String?)?.isNotEmpty == true
+          ? (map['videoUrl'] as String)
+          : ((map['mediaPath'] as String?)?.startsWith('http') == true
+              ? (map['mediaPath'] as String)
+              : ((map['mediaName'] as String?)?.startsWith('http') == true
+                  ? (map['mediaName'] as String)
+                  : null)),
       platform: map['platform'] as String?,
       videoLength: map['videoLength'] as String?,
       resolution: map['resolution'] as String?,

@@ -147,9 +147,9 @@ class RealityDefenderService:
         observations = []
 
         if raw.get("request_id"):
-            observations.append(f"Reality Defender Request ID: {raw['request_id']}")
+            observations.append(f"Cloud Verification Request ID: {raw['request_id']}")
         if rd_status:
-            observations.append(f"Reality Defender aggregate status: {rd_status}")
+            observations.append(f"Cloud Analysis aggregate status: {rd_status}")
 
         _error_indicators = ("cannot read", "does not support", "not support", "error", "failed", "inform the user")
         in_progress_indicators = ("analyzing", "downloading", "pending", "in_progress", "queued")
@@ -167,16 +167,16 @@ class RealityDefenderService:
             score_str = f" ({m_score_pct}%)" if m_score_pct is not None else ""
 
             if any(ind in str(m_status).lower() for ind in in_progress_indicators):
-                observations.append(f"Reality Defender {m_name}: {m_status or 'PENDING'} (no score yet)")
+                observations.append(f"Cloud Engine ({m_name}): {m_status or 'PENDING'} (no score yet)")
                 continue
             if any(ind in str(m_status).lower() for ind in _error_indicators):
                 continue
             if m_score is None:
                 continue
             if "MANIPULATED" in m_status_text or m_score_pct > 60.0:
-                evidence.append(f"Reality Defender {m_name}: Flagged as {m_status}{score_str}")
+                evidence.append(f"Cloud Engine ({m_name}): Flagged as {m_status}{score_str}")
             else:
-                observations.append(f"Reality Defender {m_name}: {m_status}{score_str}")
+                observations.append(f"Cloud Engine ({m_name}): {m_status}{score_str}")
 
         if partial:
             verdict = "INCONCLUSIVE"
@@ -184,7 +184,7 @@ class RealityDefenderService:
             evidence = []
             missing = ", ".join(incomplete) if incomplete else "unknown"
             observations.append(
-                f"PARTIAL Reality Defender result: {len(incomplete)} model(s) still ANALYZING when the "
+                f"PARTIAL Cloud Verification result: {len(incomplete)} model(s) still ANALYZING when the "
                 f"deadline was reached ({missing}). The aggregate score is based on an incomplete model "
                 "panel, so it is reported for traceability only and no AUTHENTIC/MANIPULATED verdict is derived."
             )

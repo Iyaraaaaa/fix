@@ -568,7 +568,11 @@ class _ReportCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(3),
                               ),
                               child: Text(
-                                report.verdict.toUpperCase(),
+                                isReal
+                                    ? loc.realVerdict.toUpperCase()
+                                    : (isManipulated
+                                        ? loc.manipulatedVerdict.toUpperCase()
+                                        : report.verdict.toUpperCase()),
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,

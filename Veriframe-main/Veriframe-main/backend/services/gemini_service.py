@@ -14,10 +14,10 @@ class GeminiService:
     """
 
     CANDIDATE_MODELS = [
-        "gemini-3.5-flash-lite",
-        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-flash-lite-latest",
         "gemini-flash-latest",
-        "gemini-3-flash-preview",
+        "gemini-1.5-flash",
     ]
 
     def __init__(self, api_key: Optional[str] = None):
@@ -70,12 +70,14 @@ Authenticity Score: {auth_score}%
 Detected Evidence: {', '.join(evidence) if evidence else 'None'}
 Forensic Observations: {'; '.join(observations) if observations else 'None'}
 
+Synthesize the findings including biophysical signals (capillary rPPG pulse), acoustic-visual room resonance (RT60 match), and facial landmark consistency into your reasoning.
+
 Please respond in JSON with the following exact keys:
 {{
-  "ai_summary": "2-3 sentences explaining the verdict in clear, professional forensic language.",
+  "ai_summary": "2-3 sentences explaining the verdict in clear, professional forensic language citing biophysical or acoustic cues.",
   "threat_level": "LOW, MEDIUM, HIGH, or CRITICAL",
-  "threat_context": "1-2 sentences on the potential danger or deceptive intent (e.g. voice cloning, impersonation, synthetic generation).",
-  "recommended_action": "1-2 sentences advising what the user or investigator should do next."
+  "threat_context": "1-2 sentences on the potential danger or deceptive intent (e.g. voice cloning, identity theft, synthetic generation).",
+  "recommended_action": "1-2 sentences advising what the user or investigator should do next (e.g. Un-Deepfake review, social platform takedown notice, or Photo Shield protection)."
 }}
 Return ONLY valid JSON without extra markdown formatting.
 """
@@ -90,7 +92,7 @@ Return ONLY valid JSON without extra markdown formatting.
                         "maxOutputTokens": 500,
                     }
                 }
-                res = requests.post(url, json=payload, timeout=12)
+                res = requests.post(url, json=payload, timeout=8)
                 if res.status_code == 200:
                     data = res.json()
                     candidates = data.get("candidates", [])

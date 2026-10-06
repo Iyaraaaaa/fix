@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
 import 'package:video_thumbnail/video_thumbnail.dart' as vt;
 import 'package:veriframe_app/models/verification_result.dart';
 
@@ -39,12 +40,15 @@ class VeriMediaPreview extends StatefulWidget {
   /// In-memory cache for extracted video thumbnails so scrolling list is butter smooth
   static final Map<String, Uint8List> _videoThumbnailCache = {};
 
+  /// In-memory cache for resolved remote link thumbnails (Vimeo, OpenGraph, etc.)
+  static final Map<String, String> _linkThumbnailUrlCache = {};
+
   /// Extracts YouTube video ID from various YouTube URL formats.
   static String? extractYoutubeVideoId(String? rawUrl) {
     if (rawUrl == null || rawUrl.trim().isEmpty) return null;
     final clean = rawUrl.trim();
     final regExp = RegExp(
-      r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/ ]{11})',
+      r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/|live\/)|youtu\.be\/)([^"&?\/ ]{11})',
       caseSensitive: false,
     );
     final match = regExp.firstMatch(clean);
@@ -70,20 +74,113 @@ class VeriMediaPreview extends StatefulWidget {
 class _VeriMediaPreviewState extends State<VeriMediaPreview> {
   Uint8List? _asyncVideoThumb;
   bool _isLoadingAsyncThumb = false;
+  String? _asyncLinkThumbUrl;
+  bool _isLoadingAsyncLinkThumb = false;
 
   @override
   void initState() {
     super.initState();
     _checkAndLoadAsyncVideoThumbnail();
+    _checkAndLoadAsyncLinkThumbnail();
   }
 
   @override
   void didUpdateWidget(covariant VeriMediaPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.report.verificationId != widget.report.verificationId ||
-        oldWidget.report.mediaPath != widget.report.mediaPath) {
+        oldWidget.report.mediaPath != widget.report.mediaPath ||
+        oldWidget.report.videoUrl != widget.report.videoUrl) {
       _checkAndLoadAsyncVideoThumbnail();
+      _checkAndLoadAsyncLinkThumbnail();
     }
+  }
+
+  void _checkAndLoadAsyncLinkThumbnail() {
+    final r = widget.report;
+    final hasBase64 = r.thumbnailBase64 != null && r.thumbnailBase64!.trim().isNotEmpty;
+    if (hasBase64) return;
+
+    final candidateUrl = (r.videoUrl != null && r.videoUrl!.startsWith('http'))
+        ? r.videoUrl!
+        : ((r.mediaPath != null && r.mediaPath!.startsWith('http'))
+            ? r.mediaPath!
+            : ((r.mediaName != null && r.mediaName!.startsWith('http')) ? r.mediaName! : null));
+
+    if (candidateUrl == null || candidateUrl.isEmpty) return;
+
+    // YouTube is resolved synchronously via getYoutubeThumbnailUrl
+    if (VeriMediaPreview.getYoutubeThumbnailUrl(candidateUrl) != null) return;
+
+    if (VeriMediaPreview._linkThumbnailUrlCache.containsKey(candidateUrl)) {
+      _asyncLinkThumbUrl = VeriMediaPreview._linkThumbnailUrlCache[candidateUrl];
+      return;
+    }
+
+    _isLoadingAsyncLinkThumb = true;
+    _resolveRemoteThumbnailUrl(candidateUrl).then((thumbUrl) {
+      if (!mounted) return;
+      if (thumbUrl != null && thumbUrl.isNotEmpty) {
+        VeriMediaPreview._linkThumbnailUrlCache[candidateUrl] = thumbUrl;
+        setState(() {
+          _asyncLinkThumbUrl = thumbUrl;
+          _isLoadingAsyncLinkThumb = false;
+        });
+      } else {
+        setState(() => _isLoadingAsyncLinkThumb = false);
+      }
+    }).catchError((_) {
+      if (mounted) setState(() => _isLoadingAsyncLinkThumb = false);
+    });
+  }
+
+  Future<String?> _resolveRemoteThumbnailUrl(String url) async {
+    final lower = url.toLowerCase();
+    // Direct image check
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp')) {
+      return url;
+    }
+
+    // Vimeo oEmbed
+    if (lower.contains('vimeo.com')) {
+      try {
+        final oembedUri = Uri.parse('https://vimeo.com/api/oembed.json?url=${Uri.encodeComponent(url)}');
+        final resp = await http.get(oembedUri).timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          if (data is Map && data['thumbnail_url'] != null) {
+            return data['thumbnail_url'].toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // OpenGraph / Twitter Cards / HTML meta tags
+    try {
+      final resp = await http.get(
+        Uri.parse(url),
+        headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+      ).timeout(const Duration(seconds: 4));
+      if (resp.statusCode == 200) {
+        final html = resp.body;
+        final ogRegex = RegExp(r'''<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+        final ogSecureRegex = RegExp(r'''<meta\s+property=["']og:image:secure_url["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+        final twitterRegex = RegExp(r'''<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+
+        final match = ogRegex.firstMatch(html) ?? ogSecureRegex.firstMatch(html) ?? twitterRegex.firstMatch(html);
+        if (match != null && match.group(1) != null) {
+          var img = match.group(1)!.trim();
+          if (img.startsWith('//')) {
+            img = 'https:$img';
+          } else if (img.startsWith('/') && Uri.tryParse(url) != null) {
+            final base = Uri.parse(url);
+            img = '${base.scheme}://${base.host}$img';
+          }
+          return img;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   void _checkAndLoadAsyncVideoThumbnail() {
@@ -322,8 +419,31 @@ class _VeriMediaPreviewState extends State<VeriMediaPreview> {
       }
     }
 
+    // 6.5. Check resolved remote link thumbnail (Vimeo, OpenGraph, etc.)
+    if (mediaContent == null) {
+      final candidateUrl = (r.videoUrl != null && r.videoUrl!.startsWith('http'))
+          ? r.videoUrl
+          : ((r.mediaPath != null && r.mediaPath!.startsWith('http'))
+              ? r.mediaPath
+              : ((r.mediaName != null && r.mediaName!.startsWith('http')) ? r.mediaName : null));
+
+      final remoteThumb = _asyncLinkThumbUrl ??
+          (candidateUrl != null ? VeriMediaPreview._linkThumbnailUrlCache[candidateUrl] : null);
+
+      if (remoteThumb != null && remoteThumb.isNotEmpty) {
+        mediaContent = CachedNetworkImage(
+          imageUrl: remoteThumb,
+          fit: widget.fit,
+          width: widget.width,
+          height: widget.height,
+          placeholder: (ctx, u) => _buildLoadingShimmer(),
+          errorWidget: (ctx, u, e) => _buildPlaceholder(context),
+        );
+      }
+    }
+
     // 7. If currently extracting async thumbnail, show shimmer
-    if (mediaContent == null && _isLoadingAsyncThumb) {
+    if (mediaContent == null && (_isLoadingAsyncThumb || _isLoadingAsyncLinkThumb)) {
       mediaContent = _buildLoadingShimmer();
     }
 

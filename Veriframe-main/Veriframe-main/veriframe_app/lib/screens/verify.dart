@@ -19,14 +19,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:veriframe_app/models/notification_model.dart';
 import 'package:veriframe_app/service/notification_service.dart';
-import 'package:veriframe_app/service/pdf_service.dart';
 import 'package:intl/intl.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:veriframe_app/widgets/forensic_progress_timeline.dart';
 import 'package:veriframe_app/service/engines/link_verification_engine.dart';
 import 'package:veriframe_app/widgets/forensic_result_card.dart';
 import 'package:veriframe_app/widgets/link_verification_widgets.dart';
-import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 
 /// Theme-aware palette
 class _VerifyPalette {
@@ -46,6 +43,7 @@ class _VerifyPalette {
 }
 
 class VerifyPage extends ConsumerStatefulWidget {
+  final int initialTab;
   final String? initialVideoPath;
   final String? initialVideoUrl;
   final String? initialStreamUrl;
@@ -53,6 +51,7 @@ class VerifyPage extends ConsumerStatefulWidget {
 
   const VerifyPage({
     super.key,
+    this.initialTab = 0,
     this.initialVideoPath,
     this.initialVideoUrl,
     this.initialStreamUrl,
@@ -196,6 +195,8 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       Future.delayed(const Duration(milliseconds: 300), _verifyUrlLink);
     } else if (widget.initialStreamUrl != null) {
       _activeTab = 2;
+    } else {
+      _activeTab = widget.initialTab.clamp(0, 2);
     }
   }
 
@@ -623,6 +624,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           frameConsistency: result.frameConsistency,
           trackingConfidence: result.trackingConfidence,
           processingTimeSec: result.processingTimeSec,
+          thumbnailBase64: result.thumbnailBase64,
         );
       } catch (e) {
         if (mounted) {
@@ -735,8 +737,8 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           });
 
           await _executePostVerificationFlow(
-            videoName: linkUrl.length > 60 ? '${linkUrl.substring(0, 57)}...' : linkUrl,
-            videoPath: linkUrl,
+            videoName: linkResult.mediaName ?? (linkUrl.length > 60 ? '${linkUrl.substring(0, 57)}...' : linkUrl),
+            videoPath: linkResult.mediaPath ?? linkUrl,
             verdict: linkVerdict,
             authenticityScore: linkResult.authenticityScore,
             fakeProbability: linkResult.fakeProbability,
@@ -752,6 +754,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
             faceDetectionRate: linkResult.faceDetectionRate,
             detectedEvidence: linkResult.detectedEvidence,
             forensicObservations: linkResult.forensicObservations,
+            thumbnailBase64: linkResult.thumbnailBase64,
           );
         } else if (status == 'failed') {
           timer.cancel();
@@ -829,25 +832,26 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           await File(file.path).delete();
 
           final res = await service.analyzeStreamFrame(_baseUrl, base64Image, _streamSessionId);
-          final score = (res['session_confidence_score'] ?? 0.0).toDouble();
-          
-          _framesAnalyzed++;
-          _updateFps();
-          _addConfidencePoint(score);
+          final dynamic scoreVal = res['session_confidence_score'];
+          if (scoreVal != null) {
+            final score = (scoreVal as num).toDouble();
+            _framesAnalyzed++;
+            _updateFps();
+            _addConfidencePoint(score);
 
-          setState(() {
-            _rollingStreamScore = score;
-          });
+            setState(() {
+              _rollingStreamScore = score;
+            });
+          } else {
+            _updateFps();
+          }
         } else {
           // Offline camera TFLite execution
           await File(file.path).delete();
           if (!_tfliteReady) return;
 
           final result = await TFLiteService.instance.runInference(bytes);
-          const fakeIdx = 1;
-          final fakeScore = result.rawOutput.length > fakeIdx
-              ? result.rawOutput[fakeIdx].clamp(0.0, 1.0)
-              : (result.label == 'fake' ? result.confidence : 1.0 - result.confidence);
+          final fakeScore = result.fakeProbability;
 
           // Convert fake probability → authenticity score so display is
           // consistent with the online path (session_confidence_score = authenticity).
@@ -907,6 +911,18 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     if (!isOnline) {
       // Local report calculation
       await Future.delayed(const Duration(milliseconds: 1000));
+      if (_framesAnalyzed == 0 || _rollingStreamScore <= 0.0) {
+        await _executePostVerificationFlow(
+          videoName: 'Live Camera Stream',
+          videoPath: '',
+          verdict: 'insufficient_data',
+          authenticityScore: 0.0,
+          fakeProbability: 0.0,
+          explanation: 'No clear face was detected in the live camera stream. Please ensure your face is clearly visible to the camera.',
+          modelUsed: 'On-Device TFLite (veriframe_model)',
+        );
+        return;
+      }
       final authenticityScore = _rollingStreamScore.clamp(0.0, 100.0);
       final streamVerdict = authenticityScore > 60.0 ? 'authentic' : (authenticityScore >= 40.0 ? 'inconclusive' : 'manipulated');
       final fakeProbability = (100.0 - authenticityScore).clamp(0.0, 100.0);
@@ -926,6 +942,18 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
     try {
       if (_streamSessionId.isEmpty) {
+        if (_framesAnalyzed == 0 || _rollingStreamScore <= 0.0) {
+          await _executePostVerificationFlow(
+            videoName: 'Live Network Stream',
+            videoPath: '',
+            verdict: 'insufficient_data',
+            authenticityScore: 0.0,
+            fakeProbability: 0.0,
+            explanation: 'No clear face was detected in the live camera stream.',
+            modelUsed: 'On-Device Stream Analysis',
+          );
+          return;
+        }
         final streamExplanation = loc.verifyLocalReportExplanation(_framesAnalyzed, _rollingStreamScore.toStringAsFixed(1));
         final authenticityScore = _rollingStreamScore.clamp(0.0, 100.0);
         final streamVerdict = authenticityScore > 60.0 ? 'authentic' : (authenticityScore >= 40.0 ? 'inconclusive' : 'manipulated');
@@ -977,6 +1005,18 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           errMsg.contains('Invalid request parameters');
 
       if (isRecoverable) {
+        if (_framesAnalyzed == 0 || _rollingStreamScore <= 0.0) {
+          await _executePostVerificationFlow(
+            videoName: 'Live Stream Session',
+            videoPath: '',
+            verdict: 'insufficient_data',
+            authenticityScore: 0.0,
+            fakeProbability: 0.0,
+            explanation: 'No clear faces were detected during the live stream session. Please ensure your face is clearly visible to the camera.',
+            modelUsed: 'Biometric Face Detector',
+          );
+          return;
+        }
         final authenticityScore = _rollingStreamScore.clamp(0.0, 100.0);
         final streamVerdict = authenticityScore > 60.0
             ? 'authentic'
@@ -1036,7 +1076,15 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
     final createdAt = DateTime.now();
     final reportId = 'RPT-${createdAt.millisecondsSinceEpoch}';
-    final prediction = verdict.toLowerCase() == 'authentic' ? 'REAL' : (verdict.toLowerCase() == 'inconclusive' ? 'INCONCLUSIVE' : 'FAKE');
+    final String prediction;
+    final lowerVerdict = verdict.toLowerCase();
+    if (lowerVerdict == 'authentic') {
+      prediction = 'REAL';
+    } else if (lowerVerdict == 'inconclusive' || lowerVerdict == 'insufficient_data') {
+      prediction = 'INCONCLUSIVE';
+    } else {
+      prediction = 'FAKE';
+    }
 
     // Step 5: Composing VerificationResult
     if (mounted) {
@@ -1079,6 +1127,15 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                     : (resolvedVideoUrl.toLowerCase().contains('instagram')
                         ? 'Instagram'
                         : 'Web Video'))));
+
+    String? finalThumbnailBase64 = thumbnailBase64 ?? _videoThumbnailBase64 ?? _lastStreamFrameBase64;
+    if ((finalThumbnailBase64 == null || finalThumbnailBase64.isEmpty) && resolvedVideoUrl != null) {
+      try {
+        finalThumbnailBase64 = await LinkVerificationEngine.instance.fetchLinkThumbnailBase64(resolvedVideoUrl);
+      } catch (e) {
+        debugPrint('[VerifyPage] Failed to fetch thumbnail for link: $e');
+      }
+    }
 
     final String vUpper = verdict.toUpperCase();
     final String finalVerdict = vUpper == 'AUTHENTIC'
@@ -1128,7 +1185,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               explanation,
             ],
       reportHash: reportId.hashCode.toRadixString(16).padLeft(16, '0'),
-      thumbnailBase64: thumbnailBase64 ?? _videoThumbnailBase64 ?? _lastStreamFrameBase64,
+      thumbnailBase64: finalThumbnailBase64,
       mediaPath: videoPath.isEmpty ? null : videoPath,
       mediaName: videoName,
       videoUrl: resolvedVideoUrl,
@@ -1361,66 +1418,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     );
   }
 
-  // --- REPORT ACTION TRIGGERS ---
-  Future<void> _getPdfForensicReport(VerificationResult result) async {
-    setState(() {
-      _statusMessage = loc.verifyGeneratingPdf;
-      _isAnalyzing = true;
-    });
 
-    try {
-       final file = await PdfService.instance.generateReportPdf(result: result);
-      setState(() {
-        _isAnalyzing = false;
-        _statusMessage = "";
-      });
-      if (file != null && await file.exists()) {
-        final openResult = await OpenFilex.open(file.path);
-        if (openResult.type != ResultType.done && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.reportErrorOpeningPdf(openResult.message)), backgroundColor: const Color(0xFFFF3B5C)),
-          );
-        }
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.reportPdfNotGenerated), backgroundColor: const Color(0xFFFF3B5C)),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isAnalyzing = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.verifyPdfFailed(e)), backgroundColor: const Color(0xFFFF3B5C)),
-        );
-      }
-    }
-  }
-
-  void _shareForensicLink(VerificationResult result) {
-    final isReal = result.verdict.toUpperCase() == 'AUTHENTIC';
-    final displayScore = isReal ? result.authenticityScore : result.fakeProbability;
-    final scoreLabel = isReal ? 'authenticity' : 'manipulation';
-    final reportSummary = "VeriFrame Forensic Report [${result.verificationId}]: Verdict ${result.verdict} with ${displayScore.toStringAsFixed(1)}% $scoreLabel rating. Verification Link: https://veriframe.io/verify/${result.verificationId}";
-    Clipboard.setData(ClipboardData(text: reportSummary));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.verifyLinkCopied),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Color(0xFF00E896),
-      ),
-    );
-  }
-
-  void _openEscalationSheet(VerificationResult result) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => EscalateBottomSheet(report: result),
-    );
-  }
 
   void _showBackendSettings() {
     final controller = TextEditingController(text: _baseUrl);
@@ -1563,8 +1561,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: _vp.canvas,
-            borderRadius: BorderRadius.circular(10),
+            color: _vp.surfaceVariant,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _vp.border, width: 1.0),
           ),
           child: Row(
             children: [
@@ -1584,6 +1583,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
   Widget _buildTabSelectorItem(int index, String label, IconData icon) {
     final isSelected = _activeTab == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() {
@@ -1591,22 +1591,35 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           _errorMessage = null;
         }),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: isSelected ? _vp.surfaceVariant : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected ? _vp.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: isSelected ? const Color(0xFF00C8FF) : _vp.textMuted, size: 16),
-              const SizedBox(width: 8),
+              Icon(
+                icon,
+                color: isSelected ? const Color(0xFF00A3CC) : _vp.textMuted,
+                size: 16,
+              ),
+              const SizedBox(width: 7),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? _vp.text : _vp.textMuted,
+                  color: isSelected ? (isDark ? Colors.white : const Color(0xFF00A3CC)) : _vp.textMuted,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
             ],
@@ -1617,92 +1630,88 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   }
 
   Widget _buildLocalVideoCard(AppColors colors, AppLocalizations loc) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: _vp.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _vp.border),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _vp.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(Icons.drive_folder_upload, size: 64, color: Color(0xFF00C8FF)),
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: const Color(0xFF00A3CC).withValues(alpha: isDark ? 0.15 : 0.10),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: Icon(Icons.drive_folder_upload_rounded, size: 32, color: Color(0xFF00A3CC)),
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             loc.verifyAiForensicTitle,
-            style: TextStyle(color: _vp.text, fontSize: 16, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _vp.text, fontSize: 17, fontWeight: FontWeight.bold, letterSpacing: -0.2),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             _baseUrl.isEmpty ? loc.verifyNoBackendUrl : loc.verifySelectLocalVideo,
             textAlign: TextAlign.center,
-            style: TextStyle(color: _vp.textMuted, fontSize: 12, height: 1.5),
+            style: TextStyle(color: _vp.textMuted, fontSize: 12.5, height: 1.5),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF00C8FF).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF00C8FF).withValues(alpha: 0.25)),
+              color: isDark ? const Color(0xFF0B1120) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _vp.border, width: 1.0),
             ),
-            child: Column(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _tfliteReady ? Icons.check_circle_outline : Icons.hourglass_empty,
-                      color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _tfliteReady ? '${loc.verifyOnDeviceReady} · Vedio.tflite' : loc.verifyLoadingModel,
-                      style: TextStyle(
-                        color: _tfliteReady ? const Color(0xFF00E896) : const Color(0xFFFFB020),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  _tfliteReady ? Icons.check_circle_rounded : Icons.hourglass_empty_rounded,
+                  color: _tfliteReady ? const Color(0xFF10B981) : const Color(0xFFFFB020),
+                  size: 15,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.memory_rounded, color: Color(0xFF34D399), size: 13),
-                    SizedBox(width: 6),
-                    Text(
-                      'veriframe_model.tflite · Face Biometric Net',
-                      style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.cloud_done_rounded, color: Color(0xFF38BDF8), size: 13),
-                    SizedBox(width: 6),
-                    Text(
-                      'Reality Defender Cloud Deepfake AI: Active',
-                      style: TextStyle(color: Color(0xFF38BDF8), fontSize: 10, fontWeight: FontWeight.w600),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                Text(
+                  _tfliteReady ? '${loc.verifyOnDeviceReady} · Vedio.tflite' : loc.verifyLoadingModel,
+                  style: TextStyle(
+                    color: _tfliteReady ? const Color(0xFF10B981) : const Color(0xFFFFB020),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _pickAndVerifyVideo,
-            icon: Icon(Icons.video_collection),
-            label: Text(loc.verifyPickLocalVideo),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _pickAndVerifyVideo,
+              icon: const Icon(Icons.video_collection_rounded, size: 18),
+              label: Text(loc.verifyPickLocalVideo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00A3CC),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
         ],
@@ -1712,25 +1721,24 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
   Widget _buildVideoLinkCard(AppColors colors, AppLocalizations loc) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF131D2E) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final cardBg = isDark ? const Color(0xFF111827) : Colors.white;
     final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor, width: 1.1),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _vp.border, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -1739,7 +1747,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
             child: Column(
               children: [
                 Text(
-                  'Select Platform',
+                  loc.verifySelectPlatform,
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
@@ -1749,7 +1757,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Choose where your video is hosted',
+                  loc.verifyChoosePlatform,
                   style: TextStyle(
                     fontSize: 12,
                     color: subtitleColor,
@@ -1760,7 +1768,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           ),
           const SizedBox(height: 14),
 
-          // Horizontal 3-Platform Selector Row (Instagram removed)
+          // Horizontal 3-Platform Selector Row
           Row(
             children: [
               Expanded(
@@ -1769,14 +1777,14 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   brandColor: const Color(0xFFFF0000),
                   isDark: isDark,
                   customIcon: Container(
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF0000),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF0000).withValues(alpha: 0.28),
+                          color: const Color(0xFFFF0000).withValues(alpha: 0.25),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -1797,14 +1805,14 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   brandColor: const Color(0xFF1877F2),
                   isDark: isDark,
                   customIcon: Container(
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: const Color(0xFF1877F2),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1877F2).withValues(alpha: 0.28),
+                          color: const Color(0xFF1877F2).withValues(alpha: 0.25),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -1831,14 +1839,14 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   brandColor: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A),
                   isDark: isDark,
                   customIcon: Container(
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Colors.black,
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.28),
+                          color: Colors.black.withValues(alpha: 0.25),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -1848,13 +1856,13 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                       alignment: Alignment.center,
                       children: const [
                         Positioned(
-                          left: 7.5,
-                          top: 6.5,
+                          left: 8,
+                          top: 7,
                           child: Icon(Icons.music_note_rounded, color: Color(0xFF00F2FE), size: 16),
                         ),
                         Positioned(
-                          right: 7.5,
-                          bottom: 6.5,
+                          right: 8,
+                          bottom: 7,
                           child: Icon(Icons.music_note_rounded, color: Color(0xFFFE2C55), size: 16),
                         ),
                         Icon(Icons.music_note_rounded, color: Colors.white, size: 16),
@@ -1865,14 +1873,14 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // VIDEO LINK Label with Quick Action
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'VIDEO LINK',
+                loc.verifyVideoLinkLabel,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -1884,7 +1892,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                 GestureDetector(
                   onTap: () => setState(() => _urlController.clear()),
                   child: Text(
-                    'Clear',
+                    loc.verifyClear,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1902,12 +1910,12 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                       });
                     }
                   },
-                  child: const Text(
-                    'Paste',
-                    style: TextStyle(
+                  child: Text(
+                    loc.verifyPaste,
+                    style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8B5CF6),
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6366F1),
                     ),
                   ),
                 ),
@@ -1915,23 +1923,23 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           ),
           const SizedBox(height: 6),
           Container(
-            height: 44,
+            height: 48,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor, width: 1.1),
+              color: isDark ? const Color(0xFF0B1120) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _vp.border, width: 1.2),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(7),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.link_rounded, color: Color(0xFF8B5CF6), size: 16),
+                  child: const Icon(Icons.link_rounded, color: Color(0xFF6366F1), size: 17),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1942,7 +1950,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
-                      hintText: 'Paste your $_selectedPlatform link here...',
+                      hintText: loc.verifyPasteLinkPlaceholder(_selectedPlatform),
                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w400),
                     ),
                     onSubmitted: (_) => _verifyUrlLink(),
@@ -1951,34 +1959,36 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           SizedBox(
-            height: 44,
+            height: 48,
             child: ElevatedButton(
               onPressed: _verifyUrlLink,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 padding: EdgeInsets.zero,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(3.5),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.2),
                     ),
-                    child: const Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 14),
+                    child: const Icon(Icons.shield_rounded, color: Colors.white, size: 14),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'VERIFY NOW',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Colors.white),
+                  Text(
+                    loc.verifyNowButton,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5, color: Colors.white),
                   ),
                 ],
               ),
@@ -1997,14 +2007,12 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   }) {
     final isSelected = _selectedPlatform == name;
     final cardBg = isDark
-        ? (isSelected ? const Color(0xFF1E293B) : const Color(0xFF111C2E))
-        : (isSelected ? const Color(0xFFF1F5F9) : const Color(0xFFFAFAFA));
+        ? (isSelected ? const Color(0xFF1E293B) : const Color(0xFF0F172A))
+        : (isSelected ? (name == 'YouTube' ? const Color(0xFFFEF2F2) : const Color(0xFFEFF6FF)) : const Color(0xFFF8FAFC));
 
     final activeBorderColor = name == 'YouTube'
-        ? const Color(0xFFFF0000)
-        : (name == 'Facebook' ? const Color(0xFF1877F2) : (isDark ? Colors.white : const Color(0xFF0F172A)));
-
-    final cardBorder = isSelected ? activeBorderColor : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0));
+        ? const Color(0xFFEF4444)
+        : (name == 'Facebook' ? const Color(0xFF1877F2) : (isDark ? Colors.white70 : const Color(0xFF0F172A)));
 
     return Material(
       color: Colors.transparent,
@@ -2017,11 +2025,14 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           decoration: BoxDecoration(
             color: cardBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cardBorder, width: isSelected ? 1.6 : 1.0),
+            border: Border.all(
+              color: isSelected ? activeBorderColor : _vp.border,
+              width: isSelected ? 1.6 : 1.0,
+            ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: activeBorderColor.withValues(alpha: 0.12),
+                      color: activeBorderColor.withValues(alpha: 0.14),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -2082,7 +2093,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        'LIVE STREAM TELEMETRY HUD',
+                        loc.verifyLiveTelemetryHud,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -2103,21 +2114,21 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'RTSP / RTMP / CAMERA',
-                  style: TextStyle(color: Color(0xFF7C3AED), fontSize: 9, fontWeight: FontWeight.bold),
+                child: Text(
+                  loc.verifyStreamProtocols,
+                  style: const TextStyle(color: Color(0xFF7C3AED), fontSize: 9, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Real-Time Continuous Stream Verification',
+            loc.verifyRealTimeStreamTitle,
             style: TextStyle(color: _vp.text, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(
-            'Monitor live video streams in real-time with continuous sliding-window temporal confidence tracking.',
+            loc.verifyRealTimeStreamDesc,
             style: TextStyle(color: _vp.textMuted, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 18),
@@ -2134,7 +2145,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   controller: _streamUrlController,
                   style: TextStyle(color: _vp.text, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Enter RTSP, RTMP, or HLS stream URL (optional)...',
+                    hintText: loc.verifyEnterStreamUrlOptional,
                     hintStyle: TextStyle(color: _vp.textMuted, fontSize: 11),
                     prefixIcon: const Icon(Icons.sensors, color: Color(0xFF7C3AED), size: 18),
                     border: InputBorder.none,
@@ -2145,9 +2156,10 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Column(
             children: [
-              Expanded(
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     await _initCamera();
@@ -2156,7 +2168,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                     }
                   },
                   icon: const Icon(Icons.videocam_rounded, size: 18),
-                  label: const Text('Live Camera Stream', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  label: Text(loc.verifyLiveCameraStreamBtn, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
@@ -2165,8 +2177,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     final url = _streamUrlController.text.trim();
@@ -2174,12 +2187,12 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                       await _startNetworkStream(url);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter an RTSP/RTMP/HLS stream URL or select Live Camera Stream.')),
+                        SnackBar(content: Text(loc.verifyEnterStreamUrlAlert)),
                       );
                     }
                   },
                   icon: const Icon(Icons.stream_rounded, size: 18, color: Color(0xFF7C3AED)),
-                  label: const Text('RTSP/Network Stream', style: TextStyle(color: Color(0xFF7C3AED), fontSize: 11, fontWeight: FontWeight.bold)),
+                  label: Text(loc.verifyRtspNetworkStreamBtn, style: const TextStyle(color: Color(0xFF7C3AED), fontSize: 11, fontWeight: FontWeight.bold)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF7C3AED)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -2252,16 +2265,20 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
 
           final res = await service.analyzeStreamFrame(
               _baseUrl, base64Image, _streamSessionId);
-          final score = (res['session_confidence_score'] ?? 0.0).toDouble();
+          final dynamic scoreVal = res['session_confidence_score'];
+          if (scoreVal != null) {
+            final score = (scoreVal as num).toDouble();
+            _framesAnalyzed++;
+            _updateFps();
+            _addConfidencePoint(score);
 
-          _framesAnalyzed++;
-          _updateFps();
-          _addConfidencePoint(score);
-
-          if (mounted) {
-            setState(() {
-              _rollingStreamScore = score;
-            });
+            if (mounted) {
+              setState(() {
+                _rollingStreamScore = score;
+              });
+            }
+          } else {
+            _updateFps();
           }
         } else {
           // Offline fallback: run on-device TFLite model.
@@ -2269,12 +2286,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           if (!_tfliteReady) return;
 
           final result = await TFLiteService.instance.runInference(bytes);
-          const fakeIdx = 1;
-          final fakeScore = result.rawOutput.length > fakeIdx
-              ? result.rawOutput[fakeIdx].clamp(0.0, 1.0)
-              : (result.label == 'fake'
-                  ? result.confidence
-                  : 1.0 - result.confidence);
+          final fakeScore = result.fakeProbability;
 
           // Convert fake probability to authenticity for display consistency.
           final score = (1.0 - fakeScore) * 100;
@@ -2302,18 +2314,19 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
       final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
+      final loc = AppLocalizations.of(context)!;
       final pct = (_uploadProgress.clamp(0.0, 1.0) * 100).toInt();
       final currentStageIndex = _linkStep.clamp(0, 7);
 
       final linkTimelineSteps = [
-        ('Validating URL', currentStageIndex > 0 ? '2.3s' : (currentStageIndex == 0 ? '2.3s...' : '--')),
-        ('Detecting Platform', currentStageIndex > 1 ? '1.8s' : (currentStageIndex == 1 ? '1.8s...' : '--')),
-        ('Downloading Video', currentStageIndex > 2 ? '4.2s' : (currentStageIndex == 2 ? '4.2s...' : '--')),
-        ('Extracting Frames', currentStageIndex > 3 ? '3.1s' : (currentStageIndex == 3 ? '3.1s...' : '--')),
-        ('Detecting Faces', currentStageIndex > 4 ? '2.7s' : (currentStageIndex == 4 ? '2.7s...' : '--')),
-        ('Running AI Analysis', currentStageIndex > 5 ? '5.4s' : (currentStageIndex == 5 ? '5.4s...' : '--')),
-        ('Generating Report', currentStageIndex > 6 ? '1.2s' : (currentStageIndex == 6 ? '1.2s...' : '--')),
-        ('Verification Complete', currentStageIndex >= 7 ? 'Done' : '--'),
+        (loc.stepValidatingUrl, currentStageIndex > 0 ? '2.3s' : (currentStageIndex == 0 ? '2.3s...' : '--')),
+        (loc.stepDetectingPlatform, currentStageIndex > 1 ? '1.8s' : (currentStageIndex == 1 ? '1.8s...' : '--')),
+        (loc.stepDownloadingVideo, currentStageIndex > 2 ? '4.2s' : (currentStageIndex == 2 ? '4.2s...' : '--')),
+        (loc.stepExtractingFrames, currentStageIndex > 3 ? '3.1s' : (currentStageIndex == 3 ? '3.1s...' : '--')),
+        (loc.stepDetectingFaces, currentStageIndex > 4 ? '2.7s' : (currentStageIndex == 4 ? '2.7s...' : '--')),
+        (loc.stepRunningAiAnalysis, currentStageIndex > 5 ? '5.4s' : (currentStageIndex == 5 ? '5.4s...' : '--')),
+        (loc.stepGeneratingReport, currentStageIndex > 6 ? '1.2s' : (currentStageIndex == 6 ? '1.2s...' : '--')),
+        (loc.stepVerificationComplete, currentStageIndex >= 7 ? 'Done' : '--'),
       ];
 
       final stageName = linkTimelineSteps[currentStageIndex].$1;
@@ -2355,7 +2368,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Stage ${currentStageIndex + 1} of 9',
+                          loc.stageOf(currentStageIndex + 1, 8),
                           style: TextStyle(
                             fontSize: 12.5,
                             color: subtitleColor,
@@ -2378,7 +2391,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '~${(8 * (1.0 - _uploadProgress.clamp(0.0, 1.0))).ceil()}s remaining',
+                          loc.verifySecondsRemaining((8 * (1.0 - _uploadProgress.clamp(0.0, 1.0))).ceil()),
                           style: TextStyle(fontSize: 11, color: subtitleColor),
                         ),
                       ],
@@ -2579,9 +2592,9 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text(
-                'PAUSE / CANCEL',
-                style: TextStyle(
+              child: Text(
+                loc.pauseOrCancel,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFFFF3B5C),
@@ -2794,164 +2807,6 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   }
 
   Widget _buildForensicResultsDashboard(VerificationResult result, AppColors colors) {
-    final loc = AppLocalizations.of(context)!;
-    final isReal = result.verdict.toUpperCase() == 'AUTHENTIC';
-
-    final isLinkResult = _activeTab == 1 || result.platform != null || (result.videoUrl != null && result.videoUrl!.isNotEmpty) || result.source.contains('Link');
-
-    if (isLinkResult) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Video Platform & Metadata Header
-          LinkVideoHeaderCard(result: result),
-
-          // 2. Verdict Hero & Dual Authenticity Meter
-          LinkVerdictHeroCard(result: result),
-
-          // 3. Forensic Diagnostics Dashboard (Real Metrics)
-          LinkForensicDashboard(result: result),
-
-          // 4. Suspicious Frames Gallery (or Reassuring Clean Audit)
-          SuspiciousFramesGallery(suspiciousFrames: result.suspiciousFrames ?? []),
-
-          // 5. Forensic Observations & Evidence
-          if (result.forensicObservations.isNotEmpty || result.detectedEvidence.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 14),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: _vp.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _vp.borderBright, width: 1.2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.security_rounded, color: Color(0xFF0284C7), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Forensic Observations & Evidence',
-                        style: TextStyle(color: _vp.text, fontSize: 14.5, fontWeight: FontWeight.w800),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (result.detectedEvidence.isNotEmpty) ...[
-                    ...result.detectedEvidence.map((ev) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            isReal ? Icons.check_circle_outline_rounded : Icons.report_problem_outlined,
-                            size: 16,
-                            color: isReal ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              ev,
-                              style: TextStyle(color: _vp.text, fontSize: 12.5, height: 1.3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                    const SizedBox(height: 8),
-                  ],
-                  ...result.forensicObservations.map((obs) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.5),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('• ', style: TextStyle(color: _vp.textMuted, fontSize: 13, fontWeight: FontWeight.bold)),
-                        Expanded(
-                          child: Text(
-                            obs,
-                            style: TextStyle(color: _vp.textMuted, fontSize: 12, height: 1.3),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-                ],
-              ),
-            ),
-
-          // 6. Chronological Audit Log
-          LinkProcessingTimelineLog(
-            logs: (result.timelineLogs != null && result.timelineLogs!.isNotEmpty)
-                ? result.timelineLogs!
-                : [
-                    '${DateFormat("HH:mm:ss").format(result.verifiedAt)} - Link verification completed',
-                    '${DateFormat("HH:mm:ss").format(result.verifiedAt)} - Cryptographic report hash: ${result.reportHash.substring(0, result.reportHash.length.clamp(0, 16))}...',
-                  ],
-          ),
-
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _getPdfForensicReport(result),
-                  icon: Icon(Icons.picture_as_pdf_outlined),
-                  label: Text(loc.verifyGetReportPdf),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _shareForensicLink(result),
-                  icon: Icon(Icons.share_outlined),
-                  label: Text('Share Link'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _openEscalationSheet(result),
-              icon: const Icon(Icons.flag_outlined, size: 19),
-              label: Text(loc.verifyReportMedia),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: () {
-              setState(() {
-                _showResults = false;
-                _rollingStreamScore = 0.0;
-                _streamSessionId = "";
-                _errorMessage = null;
-              });
-            },
-            child: Text(loc.verifyScanAnotherMedia),
-          ),
-        ],
-      );
-    }
-
-
     return ForensicResultCard(
       result: result,
       scanAnotherText: loc.verifyScanAnotherMedia,
@@ -2964,7 +2819,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
         });
       },
     );
-}
+  }
 
 } // end _VerifyPageState
 

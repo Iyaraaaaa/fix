@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,6 +71,33 @@ const List<LinkVerificationStage> kLinkStages = [
   ),
 ];
 
+(String, String) getLocalizedLinkStage(BuildContext context, int index) {
+  final loc = AppLocalizations.of(context);
+  if (loc == null) {
+    final s = kLinkStages[index.clamp(0, kLinkStages.length - 1)];
+    return (s.title, s.taskDescription);
+  }
+  switch (index) {
+    case 0:
+      return (loc.linkStageValidatingUrlTitle, loc.linkStageValidatingUrlDesc);
+    case 1:
+      return (loc.linkStageDetectingPlatformTitle, loc.linkStageDetectingPlatformDesc);
+    case 2:
+      return (loc.linkStageDownloadingStreamTitle, loc.linkStageDownloadingStreamDesc);
+    case 3:
+      return (loc.linkStageSamplingKeyframesTitle, loc.linkStageSamplingKeyframesDesc);
+    case 4:
+      return (loc.linkStageBiometricDetectionTitle, loc.linkStageBiometricDetectionDesc);
+    case 5:
+      return (loc.linkStageNeuralDeepfakeTitle, loc.linkStageNeuralDeepfakeDesc);
+    case 6:
+      return (loc.linkStageForensicAggregationTitle, loc.linkStageForensicAggregationDesc);
+    case 7:
+    default:
+      return (loc.linkStageVerificationCompleteTitle, loc.linkStageVerificationCompleteDesc);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROGRESS / RUNNING CARD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,14 +116,15 @@ class LinkVerificationProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
-    final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     final safeStage = currentStage.clamp(0, kLinkStages.length - 1);
     final activeStageInfo = kLinkStages[safeStage];
+    final activeStageTexts = getLocalizedLinkStage(context, safeStage);
     final pctInt = (progress * 100).toInt().clamp(0, 100);
 
     return Container(
@@ -103,7 +132,7 @@ class LinkVerificationProgressCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 1.2),
+        border: Border.all(color: Colors.black, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
@@ -131,7 +160,8 @@ class LinkVerificationProgressCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'STAGE ${safeStage + 1} OF ${kLinkStages.length}',
+                      loc?.stageOf(safeStage + 1, kLinkStages.length).toUpperCase() ??
+                          'STAGE ${safeStage + 1} OF ${kLinkStages.length}',
                       style: const TextStyle(
                         color: Color(0xFF0284C7),
                         fontSize: 10.5,
@@ -141,7 +171,7 @@ class LinkVerificationProgressCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      activeStageInfo.title,
+                      activeStageTexts.$1,
                       style: TextStyle(
                         color: text,
                         fontSize: 16,
@@ -173,7 +203,7 @@ class LinkVerificationProgressCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            statusMessage.isNotEmpty ? statusMessage : activeStageInfo.taskDescription,
+            statusMessage.isNotEmpty ? statusMessage : activeStageTexts.$2,
             style: TextStyle(color: muted, fontSize: 12, height: 1.3),
           ),
           const SizedBox(height: 18),
@@ -183,6 +213,7 @@ class LinkVerificationProgressCard extends StatelessWidget {
             children: kLinkStages.map((stage) {
               final isDone = stage.stageIndex < safeStage;
               final isCurrent = stage.stageIndex == safeStage;
+              final stageTexts = getLocalizedLinkStage(context, stage.stageIndex);
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -199,7 +230,7 @@ class LinkVerificationProgressCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        stage.title,
+                        stageTexts.$1,
                         style: TextStyle(
                           color: isDone ? const Color(0xFF10B981) : (isCurrent ? text : muted),
                           fontSize: 12.5,
@@ -248,6 +279,7 @@ class LinkVideoHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
     final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
@@ -330,15 +362,15 @@ class LinkVideoHeaderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
               _buildMetaChip(Icons.aspect_ratio_rounded, res, isDark),
-              const SizedBox(width: 8),
               _buildMetaChip(Icons.timer_outlined, length, isDark),
-              const SizedBox(width: 8),
               _buildMetaChip(
                 Icons.analytics_outlined,
-                '${result.framesAnalysedCount ?? 0} frames',
+                loc?.linkFramesCount(result.framesAnalysedCount ?? 0) ?? '${result.framesAnalysedCount ?? 0} frames',
                 isDark,
               ),
             ],
@@ -386,6 +418,7 @@ class LinkVerdictHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final vUpper = result.verdict.toUpperCase();
 
@@ -401,18 +434,22 @@ class LinkVerdictHeroCard extends StatelessWidget {
             : (isInconclusive ? const Color(0xFFF59E0B) : const Color(0xFF64748B)));
 
     final String verdictTitle = isAuthentic
-        ? 'VERIFIED AUTHENTIC'
+        ? (loc?.linkVerdictAuthenticTitle ?? 'VERIFIED AUTHENTIC')
         : (isManipulated
-            ? 'SYNTHETIC / MANIPULATED'
-            : (isInconclusive ? 'INCONCLUSIVE EVIDENCE' : 'UNVERIFIED LINK'));
+            ? (loc?.linkVerdictSyntheticTitle ?? 'SYNTHETIC / MANIPULATED')
+            : (isInconclusive ? (loc?.linkVerdictInconclusiveTitle ?? 'INCONCLUSIVE EVIDENCE') : (loc?.linkVerdictUnverifiedTitle ?? 'UNVERIFIED LINK')));
 
     final String subtitleText = isAuthentic
-        ? 'Natural optical camera sensor noise and consistent temporal facial motion verified across all sampled keyframes.'
+        ? (loc?.linkVerdictAuthenticDesc ??
+            'Natural optical camera sensor noise and consistent temporal facial motion verified across all sampled keyframes.')
         : (isManipulated
-            ? 'Generative synthetic artifacts and inter-frame facial texture warping detected across video timeline.'
+            ? (loc?.linkVerdictSyntheticDesc ??
+                'Generative synthetic artifacts and inter-frame facial texture warping detected across video timeline.')
             : (isInconclusive
-                ? 'Borderline biometric indicators or compressed resolution. Deepfake probability lies in the neutral range.'
-                : 'Video payload could not be extracted directly. Please upload the raw video file for analysis.'));
+                ? (loc?.linkVerdictInconclusiveDesc ??
+                    'Borderline biometric indicators or compressed resolution. Deepfake probability lies in the neutral range.')
+                : (loc?.linkVerdictUnverifiedDesc ??
+                    'Video payload could not be extracted directly. Please upload the raw video file for analysis.')));
 
     final double displayScore = isAuthentic
         ? result.authenticityScore
@@ -495,8 +532,10 @@ class LinkVerdictHeroCard extends StatelessWidget {
           ),
           Text(
             isAuthentic
-                ? 'AUTHENTICITY INDEX'
-                : (isManipulated ? 'DEEPFAKE RISK INDEX' : 'CONFIDENCE SCORE'),
+                ? (loc?.linkAuthenticityIndex ?? 'AUTHENTICITY INDEX')
+                : (isManipulated
+                    ? (loc?.linkDeepfakeRiskIndex ?? 'DEEPFAKE RISK INDEX')
+                    : (loc?.linkConfidenceScore ?? 'CONFIDENCE SCORE')),
             style: TextStyle(
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               fontSize: 11,
@@ -530,7 +569,8 @@ class LinkVerdictHeroCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Authentic: ${result.authenticityScore.toStringAsFixed(1)}%',
+                  loc?.linkAuthenticPercent(result.authenticityScore.toStringAsFixed(1)) ??
+                      'Authentic: ${result.authenticityScore.toStringAsFixed(1)}%',
                   style: const TextStyle(
                     color: Color(0xFF10B981),
                     fontSize: 11,
@@ -538,7 +578,8 @@ class LinkVerdictHeroCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Manipulation: ${result.fakeProbability.toStringAsFixed(1)}%',
+                  loc?.linkManipulationPercent(result.fakeProbability.toStringAsFixed(1)) ??
+                      'Manipulation: ${result.fakeProbability.toStringAsFixed(1)}%',
                   style: const TextStyle(
                     color: Color(0xFFEF4444),
                     fontSize: 11,
@@ -575,6 +616,7 @@ class LinkForensicDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
     final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
@@ -589,37 +631,37 @@ class LinkForensicDashboard extends StatelessWidget {
 
     final metrics = [
       {
-        'label': 'Overall Confidence',
+        'label': loc?.linkMetricConfidence ?? 'Overall Confidence',
         'val': isUnverified ? 'N/A' : '${result.confidence.toStringAsFixed(1)}%',
         'icon': Icons.speed_rounded,
         'color': const Color(0xFF0284C7),
       },
       {
-        'label': 'Sampled Frames',
-        'val': isUnverified ? '0' : '$framesCount keyframes',
+        'label': loc?.linkMetricSampledFrames ?? 'Sampled Frames',
+        'val': isUnverified ? '0' : (loc?.linkKeyframesCount(framesCount) ?? '$framesCount keyframes'),
         'icon': Icons.movie_filter_rounded,
         'color': const Color(0xFF8B5CF6),
       },
       {
-        'label': 'Face Coverage',
+        'label': loc?.linkMetricFaceCoverage ?? 'Face Coverage',
         'val': isUnverified ? '0%' : '${faceDetection.toStringAsFixed(0)}%',
         'icon': Icons.face_retouching_natural_rounded,
         'color': const Color(0xFF10B981),
       },
       {
-        'label': 'Tracking Stability',
+        'label': loc?.linkMetricTrackingStability ?? 'Tracking Stability',
         'val': isUnverified ? 'N/A' : '${result.trackingConfidence.toStringAsFixed(1)}%',
         'icon': Icons.timeline_rounded,
         'color': const Color(0xFF06B6D4),
       },
       {
-        'label': 'Frame Consistency',
+        'label': loc?.linkMetricFrameConsistency ?? 'Frame Consistency',
         'val': isUnverified ? 'N/A' : '${result.frameConsistency.toStringAsFixed(1)}%',
         'icon': Icons.auto_awesome_motion_rounded,
         'color': const Color(0xFFF59E0B),
       },
       {
-        'label': 'Analysis Latency',
+        'label': loc?.linkMetricLatency ?? 'Analysis Latency',
         'val': '${procTime.toStringAsFixed(1)}s',
         'icon': Icons.timer_rounded,
         'color': const Color(0xFFEC4899),
@@ -642,7 +684,7 @@ class LinkForensicDashboard extends StatelessWidget {
               const Icon(Icons.tune_rounded, color: Color(0xFF0284C7), size: 18),
               const SizedBox(width: 8),
               Text(
-                'Forensic AI Diagnostics',
+                loc?.linkDiagnosticsTitle ?? 'Forensic AI Diagnostics',
                 style: TextStyle(color: text, fontSize: 14.5, fontWeight: FontWeight.w800),
               ),
             ],
@@ -654,7 +696,7 @@ class LinkForensicDashboard extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 2.1,
+            childAspectRatio: 1.8,
             children: metrics.map((m) {
               final color = m['color'] as Color;
               return Container(
@@ -713,9 +755,9 @@ class SuspiciousFramesGallery extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
-    final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
@@ -736,9 +778,9 @@ class SuspiciousFramesGallery extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'No Manipulated Keyframes Detected',
-                    style: TextStyle(
+                  Text(
+                    loc?.linkNoSuspiciousFrames ?? 'No Manipulated Keyframes Detected',
+                    style: const TextStyle(
                       color: Color(0xFF10B981),
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -746,7 +788,8 @@ class SuspiciousFramesGallery extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'All sampled keyframes passed temporal consistency and facial boundary checks.',
+                    loc?.linkNoSuspiciousFramesDesc ??
+                        'All sampled keyframes passed temporal consistency and facial boundary checks.',
                     style: TextStyle(color: muted, fontSize: 11.5),
                   ),
                 ],
@@ -763,7 +806,7 @@ class SuspiciousFramesGallery extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 1.2),
+        border: Border.all(color: Colors.black, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,7 +816,8 @@ class SuspiciousFramesGallery extends StatelessWidget {
               const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 18),
               const SizedBox(width: 8),
               Text(
-                'Suspicious Keyframes Detected (${suspiciousFrames.length})',
+                loc?.linkSuspiciousFramesDetected(suspiciousFrames.length) ??
+                    'Suspicious Keyframes Detected (${suspiciousFrames.length})',
                 style: TextStyle(color: text, fontSize: 14.5, fontWeight: FontWeight.w800),
               ),
             ],
@@ -814,15 +858,16 @@ class SuspiciousFramesGallery extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Frame #$frameNo',
+                        loc?.linkFrameNumber(frameNo) ?? 'Frame #$frameNo',
                         style: TextStyle(color: text, fontSize: 11, fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        'Fake: ${fakeProb.toStringAsFixed(0)}%',
+                        loc?.linkFakePercent(fakeProb.toStringAsFixed(0)) ?? 'Fake: ${fakeProb.toStringAsFixed(0)}%',
                         style: const TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        'Tracking: ${faceConf.toStringAsFixed(0)}%',
+                        loc?.linkTrackingPercent(faceConf.toStringAsFixed(0)) ??
+                            'Tracking: ${faceConf.toStringAsFixed(0)}%',
                         style: TextStyle(color: muted, fontSize: 9.5),
                       ),
                     ],
@@ -848,11 +893,11 @@ class LinkProcessingTimelineLog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
     final border = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
-
 
     if (logs.isEmpty) return const SizedBox.shrink();
 
@@ -872,7 +917,7 @@ class LinkProcessingTimelineLog extends StatelessWidget {
               const Icon(Icons.history_edu_rounded, size: 18, color: Color(0xFF0284C7)),
               const SizedBox(width: 8),
               Text(
-                'Forensic Audit Timeline',
+                loc?.linkAuditTimeline ?? 'Forensic Audit Timeline',
                 style: TextStyle(color: text, fontSize: 14.5, fontWeight: FontWeight.w800),
               ),
             ],
@@ -938,6 +983,7 @@ class LinkDownloadErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF1E1014) : const Color(0xFFFFF1F2);
     final border = isDark ? const Color(0xFF4C1D24) : const Color(0xFFFECDD3);
@@ -963,7 +1009,7 @@ class LinkDownloadErrorCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Video Stream Retrieval Failed',
+                      loc?.linkRetrievalFailed ?? 'Video Stream Retrieval Failed',
                       style: TextStyle(
                         color: text,
                         fontSize: 15,
@@ -972,7 +1018,7 @@ class LinkDownloadErrorCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Platform access restricted or stream protected.',
+                      loc?.linkRetrievalFailedDesc ?? 'Platform access restricted or stream protected.',
                       style: TextStyle(color: text.withValues(alpha: 0.8), fontSize: 12),
                     ),
                   ],
@@ -985,7 +1031,6 @@ class LinkDownloadErrorCard extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF2A171A) : const Color(0xFFFFE4E6),
-              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               errorMessage.isNotEmpty
@@ -998,7 +1043,7 @@ class LinkDownloadErrorCard extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onUploadVideoPressed,
             icon: const Icon(Icons.upload_file_rounded),
-            label: const Text('Upload Video File Directly'),
+            label: Text(loc?.linkUploadDirectlyBtn ?? 'Upload Video File Directly'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,

@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:veriframe_app/service/user_profile_cache.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
+import 'package:veriframe_app/widgets/language_selector_button.dart';
 
 class SignUpPage extends StatefulWidget {
   final bool isDarkMode;
@@ -305,6 +307,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenHeight < 700;
@@ -335,19 +338,32 @@ class _SignUpPageState extends State<SignUpPage> {
               Positioned(
                 top: 10,
                 right: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha:0.2),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                      color: isDarkMode ? Colors.amber : Colors.white,
-                      size: 24,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const LanguageSelectorButton(iconColor: Colors.white),
                     ),
-                    onPressed: _toggleDarkMode,
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
+                          color: isDarkMode ? Colors.amber : Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: _toggleDarkMode,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // Main content
@@ -389,7 +405,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                       children: [
                                         // Title
                                         Text(
-                                          'SIGN UP',
+                                          loc.signUpTitle,
                                           style: TextStyle(
                                             fontSize: isVerySmallScreen ? 20 : (isSmallScreen ? 22 : 28),
                                             fontWeight: FontWeight.bold,
@@ -399,7 +415,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                         ),
                                         SizedBox(height: isVerySmallScreen ? 2 : 4),
                                         Text(
-                                          'Create your account',
+                                          loc.createAccount,
                                           style: TextStyle(
                                             fontSize: isVerySmallScreen ? 12 : (isSmallScreen ? 13 : 16),
                                             color: isDarkMode ? Colors.white60 : Colors.black54,
@@ -414,7 +430,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                         // Form fields
                                         _buildTextField(
                                           controller: nameController,
-                                          label: 'Full Name',
+                                          label: loc.fullNameLabel,
                                           prefixIcon: Icons.person_outline,
                                           validator: _validateName,
                                           isSmallScreen: isSmallScreen,
@@ -424,7 +440,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                                         _buildTextField(
                                           controller: emailController,
-                                          label: 'Email',
+                                          label: loc.emailLabel,
                                           prefixIcon: Icons.email_outlined,
                                           validator: _validateEmail,
                                           keyboardType: TextInputType.emailAddress,
@@ -435,7 +451,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                                         _buildTextField(
                                           controller: passwordController,
-                                          label: 'Password',
+                                          label: loc.passwordLabel,
                                           prefixIcon: Icons.lock_outline,
                                           isPassword: true,
                                           isVisible: isPasswordVisible,
@@ -449,7 +465,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                                         _buildTextField(
                                           controller: confirmPasswordController,
-                                          label: 'Confirm Password',
+                                          label: loc.confirmPassword,
                                           prefixIcon: Icons.lock_outline,
                                           isPassword: true,
                                           isVisible: isConfirmPasswordVisible,
@@ -504,7 +520,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                                       const SizedBox(width: 8),
                                                       Flexible(
                                                         child: Text(
-                                                          isEmailVerified ? 'COMPLETE REGISTRATION' : 'SEND VERIFICATION',
+                                                          isEmailVerified ? loc.completeRegistration : loc.sendVerification,
                                                           style: TextStyle(
                                                             fontSize: isVerySmallScreen ? 12 : (isSmallScreen ? 14 : 16),
                                                             fontWeight: FontWeight.bold,
@@ -522,7 +538,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                         if (!isEmailVerified)
                                           _buildInfoContainer(
                                             icon: Icons.info_outline,
-                                            text: 'Click the verification link sent to your email',
+                                            text: loc.clickVerificationLink,
                                             color: Colors.blue,
                                             isSmallScreen: isSmallScreen,
                                             isVerySmallScreen: isVerySmallScreen,
@@ -531,7 +547,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                         if (isEmailVerified)
                                           _buildInfoContainer(
                                             icon: Icons.check_circle,
-                                            text: 'Email verified! You can now complete registration',
+                                            text: loc.emailVerifiedMsg,
                                             color: Colors.green,
                                             isSmallScreen: isSmallScreen,
                                             isVerySmallScreen: isVerySmallScreen,
@@ -555,9 +571,9 @@ class _SignUpPageState extends State<SignUpPage> {
                                                 color: isDarkMode ? Colors.white70 : Colors.black87,
                                               ),
                                               children: [
-                                                const TextSpan(text: "Already have an account? "),
+                                                TextSpan(text: "${loc.alreadyHaveAccount} "),
                                                 TextSpan(
-                                                  text: "SIGN IN",
+                                                  text: loc.signInLink,
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     color: const Color(0xFF0D40DA),

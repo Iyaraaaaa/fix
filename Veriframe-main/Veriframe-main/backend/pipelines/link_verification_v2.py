@@ -7,6 +7,7 @@ import hashlib
 import tempfile
 import requests
 import base64
+import re
 from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
@@ -232,6 +233,8 @@ class LinkVerificationV2:
 
             # Extract thumbnail for report preview
             thumbnail_base64 = self._extract_thumbnail(video_path)
+            if not thumbnail_base64:
+                thumbnail_base64 = self._fetch_remote_thumbnail(url)
 
             fake_percentage = round(aggregated_prob * 100.0, 2)
             auth_percentage = round((1.0 - aggregated_prob) * 100.0, 2)
@@ -330,6 +333,9 @@ class LinkVerificationV2:
                 "thumbnailBase64": thumbnail_base64,
 
                 # Frontend Direct Binding Fields
+                "videoUrl": url,
+                "mediaName": url,
+                "mediaPath": url,
                 "platform": url_sec["platform"],
                 "videoLength": video_length_str,
                 "resolution": res_str,
@@ -371,7 +377,7 @@ class LinkVerificationV2:
         """
         parsed = urlparse(url)
         scheme = parsed.scheme.lower()
-        domain = parsed.netloc.lower().lstrip("www.")
+        domain = parsed.netloc.lower().removeprefix("www.")
         
         is_secure = scheme == "https"
         platform = self._detect_platform_name(url)
@@ -391,18 +397,92 @@ class LinkVerificationV2:
             "status": "PASS" if (scheme in ("http", "https") and domain) else "INVALID_URL"
         }
 
+    def _clean_url(self, url: str) -> str:
+        """Strip tracking query parameters that break video platform extractors."""
+        cleaned = url.strip()
+        lower = cleaned.lower()
+        if "facebook.com" in lower or "fb.watch" in lower:
+            # Facebook share links (?_rdc=1, &_rdr, &_fb_noscript=1, mibextid, etc.)
+            if "/share/v/" in cleaned or "/reel/" in cleaned or "/watch" in cleaned:
+                cleaned = cleaned.split("?")[0].rstrip("/") + "/"
+        elif "tiktok.com" in lower:
+            # TikTok tracking query params (?_r=1, &is_from_webapp=1, etc.)
+            if "/video/" in cleaned:
+                cleaned = cleaned.split("?")[0]
+        elif "youtube.com" in lower or "youtu.be" in lower:
+            # Preserve v= query param for youtube.com/watch, but strip feature/si/etc.
+            if "youtu.be/" in cleaned:
+                cleaned = cleaned.split("?")[0]
+            elif "watch" in cleaned and "v=" in cleaned:
+                from urllib.parse import parse_qs, urlencode
+                parsed = urlparse(cleaned)
+                qs = parse_qs(parsed.query)
+                if "v" in qs:
+                    cleaned = f"{parsed.scheme}://{parsed.netloc}{parsed.path}?v={qs['v'][0]}"
+        return cleaned
+
+    def _download_tiktok_stream(self, url: str, timeout: int = 45) -> Dict[str, Any]:
+        """Direct stream downloader for TikTok videos to bypass platform IP rate limits and bot challenges."""
+        try:
+            clean_url = url.split("?")[0] if "/video/" in url else url
+            api_url = f"https://www.tikwm.com/api/?url={requests.utils.quote(clean_url)}"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"}
+            resp = requests.get(api_url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("code") == 0 and data.get("data", {}).get("play"):
+                    play_url = data["data"]["play"]
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                    tmp_path = tmp.name
+                    tmp.close()
+
+                    vid_resp = requests.get(play_url, headers=headers, stream=True, timeout=timeout)
+                    vid_resp.raise_for_status()
+                    with open(tmp_path, "wb") as f:
+                        for chunk in vid_resp.iter_content(chunk_size=32768):
+                            if chunk:
+                                f.write(chunk)
+                    
+                    size_mb = os.path.getsize(tmp_path) / (1024.0 * 1024.0)
+                    if size_mb > 0.05:
+                        logger.info(f"[LinkV2] TikTok video downloaded successfully via direct stream ({size_mb:.2f} MB)")
+                        return {
+                            "success": True,
+                            "video_path": tmp_path,
+                            "content_length_mb": round(size_mb, 2),
+                            "reason": "Downloaded via TikTok stream resolver",
+                        }
+                    else:
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+        except Exception as e:
+            logger.warning(f"[LinkV2] TikTok direct stream download attempt error: {e}")
+        
+        return {"success": False, "video_path": None, "content_length_mb": 0.0, "reason": "TikTok direct resolver failed"}
+
     def download_video(self, url: str, platform: str, timeout: int = None) -> Dict[str, Any]:
         """
         Stages 2 & 3: Video Resolution & Stream Downloading.
-        Uses yt-dlp for social media links, direct HTTP streaming for raw/CDN links.
+        Uses yt-dlp with optimized fallback resolvers for TikTok, YouTube, and Facebook.
         Enforces a hard wall-clock timeout via URL_DOWNLOAD_TIMEOUT.
         """
         if timeout is None:
             timeout = app_config.URL_DOWNLOAD_TIMEOUT
-        if self._is_social_media_url(url):
-            return self._download_via_ytdlp(url, timeout=timeout)
+
+        clean_url = self._clean_url(url)
+        
+        # TikTok high-reliability stream resolution
+        if platform == "TikTok" or "tiktok.com" in clean_url.lower():
+            logger.info(f"[LinkV2] Attempting fast direct stream resolution for TikTok: {clean_url}")
+            tiktok_res = self._download_tiktok_stream(clean_url, timeout=timeout)
+            if tiktok_res.get("success"):
+                return tiktok_res
+            logger.info("[LinkV2] TikTok direct stream fallback to yt-dlp...")
+
+        if self._is_social_media_url(clean_url):
+            return self._download_via_ytdlp(clean_url, timeout=timeout)
         else:
-            return self._download_via_requests(url, timeout=timeout)
+            return self._download_via_requests(clean_url, timeout=timeout)
 
     def validate_media(self, video_path: str) -> Dict[str, Any]:
         """
@@ -603,7 +683,7 @@ class LinkVerificationV2:
 
     def _is_social_media_url(self, url: str) -> bool:
         try:
-            domain = urlparse(url).netloc.lower().lstrip("www.")
+            domain = urlparse(url).netloc.lower().removeprefix("www.")
             return any(url.lower().count(d) > 0 for d in self._YTDLP_DOMAINS)
         except Exception:
             return False
@@ -624,36 +704,62 @@ class LinkVerificationV2:
         tmp_dir = tempfile.gettempdir()
         outtmpl = os.path.join(tmp_dir, "vrf_v2_%(id)s.%(ext)s")
 
+        # Locate ffmpeg for merging DASH video and audio streams
+        ffmpeg_exe = None
+        try:
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            import shutil
+            ffmpeg_exe = shutil.which("ffmpeg")
+
         ydl_opts = {
-            "format": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+            "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
             "outtmpl": outtmpl,
             "quiet": True,
             "no_warnings": True,
             "socket_timeout": timeout,
             "noprogress": True,
-            "retries": 3,
-            "fragment_retries": 3,
-            "extractor_args": {"youtube": {"player_client": ["ios", "android", "web", "mweb"]}},
+            "retries": 5,
+            "fragment_retries": 5,
+            "extractor_retries": 3,
+            "merge_output_format": "mp4",
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
         }
+        if ffmpeg_exe and os.path.exists(ffmpeg_exe):
+            ydl_opts["ffmpeg_location"] = ffmpeg_exe
 
         def _run_yt_dlp():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                video_id = info.get("id", "")
-                candidate = ydl.prepare_filename(info)
-                if os.path.exists(candidate):
-                    return candidate, video_id
-                for ext in (".mp4", ".webm", ".mkv", ".mov", ".m4a"):
-                    c = os.path.join(tmp_dir, f"vrf_v2_{video_id}{ext}")
-                    if os.path.exists(c):
-                        return c, video_id
-                recent = sorted(
-                    glob.glob(os.path.join(tmp_dir, "vrf_v2_*")),
-                    key=os.path.getmtime, reverse=True,
-                )
-                if recent:
-                    return recent[0], video_id
-                return None, video_id
+            last_err = None
+            for attempt in range(2):
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=True)
+                        video_id = info.get("id", "")
+                        candidate = ydl.prepare_filename(info)
+                        if os.path.exists(candidate):
+                            return candidate, video_id
+                        for ext in (".mp4", ".webm", ".mkv", ".mov", ".m4a"):
+                            c = os.path.join(tmp_dir, f"vrf_v2_{video_id}{ext}")
+                            if os.path.exists(c):
+                                return c, video_id
+                        recent = sorted(
+                            glob.glob(os.path.join(tmp_dir, "vrf_v2_*")),
+                            key=os.path.getmtime, reverse=True,
+                        )
+                        if recent:
+                            return recent[0], video_id
+                        return None, video_id
+                except Exception as e:
+                    last_err = e
+                    if attempt == 0:
+                        time.sleep(2.0)
+                        continue
+                    raise last_err
+
 
         downloaded_path = None
         try:
@@ -790,6 +896,8 @@ class LinkVerificationV2:
             f"{now_clock} - Diagnostic: {reason}",
         ]
 
+        thumbnail_base64 = self._fetch_remote_thumbnail(url)
+
         return {
             "verificationId": f"VRF-LNK-V2-{int(time.time() * 1000)}",
             "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -826,6 +934,10 @@ class LinkVerificationV2:
             "confidence_label": "Low",
 
             # Frontend Direct Binding Fields
+            "thumbnailBase64": thumbnail_base64,
+            "videoUrl": url,
+            "mediaName": url,
+            "mediaPath": url,
             "platform": url_sec.get("platform", "Web"),
             "videoLength": "N/A",
             "resolution": "N/A",
@@ -840,8 +952,8 @@ class LinkVerificationV2:
             "frames_analyzed": frames_analyzed,
             "faces_detected": faces_detected,
             "valid_faces": valid_faces,
-            "raw_model_probability": 0.0,
-            "aggregated_probability": 0.0,
+            "raw_model_probability": None,
+            "aggregated_probability": None,
             "verdict": "INCONCLUSIVE",
             "analysis_status": analysis_status,
             "reason": reason,
@@ -869,34 +981,114 @@ class LinkVerificationV2:
         return h.hexdigest()
 
     def _extract_thumbnail(self, video_path: str, max_size: int = 320) -> Optional[str]:
-        """Extract a thumbnail from video at 10% duration and return as base64 JPEG."""
+        """Extract a thumbnail from video at 10% duration (or frame 0) and return as base64 JPEG."""
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             return None
         try:
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            if frame_count <= 0:
-                return None
-            target_frame = max(0, min(frame_count // 10, frame_count - 1))
-            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
-            ret, frame = cap.read()
-            if not ret or frame is None:
+            frame = None
+            if frame_count > 0:
+                target_frame = max(0, min(frame_count // 10, frame_count - 1))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+                ret, frame = cap.read()
+            if frame is None:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = cap.read()
-                if not ret or frame is None:
-                    return None
+            if frame is None:
+                ret, frame = cap.read()
+            if frame is None:
+                return None
             h, w = frame.shape[:2]
             if max(h, w) > max_size:
                 scale = max_size / max(h, w)
                 new_w = int(w * scale)
                 new_h = int(h * scale)
                 frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
             return base64.b64encode(buffer).decode('utf-8')
         except Exception:
             return None
         finally:
             cap.release()
+
+    def _extract_youtube_id(self, url: str) -> Optional[str]:
+        reg_exp = r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|live|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})'
+        match = re.search(reg_exp, url, re.IGNORECASE)
+        if match:
+            return match.group(1)
+        return None
+
+    def _fetch_remote_thumbnail(self, url: str) -> Optional[str]:
+        """Fetch remote thumbnail from YouTube, TikTok, Vimeo, or OpenGraph meta tags."""
+        try:
+            # 1. YouTube
+            yt_id = self._extract_youtube_id(url)
+            if yt_id:
+                for qual in ("hqdefault", "mqdefault", "default", "0"):
+                    try:
+                        resp = requests.get(f"https://img.youtube.com/vi/{yt_id}/{qual}.jpg", timeout=6)
+                        if resp.status_code == 200 and len(resp.content) > 1000:
+                            nparr = np.frombuffer(resp.content, np.uint8)
+                            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                            if img is not None:
+                                h, w = img.shape[:2]
+                                if max(h, w) > 320:
+                                    scale = 320 / max(h, w)
+                                    img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+                                _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                return base64.b64encode(buf).decode('utf-8')
+                    except Exception:
+                        continue
+
+            # 2. Vimeo oEmbed
+            if "vimeo.com" in url.lower():
+                try:
+                    resp = requests.get(f"https://vimeo.com/api/oembed.json?url={requests.utils.quote(url)}", timeout=6)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        thumb_url = data.get("thumbnail_url")
+                        if thumb_url:
+                            img_resp = requests.get(thumb_url, timeout=6)
+                            if img_resp.status_code == 200:
+                                nparr = np.frombuffer(img_resp.content, np.uint8)
+                                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                                if img is not None:
+                                    h, w = img.shape[:2]
+                                    if max(h, w) > 320:
+                                        scale = 320 / max(h, w)
+                                        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+                                    _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                    return base64.b64encode(buf).decode('utf-8')
+                except Exception:
+                    pass
+
+            # 3. OpenGraph / Twitter Image meta tag from webpage
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+            resp = requests.get(url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                html = resp.text
+                match = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.I)
+                if not match:
+                    match = re.search(r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.I)
+                if match:
+                    img_url = match.group(1).replace("&amp;", "&")
+                    img_resp = requests.get(img_url, headers=headers, timeout=6)
+                    if img_resp.status_code == 200:
+                        nparr = np.frombuffer(img_resp.content, np.uint8)
+                        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                        if img is not None:
+                            h, w = img.shape[:2]
+                            if max(h, w) > 320:
+                                scale = 320 / max(h, w)
+                                img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+                            _, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                            return base64.b64encode(buf).decode('utf-8')
+        except Exception as e:
+            logger.warning(f"[LinkV2] Could not fetch remote thumbnail for {url}: {e}")
+        return None
 
     def _calculate_frame_consistency(self, faces: List[np.ndarray]) -> float:
         if len(faces) < 2:

@@ -146,13 +146,23 @@ class ElegantVerifyModal extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const VerifyPage(initialStreamUrl: ''),
+                        builder: (_) => const VerifyPage(initialStreamUrl: '', initialTab: 2),
                       ),
                     );
                   } else if (tag == 'Video Link') {
-                    Navigator.pushNamed(context, '/video_link');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VerifyPage(initialTab: 1),
+                      ),
+                    );
                   } else {
-                    Navigator.pushNamed(context, '/analyze');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VerifyPage(initialTab: 0),
+                      ),
+                    );
                   }
                 },
               ),

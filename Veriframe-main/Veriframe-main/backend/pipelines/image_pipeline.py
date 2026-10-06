@@ -117,12 +117,11 @@ class ImagePipeline:
                 if face_crop is None or face_crop.shape[0] < 20 or face_crop.shape[1] < 20:
                     continue
 
-                # Image model expects [1,224,224,3] float32. Use the shared
-                # preprocessor (pad_to_square + resize + BGR->RGB, no /255) so the
-                # image path matches the video/link/stream pipelines and the
-                # isotropic-resize + pad transform the model was trained with.
+                # Face model expects [1,224,224,3] float32. Use the unified
+                # preprocessor (pad_to_square + resize + CLAHE + gamma + BGR->RGB)
+                # so the image path matches the video, link, and stream pipelines.
                 try:
-                    face_tensor = self.preprocessor.preprocess_for_tflite(face_crop)
+                    face_tensor = self.preprocessor.preprocess_face(face_crop)
                 except Exception as exc:
                     logger.debug(f"[ImagePipeline] Face preprocessing failed: {exc}")
                     continue
@@ -178,15 +177,15 @@ class ImagePipeline:
             except Exception as e:
                 logger.warning(f"[ImagePipeline] Reality Defender failed: {e}")
                 degraded = True
-                forensic_observations.append("Reality Defender timed out or failed; local-only result.")
+                forensic_observations.append("Cloud verification timed out or unavailable; local-only result.")
 
         if rd_result and rd_result.get("status") == "success":
             if rd_result.get("partial"):
                 degraded = True
-                models_used = f"VeriFrame {self.model_used} + Scene Forensics (Reality Defender partial, excluded)"
+                models_used = f"VeriFrame {self.model_used} + Scene Forensics (Cloud verification partial, excluded)"
                 forensic_observations.extend(rd_result.get("observations") or [])
                 forensic_observations.append(
-                    "Reality Defender result was PARTIAL (models still ANALYZING at the deadline) and was "
+                    "Cloud verification result was PARTIAL (models still ANALYZING at the deadline) and was "
                     "excluded from the ensemble; local-only result."
                 )
                 detected_evidence.extend(rd_result.get("evidence") or [])
@@ -195,18 +194,18 @@ class ImagePipeline:
                 engines_used.append("reality_defender")
                 rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
                 final_fake_prob = 0.50 * local_fake_prob + 0.50 * rd_fake_prob
-                models_used = f"Ensemble: {self.model_used} + Scene Forensics + Reality Defender AI"
+                models_used = f"Ensemble: {self.model_used} + Scene Forensics + Cloud Deepfake AI"
                 if rd_result.get("evidence"):
                     detected_evidence.extend(rd_result["evidence"])
                 if rd_result.get("observations"):
                     forensic_observations.extend(rd_result["observations"])
-                forensic_observations.append(f"Reality Defender Cloud Deepfake Score: {rd_result.get('fake_probability')}%.")
+                forensic_observations.append(f"Cloud Deepfake AI Score: {rd_result.get('fake_probability')}%.")
         else:
             final_fake_prob = local_fake_prob
             if self.rd_service and self.rd_service.detector.is_configured() and rd_result is None:
                 degraded = True
-                if "Reality Defender timed out or failed; local-only result." not in forensic_observations:
-                    forensic_observations.append("Reality Defender timed out or failed; local-only result.")
+                if "Cloud verification timed out or unavailable; local-only result." not in forensic_observations:
+                    forensic_observations.append("Cloud verification timed out or unavailable; local-only result.")
 
         # Calibrate & Generate Verdict
         calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
@@ -254,6 +253,11 @@ class ImagePipeline:
             "authenticityScore": auth_percentage,
             "fakeProbability": fake_percentage,
             "confidence": confidence_val,
+            "metadataScore": 100.0,
+            "frameConsistency": 100.0,
+            "ocrConfidence": 0.0,
+            "trackingConfidence": 100.0 if len(detections) > 0 else 0.0,
+            "manipulationScore": fake_percentage,
             "verdict": legacy_verdict,
             "fineVerdict": fine_verdict,
             "riskLevel": risk_level,
@@ -262,7 +266,7 @@ class ImagePipeline:
             "face_detector_used": face_detector_used,
             "engines_used": engines_used,
             "degraded": degraded,
-            "detectedEvidence": detected_evidence,
+            "detectedEvidence": [],
             "forensicObservations": forensic_observations,
             "reportHash": image_hash,
             "facesDetected": len(detections),

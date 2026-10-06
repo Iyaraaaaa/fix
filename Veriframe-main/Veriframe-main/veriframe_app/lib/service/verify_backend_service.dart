@@ -475,7 +475,7 @@ class VerifyBackendService {
           'detectedEvidence': detectedEvidence ?? [],
           'forensicObservations': forensicObservations ?? [],
         }),
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 45));
 
       if (response.statusCode != 200) {
         throw ServerException(_parseErrorDetail(response.body, response.statusCode));

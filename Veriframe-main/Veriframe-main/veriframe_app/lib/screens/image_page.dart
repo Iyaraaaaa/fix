@@ -13,6 +13,7 @@ import 'package:veriframe_app/service/tflite_service.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
 import 'package:veriframe_app/widgets/forensic_result_card.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
 
 class ImagePage extends ConsumerStatefulWidget {
   final int initialTab;
@@ -80,10 +81,11 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     if (!mounted) return;
     final controller = TextEditingController(text: currentUrl);
 
+    final loc = AppLocalizations.of(context)!;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Backend Server Settings'),
+        title: Text(loc.backendServerSettingsTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,11 +117,11 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Reset to Default'),
+            child: Text(loc.resetToDefaultBtn),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(loc.verifyCancel),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -134,7 +136,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
               }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Save'),
+            child: Text(loc.verifyBackendSave),
           ),
         ],
       ),
@@ -176,7 +178,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
 
     try {
       final baseUrl = await VerifyBackendService.instance.getBaseUrl();
-      setState(() => _statusMessage = 'Running Biometrics, 2D FFT & Reality Defender AI...');
+      setState(() => _statusMessage = 'Running Biometrics, 2D FFT & Cloud Deepfake AI...');
       final res = await VerifyBackendService.instance.verifyImage(baseUrl, _selectedImage!);
 
       setState(() {
@@ -211,9 +213,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
           'riskLevel': riskLevel,
           'mediaType': 'image/jpeg',
           'source': 'On-Device TFLite (Image.tflite)',
-          'detectedEvidence': isReal
-              ? <String>['On-device biometric verification passed', 'No deepfake anomalies detected']
-              : <String>['Facial distortion signature detected', 'High probability synthetic generation'],
+          'detectedEvidence': <String>[],
           'forensicObservations': <String>[
             'Verified locally via on-device Image.tflite model',
             'Inference time: ${inference.inferenceMs} ms',
@@ -258,7 +258,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
 
     try {
       final baseUrl = await VerifyBackendService.instance.getBaseUrl();
-      setState(() => _statusMessage = 'Running Biometrics, 2D FFT & Reality Defender AI...');
+      setState(() => _statusMessage = 'Running Biometrics, 2D FFT & Cloud Deepfake AI...');
       final res = await VerifyBackendService.instance.verifyImageLink(baseUrl, url);
 
       setState(() {
@@ -374,13 +374,14 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF090D16) : const Color(0xFFF6F8FC);
+    final loc = AppLocalizations.of(context)!;
 
     return MainScaffold(
       backgroundColor: bg,
       showBack: true,
-      title: const Text(
-        'Image Forensics',
-        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      title: Text(
+        loc.imageForensicsTitle,
+        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       extraActions: [
         IconButton(
@@ -390,19 +391,19 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
         ),
       ],
       body: _result != null
-          ? _buildResultView(isDark)
+          ? _buildResultView(isDark, loc)
           : Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-                  child: _buildSegmentedTabSelector(isDark),
+                  child: _buildSegmentedTabSelector(isDark, loc),
                 ),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildLocalTab(isDark),
-                      _buildLinkTab(isDark),
+                      _buildLocalTab(isDark, loc),
+                      _buildLinkTab(isDark, loc),
                     ],
                   ),
                 ),
@@ -411,19 +412,21 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildSegmentedTabSelector(bool isDark) {
-    final barBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFE8EDF7);
+  Widget _buildSegmentedTabSelector(bool isDark, AppLocalizations loc) {
+    final barBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
     final activeBg = const Color(0xFF0F766E);
-    final unselectedText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF515E71);
+    final unselectedText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final isLocal = _tabController.index == 0;
     final isLink = _tabController.index == 1;
 
     return Container(
-      height: 52,
+      height: 50,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: barBg,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: Row(
         children: [
@@ -438,7 +441,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   color: isLocal ? activeBg : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
                 child: Row(
@@ -446,14 +449,14 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                   children: [
                     Icon(
                       Icons.image_outlined,
-                      size: 20,
+                      size: 19,
                       color: isLocal ? Colors.white : unselectedText,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Local image',
+                      loc.localImageTab,
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 14,
                         fontWeight: isLocal ? FontWeight.w700 : FontWeight.w600,
                         color: isLocal ? Colors.white : unselectedText,
                       ),
@@ -474,7 +477,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   color: isLink ? activeBg : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
                 child: Row(
@@ -482,14 +485,14 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                   children: [
                     Icon(
                       Icons.link_rounded,
-                      size: 21,
+                      size: 20,
                       color: isLink ? Colors.white : unselectedText,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Image link',
+                      loc.imageLinkTab,
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 14,
                         fontWeight: isLink ? FontWeight.w700 : FontWeight.w600,
                         color: isLink ? Colors.white : unselectedText,
                       ),
@@ -504,15 +507,15 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildInfoCard(bool isDark) {
+  Widget _buildInfoCard(bool isDark, AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF122820) : const Color(0xFFEAF7F0),
+        color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.25) : const Color(0xFFECFDF5),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark ? const Color(0xFF1E4837) : const Color(0xFFC7EBD7),
-          width: 1.2,
+          color: isDark ? const Color(0xFF047857).withValues(alpha: 0.4) : const Color(0xFFA7F3D0),
+          width: 1.0,
         ),
       ),
       child: Column(
@@ -524,8 +527,12 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1B382D) : Colors.white,
+                  color: isDark ? const Color(0xFF064E3B) : Colors.white,
                   borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF047857) : const Color(0xFF6EE7B7),
+                    width: 1.0,
+                  ),
                   boxShadow: isDark
                       ? null
                       : [
@@ -546,14 +553,14 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                         Icon(
                           Icons.shield_outlined,
                           size: 26,
-                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF107050),
+                          color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                         ),
                         Positioned(
                           top: 5,
                           child: Icon(
                             Icons.sync_rounded,
                             size: 13,
-                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF107050),
+                            color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                           ),
                         ),
                       ],
@@ -564,11 +571,11 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  'Image authenticity check',
+                  loc.inspectImageFilesTitle,
                   style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF135B3E),
+                    color: isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -577,11 +584,11 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
           ),
           const SizedBox(height: 12),
           Text(
-            'Scans every pixel pattern and frequency signature with the VeriFrame Image model to expose manipulation and deepfakes.',
+            loc.inspectImageFilesDesc,
             style: TextStyle(
               fontSize: 13.5,
               height: 1.45,
-              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF374151),
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -590,25 +597,27 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildLinkTab(bool isDark) {
+  Widget _buildLinkTab(bool isDark, AppLocalizations loc) {
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
+
     return SingleChildScrollView(
       controller: _linkScrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildInfoCard(isDark),
+          _buildInfoCard(isDark, loc),
           const SizedBox(height: 18),
 
           // URL Input
           Container(
-            height: 58,
+            height: 56,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF162032) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFD9E2EC),
-                width: 1.4,
+                color: borderColor,
+                width: 1.0,
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -630,7 +639,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                       fontWeight: FontWeight.w500,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'https://example.com/image.jpg',
+                      hintText: loc.enterImageUrlPlaceholder,
                       hintStyle: TextStyle(
                         color: isDark ? const Color(0xFF64748B) : const Color(0xFF8A99AD),
                         fontSize: 15,
@@ -659,7 +668,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
 
           // Verify Button
           SizedBox(
-            height: 54,
+            height: 52,
             width: double.infinity,
             child: ElevatedButton(
               onPressed: !_isAnalyzing ? _analyzeLinkImage : null,
@@ -668,7 +677,9 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.6),
                 disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
               child: _isAnalyzing
@@ -690,9 +701,9 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                         ),
                       ],
                     )
-                  : const Text(
-                      'Verify image link',
-                      style: TextStyle(
+                  : Text(
+                      loc.analyzeLinkBtn,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16.5,
                         letterSpacing: -0.2,
@@ -721,22 +732,24 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildLocalTab(bool isDark) {
+  Widget _buildLocalTab(bool isDark, AppLocalizations loc) {
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
+
     return SingleChildScrollView(
       controller: _localScrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildInfoCard(isDark),
+          _buildInfoCard(isDark, loc),
           const SizedBox(height: 18),
 
           // Upload Preview Container with Dashed Border
           CustomPaint(
             painter: _DashedBorderPainter(
-              color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-              strokeWidth: 1.3,
-              dashWidth: 5.5,
+              color: borderColor,
+              strokeWidth: 1.5,
+              dashWidth: 6.0,
               dashSpace: 4.5,
               radius: 20,
             ),
@@ -745,8 +758,8 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
               width: double.infinity,
               decoration: BoxDecoration(
                 color: isDark
-                    ? const Color(0xFF131D2E).withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.9),
+                    ? const Color(0xFF1E293B).withValues(alpha: 0.5)
+                    : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: _selectedImage != null
@@ -775,9 +788,9 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                           left: 12,
                           right: 12,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.65),
+                              color: Colors.black.withValues(alpha: 0.7),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -813,23 +826,27 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              width: 60,
-                              height: 60,
+                              width: 64,
+                              height: 64,
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? const Color(0xFF133E33)
-                                    : const Color(0xFFE6F7F0),
+                                    ? const Color(0xFF064E3B).withValues(alpha: 0.3)
+                                    : const Color(0xFFECFDF5),
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF047857).withValues(alpha: 0.4) : const Color(0xFFA7F3D0),
+                                  width: 1.0,
+                                ),
                               ),
                               child: Icon(
                                 Icons.add_photo_alternate_outlined,
                                 size: 28,
-                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0A6C60),
+                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF0F766E),
                               ),
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Select an image to analyze',
+                              loc.selectImageFileHint,
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
@@ -864,13 +881,13 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                     onTap: _isAnalyzing ? null : () => _pickImage(ImageSource.gallery),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      height: 52,
+                      height: 50,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF162032) : Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                          width: 1.2,
+                          color: borderColor,
+                          width: 1.0,
                         ),
                       ),
                       child: Row(
@@ -878,16 +895,16 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                         children: [
                           Icon(
                             Icons.photo_outlined,
-                            size: 22,
-                            color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8),
+                            size: 20,
+                            color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Gallery',
+                            loc.browseImageBtn,
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
+                              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
                             ),
                           ),
                         ],
@@ -904,13 +921,13 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                     onTap: _isAnalyzing ? null : () => _pickImage(ImageSource.camera),
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      height: 52,
+                      height: 50,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF162032) : Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                          width: 1.2,
+                          color: borderColor,
+                          width: 1.0,
                         ),
                       ),
                       child: Row(
@@ -918,16 +935,16 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                         children: [
                           Icon(
                             Icons.camera_alt_outlined,
-                            size: 22,
-                            color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8),
+                            size: 20,
+                            color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Camera',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
+                              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
                             ),
                           ),
                         ],
@@ -961,11 +978,13 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                       ? _analyzeLocalImage
                       : () => _pickImage(ImageSource.gallery)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A6C60),
+                backgroundColor: const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFF0A6C60).withValues(alpha: 0.6),
+                disabledBackgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.6),
                 disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
               child: _isAnalyzing
@@ -987,9 +1006,9 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
                         ),
                       ],
                     )
-                  : const Text(
-                      'Verify image',
-                      style: TextStyle(
+                  : Text(
+                      loc.analyzeImageBtn,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                         letterSpacing: -0.2,
@@ -1015,24 +1034,27 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
   }
 
   Widget _buildChip(String label, bool isDark) {
+    final chipBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7.5),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEEF2F6),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: chipBorder, width: 1.0),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
-          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
         ),
       ),
     );
   }
 
   Widget _buildDownArrow(bool isDark, ScrollController controller) {
+    final arrowBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     return Center(
       child: GestureDetector(
         onTap: () {
@@ -1048,11 +1070,11 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF162032) : Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             shape: BoxShape.circle,
             border: Border.all(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-              width: 1.2,
+              color: arrowBorder,
+              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
@@ -1065,7 +1087,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
           child: Icon(
             Icons.arrow_downward_rounded,
             size: 18,
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF515E71),
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -1078,13 +1100,16 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
       decoration: BoxDecoration(
         color: const Color(0xFF0F766E).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF0F766E).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFF0F766E).withValues(alpha: 0.2),
+          width: 1.0,
+        ),
       ),
       child: Column(
         children: [
-          const LinearProgressIndicator(
-            color: Color(0xFF0F766E),
-            backgroundColor: Color(0xFFE8EDF7),
+          LinearProgressIndicator(
+            color: const Color(0xFF0F766E),
+            backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.15),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1105,9 +1130,9 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.12),
+        color: Colors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3), width: 1.0),
       ),
       child: Row(
         children: [
@@ -1119,7 +1144,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildResultView(bool isDark) {
+  Widget _buildResultView(bool isDark, AppLocalizations loc) {
     final r = _result!;
     final authScore = (r['authenticityScore'] as num?)?.toDouble() ?? 0.0;
     final fakeProb = (r['fakeProbability'] as num?)?.toDouble() ?? 0.0;
@@ -1141,7 +1166,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
       manipulationScore: fakeProb,
       verdict: verdict,
       riskLevel: riskLevel,
-      detectedEvidence: List<String>.from(r['detectedEvidence'] ?? []),
+      detectedEvidence: const [],
       forensicObservations: List<String>.from(r['forensicObservations'] ?? []),
       reportHash: r['reportHash'] as String? ?? '',
       mediaName: _selectedImage?.path.split(Platform.pathSeparator).last ?? _urlController.text,
@@ -1153,7 +1178,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
       padding: const EdgeInsets.all(20),
       child: ForensicResultCard(
         result: verificationResult,
-        scanAnotherText: 'Verify Another Image',
+        scanAnotherText: loc.scanAnotherImageBtn,
         onScanAnother: () => setState(() {
           _result = null;
           _selectedImage = null;

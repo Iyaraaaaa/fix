@@ -525,10 +525,10 @@ class AppLocalizationsTa extends AppLocalizations {
   String get emailLabel => 'மின்னஞ்சல்';
 
   @override
-  String get rememberMe => 'என்னை நினைவில் கொள்';
+  String get rememberMe => 'என்னை நினைவில் கொள்க';
 
   @override
-  String get forgotPassword => 'கடவுச்சொல்லை மறந்துவிட்டீர்களா?';
+  String get forgotPassword => 'கடவுச்சொல் மறந்துவிட்டதா?';
 
   @override
   String get loginButton => 'உள்நுழைய';
@@ -546,7 +546,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get signUpTitle => 'பதிவுபெறு';
 
   @override
-  String get createAccount => 'உங்கள் கணக்கை உருவாக்கவும்';
+  String get createAccount => 'கணக்கை உருவாக்கவும்';
 
   @override
   String get confirmPassword => 'கடவுச்சொல்லை உறுதிப்படுத்தவும்';
@@ -1766,14 +1766,14 @@ class AppLocalizationsTa extends AppLocalizations {
   String get notificationsDeleteConfirm => 'நீக்கு';
 
   @override
-  String get notificationsDeleteAllTitle => 'Delete all notifications?';
+  String get notificationsDeleteAllTitle => 'அனைத்து அறிவிப்புகளையும் நீக்கவா?';
 
   @override
   String get notificationsDeleteAllMessage =>
-      'All notifications will be permanently deleted. This cannot be undone.';
+      'அனைத்து அறிவிப்புகளும் நிரந்தரமாக நீக்கப்படும். இதை செயல்தவிர்க்க முடியாது.';
 
   @override
-  String get notificationsDeleteAllConfirm => 'Delete All';
+  String get notificationsDeleteAllConfirm => 'அனைத்தையும் நீக்கு';
 
   @override
   String get notificationsNotLoggedIn => 'பயனர் உள்நுழைந்திருக்கவில்லை.';
@@ -1829,14 +1829,14 @@ class AppLocalizationsTa extends AppLocalizations {
   String get reportsDeleteTooltip => 'அறிக்கையை நீக்கு';
 
   @override
-  String get reportsDeleteAllTitle => 'Delete all reports?';
+  String get reportsDeleteAllTitle => 'அனைத்து அறிக்கைகளையும் நீக்கவா?';
 
   @override
   String get reportsDeleteAllMessage =>
-      'All reports will be permanently deleted. This cannot be undone.';
+      'அனைத்து அறிக்கைகளும் நிரந்தரமாக நீக்கப்படும். இதை செயல்தவிர்க்க முடியாது.';
 
   @override
-  String get reportsDeleteAllConfirm => 'Delete All';
+  String get reportsDeleteAllConfirm => 'அனைத்தையும் நீக்கு';
 
   @override
   String get techStackTitle => 'தொழில்நுட்ப கட்டமைப்பு';
@@ -2526,4 +2526,732 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get reportActionsUnavailable => 'No actions available for this report';
+
+  @override
+  String get modalitySelectTitle => 'சரிபார்ப்பு வகையைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get modalitySelectSubtitle =>
+      'டீப்ஃபேக் மற்றும் AI உருவாக்கத்தை ஆய்வு செய்ய விரும்பும் ஊடக வகையைத் தேர்ந்தெடுக்கவும்.';
+
+  @override
+  String get modalityVideoTitle => 'வீடியோ சரிபார்ப்பு';
+
+  @override
+  String get modalityVideoDesc =>
+      'நம்பகத்தன்மைக்காக வீடியோக்கள், யூடியூப் இணைப்புகள் மற்றும் நேரலை ஸ்ட்ரீம்களை பகுப்பாய்வு செய்யுங்கள்';
+
+  @override
+  String get modalityVideoBadge => 'வீடியோ & ஸ்ட்ரீம்';
+
+  @override
+  String get modalityLocalVideo => 'உள்ளூர் வீடியோ';
+
+  @override
+  String get modalityVideoLink => 'வீடியோ இணைப்பு';
+
+  @override
+  String get modalityLiveStream => 'நேரலை ஸ்ட்ரீம்';
+
+  @override
+  String get modalityImageTitle => 'பட சரிபார்ப்பு';
+
+  @override
+  String get modalityImageDesc =>
+      'AI குறைபாடுகள், முக மாற்றங்கள், GAN படங்கள் மற்றும் டீப்ஃபேக்குகளைக் கண்டறியவும்';
+
+  @override
+  String get modalityImageBadge => 'படம் & URL';
+
+  @override
+  String get modalityLocalPhoto => 'உள்ளூர் புகைப்படம்';
+
+  @override
+  String get modalityImageLink => 'பட இணைப்பு';
+
+  @override
+  String get modalityAudioTitle => 'ஆடியோ குரல் சரிபார்ப்பு';
+
+  @override
+  String get modalityAudioDesc =>
+      'குரல் குளோனிங், செயற்கை பேச்சு மற்றும் ஆடியோ குறைபாடுகளைக் கண்டறியவும்';
+
+  @override
+  String get modalityAudioBadge => 'குரல் குளோன் AI';
+
+  @override
+  String get modalityLocalAudio => 'உள்ளூர் ஆடியோ';
+
+  @override
+  String get imageForensicsTitle => 'பட தடயவியல்';
+
+  @override
+  String get localImageTab => 'உள்ளூர் படம்';
+
+  @override
+  String get imageLinkTab => 'பட இணைப்பு';
+
+  @override
+  String get inspectImageFilesTitle => 'படக் கோப்புகளை ஆய்வு செய்யவும்';
+
+  @override
+  String get inspectImageFilesDesc =>
+      'எங்கள் தடயவியல் AI மாதிரியைப் பயன்படுத்தி டீப்ஃபேக்குகள், முக மாற்றங்கள், GAN உருவாக்க கலைப்பொருட்கள் மற்றும் செயற்கை கையாளுதல்களுக்காக JPEG, PNG, WEBP கோப்புகளை பகுப்பாய்வு செய்யுங்கள்.';
+
+  @override
+  String get localImageAnalysisTitle => 'உள்ளூர் பட பகுப்பாய்வு';
+
+  @override
+  String get selectImageFileHint => 'படக் கோப்பைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get browseImageBtn => 'படத்தை உலாவவும்';
+
+  @override
+  String get analyzeImageBtn => 'படத்தை பகுப்பாய்வு செய்';
+
+  @override
+  String get scanImageUrlTitle => 'பட URL ஐ ஸ்கேன் செய்';
+
+  @override
+  String get scanImageUrlDesc =>
+      'பொது இணைய முகவரிகள், செய்தி இணைப்புகள் மற்றும் பட ஹோஸ்டிங் சேவைகளிலிருந்து நேரடியாக படங்களைச் சரிபார்க்கவும்.';
+
+  @override
+  String get imageUrlVerificationTitle => 'பட URL சரிபார்ப்பு';
+
+  @override
+  String get pasteImageUrlHint => 'பட URL ஐ ஒட்டவும்';
+
+  @override
+  String get enterImageUrlPlaceholder =>
+      'நேரடி பட URL ஐ உள்ளிடவும் (JPG, PNG, WebP)...';
+
+  @override
+  String get analyzeLinkBtn => 'இணைப்பை பகுப்பாய்வு செய்';
+
+  @override
+  String get imageForensicReportTitle => 'பட தடயவியல் அறிக்கை';
+
+  @override
+  String get scanAnotherImageBtn => 'மற்றொரு படத்தை ஸ்கேன் செய்';
+
+  @override
+  String get backendServerSettingsTitle => 'பின்னணி சேவையக அமைப்புகள்';
+
+  @override
+  String get resetToDefaultBtn => 'இயல்புநிலைக்கு மீட்டமை';
+
+  @override
+  String get audioVerificationTitle => 'ஆடியோ சரிபார்ப்பு';
+
+  @override
+  String get audioVoiceDeepfakeTitle => 'ஆடியோ குரல் டீப்ஃபேக் கண்டறிதல்';
+
+  @override
+  String get audioVoiceDeepfakeDesc =>
+      'குரல் குளோனிங், செயற்கை பேச்சு தொகுப்பு மற்றும் ஒலி கையாளுதலுக்காக ஆடியோ கிளிப்களை பகுப்பாய்வு செய்யுங்கள்.';
+
+  @override
+  String get uploadAudioClipTitle => 'ஆடியோ கிளிப்பை பதிவேற்றவும்';
+
+  @override
+  String get supportedAudioFormatsHint =>
+      'ஆதரிக்கப்படும் வடிவங்கள்: MP3, WAV, M4A, AAC, OGG';
+
+  @override
+  String get browseAudioFileBtn => 'ஆடியோ கோப்பை உலாவவும்';
+
+  @override
+  String get verifyAudioBtn => 'ஆடியோவை சரிபார்க்கவும்';
+
+  @override
+  String get audioForensicReportTitle => 'ஆடியோ தடயவியல் அறிக்கை';
+
+  @override
+  String get scanAnotherAudioBtn => 'மற்றொரு ஆடியோவை ஸ்கேன் செய்';
+
+  @override
+  String get forensicReportTitle => 'தடயவியல் அறிக்கை';
+
+  @override
+  String get escalateToAuthority => 'அதிகாரிகளுக்கு அனுப்புங்கள்';
+
+  @override
+  String get pdfReportBtn => 'PDF அறிக்கை';
+
+  @override
+  String get evidenceBtn => 'சான்றுகள்';
+
+  @override
+  String get escalateBtn => 'அனுப்புங்கள்';
+
+  @override
+  String get openVideoLinkBtn => 'வீடியோ இணைப்பைத் திறக்கவும்';
+
+  @override
+  String get playLiveStreamRecording => 'நேரலை ஸ்ட்ரீம் பதிவை இயக்கவும்';
+
+  @override
+  String get doneViewingBtn => 'பார்த்து முடிந்தது';
+
+  @override
+  String get openImageLinkInBrowser => 'உலாவியில் பட இணைப்பைத் திறக்கவும்';
+
+  @override
+  String get openInEvidencePlayer => 'சான்று பிளேயரில் திறக்கவும்';
+
+  @override
+  String get forensicAnalysisSignals => 'தடயவியல் பகுப்பாய்வு சிக்னல்கள்';
+
+  @override
+  String get aiExplainabilityReasoning => 'AI விளக்கம் & தர்க்கம்';
+
+  @override
+  String get investigativeSummary => 'விசாரணை சுருக்கம்';
+
+  @override
+  String get mediaDetails => 'ஊடக விவரங்கள்';
+
+  @override
+  String get videoAnalysisTitle => 'வீடியோ பகுப்பாய்வு';
+
+  @override
+  String get stepValidatingUrl => 'URL சரிபார்க்கப்படுகிறது';
+
+  @override
+  String get stepDetectingPlatform => 'தளம் கண்டறியப்படுகிறது';
+
+  @override
+  String get stepDownloadingVideo => 'வீடியோ பதிவிறக்கப்படுகிறது';
+
+  @override
+  String get stepExtractingFrames => 'பிரேம்கள் பிரித்தெடுக்கப்படுகின்றன';
+
+  @override
+  String get stepDetectingFaces => 'முகங்கள் கண்டறியப்படுகின்றன';
+
+  @override
+  String get stepRunningAiAnalysis => 'AI பகுப்பாய்வு இயக்கப்படுகிறது';
+
+  @override
+  String get stepGeneratingReport => 'அறிக்கை உருவாக்கப்படுகிறது';
+
+  @override
+  String get stepVerificationComplete => 'சரிபார்ப்பு முடிந்தது';
+
+  @override
+  String get analyzingVideoStream =>
+      'வீடியோ ஸ்ட்ரீம் பகுப்பாய்வு செய்யப்படுகிறது';
+
+  @override
+  String get analyzingVideoStreamDesc =>
+      'VeriFrame ஊடகத்தைப் பதிவிறக்கி ஆய்வு செய்யும் வரை காத்திருக்கவும்.';
+
+  @override
+  String get viewReportBtn => 'அறிக்கையைப் பார்க்கவும்';
+
+  @override
+  String get passwordLabel => 'கடவுச்சொல்';
+
+  @override
+  String get dontHaveAccount => 'கணக்கு இல்லையா?';
+
+  @override
+  String get alreadyHaveAccount => 'ஏற்கனவே கணக்கு உள்ளதா?';
+
+  @override
+  String get fullNameLabel => 'முழு பெயர்';
+
+  @override
+  String get verificationFailed => 'சரிபார்ப்பு தோல்வியடைந்தது';
+
+  @override
+  String get goBackAndTryAnother => 'மீண்டும் சென்று வேறு URL ஐ முயற்சிக்கவும்';
+
+  @override
+  String get pauseOrCancel => 'இடைநிறுத்து / ரத்துசெய்';
+
+  @override
+  String get processingStatus => 'செயலாக்குகிறது...';
+
+  @override
+  String stageOf(int current, int total) {
+    return '$total இல் நிலை $current';
+  }
+
+  @override
+  String get orText => 'அல்லது';
+
+  @override
+  String get audioLabel => 'ஆடியோ';
+
+  @override
+  String get imageLabel => 'படம்';
+
+  @override
+  String get evidenceLabel => 'சான்று';
+
+  @override
+  String get openPdf => 'PDF-ஐ திற';
+
+  @override
+  String get localVideoEvidence => 'உள்ளக வீடியோ சான்று';
+
+  @override
+  String get videoLinkEvidence => 'வீடியோ இணைப்பு சான்று';
+
+  @override
+  String get liveStreamEvidence => 'நேரலை ஸ்ட்ரீம் சான்று';
+
+  @override
+  String get imageEvidence => 'படச் சான்று';
+
+  @override
+  String get audioEvidence => 'ஆடியோ சான்று';
+
+  @override
+  String get verifySelectPlatform => 'தளத்தைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get verifyChoosePlatform =>
+      'உங்கள் வீடியோ எங்குள்ளது என்பதைத் தேர்வுசெய்யவும்';
+
+  @override
+  String get verifyVideoLinkLabel => 'வீடியோ இணைப்பு';
+
+  @override
+  String get verifyClear => 'அழி';
+
+  @override
+  String get verifyPaste => 'ஒட்டு';
+
+  @override
+  String verifyPasteLinkPlaceholder(String platform) {
+    return 'உங்கள் $platform இணைப்பை இங்கே ஒட்டவும்...';
+  }
+
+  @override
+  String get verifyNowButton => 'இப்போது சரிபார்க்கவும்';
+
+  @override
+  String get verifyLiveTelemetryHud => 'நேரலை ஸ்ட்ரீம் டெலிமெட்ரி';
+
+  @override
+  String get verifyStreamProtocols => 'RTSP / RTMP / கேமரா';
+
+  @override
+  String get verifyRealTimeStreamTitle => 'நிகழ்நேர தொடர் ஸ்ட்ரீம் சரிபார்ப்பு';
+
+  @override
+  String get verifyRealTimeStreamDesc =>
+      'தொடர்ச்சியான நேர சாளர கண்காணிப்புடன் நிகழ்நேர வீடியோ ஸ்ட்ரீம்களை சரிபார்க்கவும்.';
+
+  @override
+  String get verifyEnterStreamUrlOptional =>
+      'RTSP, RTMP, அல்லது HLS ஸ்ட்ரீம் URL உள்ளிடவும் (விருப்பத்தேர்வு)...';
+
+  @override
+  String get verifyLiveCameraStreamBtn => 'நேரலை கேமரா ஸ்ட்ரீம்';
+
+  @override
+  String get verifyRtspNetworkStreamBtn => 'RTSP / நெட்வொர்க் ஸ்ட்ரீம்';
+
+  @override
+  String get verifyEnterStreamUrlAlert =>
+      'தயவுசெய்து RTSP/RTMP/HLS URL உள்ளிடவும் அல்லது நேரலை கேமராவைத் தேர்ந்தெடுக்கவும்.';
+
+  @override
+  String get verifyRunsOnDevice => 'சாதனத்திலேயே இயங்குகிறது';
+
+  @override
+  String verifySecondsRemaining(int seconds) {
+    return 'இன்னும் ~$seconds விநாடிகள் உள்ளன';
+  }
+
+  @override
+  String get linkStageValidatingUrlTitle => 'URL சரிபார்க்கப்படுகிறது';
+
+  @override
+  String get linkStageValidatingUrlDesc =>
+      'URL தொடரியல் மற்றும் நம்பகத்தன்மையை சரிபார்க்கிறது';
+
+  @override
+  String get linkStageDetectingPlatformTitle => 'தளம் கண்டறியப்படுகிறது';
+
+  @override
+  String get linkStageDetectingPlatformDesc =>
+      'வீடியோ ஹோஸ்டிங் தளத்தை அடையாளம் காணுதல்';
+
+  @override
+  String get linkStageDownloadingStreamTitle => 'ஸ்ட்ரீம் பதிவிறக்கப்படுகிறது';
+
+  @override
+  String get linkStageDownloadingStreamDesc =>
+      'பாதுகாப்பான பகுப்பாய்விற்கு மீடியாவைப் பெறுதல்';
+
+  @override
+  String get linkStageSamplingKeyframesTitle =>
+      'முக்கிய பிரேம்களைப் பிரித்தெடுத்தல்';
+
+  @override
+  String get linkStageSamplingKeyframesDesc =>
+      'வீடியோவிலிருந்து முக்கிய பிரேம்களைப் பிரித்தெடுத்தல்';
+
+  @override
+  String get linkStageBiometricDetectionTitle => 'பயோமெட்ரிக் கண்டறிதல்';
+
+  @override
+  String get linkStageBiometricDetectionDesc =>
+      'முக எல்லைகள் மற்றும் அடையாளங்களை கண்டறிதல்';
+
+  @override
+  String get linkStageNeuralDeepfakeTitle => 'நரம்பியல் டீப்ஃபேக் பகுப்பாய்வு';
+
+  @override
+  String get linkStageNeuralDeepfakeDesc =>
+      'AI மாதிரிகள் மூலம் பிரேம்களை மதிப்பீடு செய்தல்';
+
+  @override
+  String get linkStageForensicAggregationTitle => 'தடயவியல் ஒருங்கிணைப்பு';
+
+  @override
+  String get linkStageForensicAggregationDesc =>
+      'இடஞ்சார்ந்த மற்றும் நேரடி ஆதாரங்களை இணைத்தல்';
+
+  @override
+  String get linkStageVerificationCompleteTitle => 'சரிபார்ப்பு முடிந்தது';
+
+  @override
+  String get linkStageVerificationCompleteDesc =>
+      'தடயவியல் அறிக்கையை உருவாக்குகிறது';
+
+  @override
+  String get linkVerdictAuthenticTitle => 'உண்மையானது என சரிபார்க்கப்பட்டது';
+
+  @override
+  String get linkVerdictSyntheticTitle => 'செயற்கையானது / மாற்றப்பட்டது';
+
+  @override
+  String get linkVerdictInconclusiveTitle => 'முடிவற்ற ஆதாரம்';
+
+  @override
+  String get linkVerdictUnverifiedTitle => 'சரிபார்க்கப்படாத இணைப்பு';
+
+  @override
+  String get linkVerdictAuthenticDesc =>
+      'அனைத்து முக்கிய பிரேம்களிலும் இயற்கையான கேமரா சென்சார் இரைச்சல் சரிபார்க்கப்பட்டது.';
+
+  @override
+  String get linkVerdictSyntheticDesc =>
+      'வீடியோ காலவரிசை முழுவதும் செயற்கை மாற்றங்கள் மற்றும் முக சிதைவுகள் கண்டறியப்பட்டன.';
+
+  @override
+  String get linkVerdictInconclusiveDesc =>
+      'பயோமெட்ரிக் குறிகாட்டிகள் நடுநிலை வரம்பில் உள்ளன.';
+
+  @override
+  String get linkVerdictUnverifiedDesc =>
+      'வீடியோவை நேரடியாக பதிவிறக்க முடியவில்லை. வீடியோ கோப்பை நேரடியாக பதிவேற்றவும்.';
+
+  @override
+  String get linkAuthenticityIndex => 'நம்பகத்தன்மை குறியீடு';
+
+  @override
+  String get linkDeepfakeRiskIndex => 'டீப்ஃபேக் ஆபத்து குறியீடு';
+
+  @override
+  String get linkConfidenceScore => 'நம்பகத்தன்மை மதிப்பெண்';
+
+  @override
+  String linkAuthenticPercent(String score) {
+    return 'உண்மை: $score%';
+  }
+
+  @override
+  String linkManipulationPercent(String score) {
+    return 'மாற்றம்: $score%';
+  }
+
+  @override
+  String linkFramesCount(int count) {
+    return '$count பிரேம்கள்';
+  }
+
+  @override
+  String linkKeyframesCount(int count) {
+    return '$count முக்கிய பிரேம்கள்';
+  }
+
+  @override
+  String get linkDiagnosticsTitle => 'தடயவியல் AI கண்டறிதல்';
+
+  @override
+  String get linkMetricConfidence => 'ஒட்டுமொத்த நம்பகத்தன்மை';
+
+  @override
+  String get linkMetricSampledFrames => 'பகுப்பாய்வு செய்யப்பட்ட பிரேம்கள்';
+
+  @override
+  String get linkMetricFaceCoverage => 'முக கவரேஜ்';
+
+  @override
+  String get linkMetricTrackingStability => 'கண்காணிப்பு நிலைத்தன்மை';
+
+  @override
+  String get linkMetricFrameConsistency => 'பிரேம் நிலைத்தன்மை';
+
+  @override
+  String get linkMetricLatency => 'பகுப்பாய்வு தாமதம்';
+
+  @override
+  String get linkNoSuspiciousFrames =>
+      'போலி பிரேம்கள் எதுவும் கண்டறியப்படவில்லை';
+
+  @override
+  String get linkNoSuspiciousFramesDesc =>
+      'அனைத்து மாதிரி பிரேம்களும் நிலைத்தன்மை சோதனைகளில் தேர்ச்சி பெற்றன.';
+
+  @override
+  String linkSuspiciousFramesDetected(int count) {
+    return 'சந்தேகத்திற்கிடமான பிரேம்கள் கண்டறியப்பட்டன ($count)';
+  }
+
+  @override
+  String linkFrameNumber(int number) {
+    return 'பிரேம் #$number';
+  }
+
+  @override
+  String linkFakePercent(String percent) {
+    return 'போலி: $percent%';
+  }
+
+  @override
+  String linkTrackingPercent(String percent) {
+    return 'கண்காணிப்பு: $percent%';
+  }
+
+  @override
+  String get linkAuditTimeline => 'தடயவியல் தணிக்கை காலவரிசை';
+
+  @override
+  String get linkRetrievalFailed => 'வீடியோ ஸ்ட்ரீமைப் பெறுவதில் தோல்வி';
+
+  @override
+  String get linkRetrievalFailedDesc =>
+      'தள அணுகல் கட்டுப்படுத்தப்பட்டுள்ளது அல்லது ஸ்ட்ரீம் பாதுகாக்கப்பட்டுள்ளது.';
+
+  @override
+  String get linkUploadDirectlyBtn => 'வீடியோ கோப்பை நேரடியாகப் பதிவேற்றவும்';
+
+  @override
+  String get surpriseRevealBtn => 'உடனடி வெளிப்பாடு';
+
+  @override
+  String get howToIdentifyBtn => 'எவ்வாறு கண்டறிவது';
+
+  @override
+  String get realVerdict => 'உண்மை';
+
+  @override
+  String get manipulatedVerdict => 'மாற்றப்பட்டது';
+
+  @override
+  String get assessmentLabel => 'மதிப்பீடு: ';
+
+  @override
+  String get lowRiskLabel => 'குறைந்த ஆபத்து';
+
+  @override
+  String get highRiskLabel => 'அதிக ஆபத்து';
+
+  @override
+  String get authenticityUpperLabel => 'நம்பகத்தன்மை';
+
+  @override
+  String get authenticStatus => 'உண்மை';
+
+  @override
+  String get manipulatedStatus => 'மாற்றப்பட்டது';
+
+  @override
+  String get whyMediaReal => 'இந்த மீடியா ஏன் உண்மையானது';
+
+  @override
+  String get whyMediaManipulated => 'இந்த மீடியா ஏன் போலியானது';
+
+  @override
+  String get sensorMatchLabel => 'ஆப்டிகல் சென்சார் பொருத்தம்: ';
+
+  @override
+  String get sensorMismatchLabel => 'ஆப்டிகல் சென்சார் பொருந்தாமை: ';
+
+  @override
+  String get sensorMatchDesc =>
+      'கேமரா சென்சார் இரைச்சல் முறை அனைத்து பிரேம்களிலும் சரிபார்க்கப்பட்டது.';
+
+  @override
+  String get sensorMismatchDesc =>
+      'உயர் அதிர்வெண் முரண்பாடுகள் மற்றும் செயற்கை வடிவங்கள் கண்டறியப்பட்டன.';
+
+  @override
+  String get motionFlowLabel => 'இயற்கையான இயக்க ஓட்டம்: ';
+
+  @override
+  String get unnaturalMotionLabel => 'இயற்கைக்கு மாறான இயக்க திசையன்கள்: ';
+
+  @override
+  String get motionFlowDesc =>
+      'முக எல்லைகள் மற்றும் விளக்குகள் தொடர்ச்சியாக சீராக உள்ளன.';
+
+  @override
+  String get unnaturalMotionDesc =>
+      'முக எல்லைகளில் செயற்கை மினுமினுப்பு மற்றும் கால முரண்பாடுகள் கண்டறியப்பட்டன.';
+
+  @override
+  String whyMediaMarginNoteReal(String score) {
+    return 'மீதமுள்ள $score% விளிம்பு சாதாரண H.264 சுருக்கம் காரணமாகும்.';
+  }
+
+  @override
+  String get whyMediaMarginNoteFake =>
+      'அதிக போலி நம்பிக்கை இது AI ஆல் உருவாக்கப்பட்ட டீப்ஃபேக் என்பதைக் காட்டுகிறது.';
+
+  @override
+  String get forensicObservations => 'தடயவியல் அவதானிப்புகள்';
+
+  @override
+  String get inferenceEngine => 'பகுப்பாய்வு இயந்திரம்';
+
+  @override
+  String get onDeviceTflite => 'சாதன TFLite';
+
+  @override
+  String get analyzedKeyframes => 'பகுப்பாய்வு செய்யப்பட்ட\\nபிரேம்கள்';
+
+  @override
+  String get analyzedImage => 'பகுப்பாய்வு செய்யப்பட்ட\\nபடம்';
+
+  @override
+  String get analyzedSegments => 'பகுப்பாய்வு செய்யப்பட்ட\\nபகுதிகள்';
+
+  @override
+  String get avgInferencePerFrame => 'ஒரு பிரேமிற்கான\\nசராசரி நேரம்';
+
+  @override
+  String get avgInferencePerImage => 'ஒரு படத்திற்கான\\nசராசரி நேரம்';
+
+  @override
+  String get manipulationConfidence => 'போலி\\nநம்பிக்கை';
+
+  @override
+  String get creatingPdf => 'PDF உருவாக்கப்படுகிறது...';
+
+  @override
+  String get reportPdf => 'PDF அறிக்கை';
+
+  @override
+  String get shareLink => 'இணைப்பைப் பகிர்க';
+
+  @override
+  String get reportMediaBtn => 'மீடியாவை புகாரளி';
+
+  @override
+  String get scanAnotherBtn => 'மற்றொன்றை ஸ்கேன் செய்க';
+
+  @override
+  String get howToIdentifyTitle => 'உண்மையான vs போலி எவ்வாறு கண்டறிவது';
+
+  @override
+  String get howToIdentifySubtitle =>
+      'தடயவியல் வழிமுறைகள் இந்த உடல் கோட்பாடுகளை சரிபார்க்கின்றன:';
+
+  @override
+  String get pillar1Title => 'ஆப்டிகல் சிலிக்கான் சென்சார் இரைச்சல்';
+
+  @override
+  String get pillar1Real =>
+      'பிக்சல்களில் கேமரா சென்சார்களின் நுண்ணிய இரைச்சல்.';
+
+  @override
+  String get pillar1Fake =>
+      'இயற்கைக்கு மாறான AI மென்மையாக்கல் கொண்ட பிக்சல்கள்.';
+
+  @override
+  String get pillar2Title => 'கார்னியல் ஒளி பிரதிபலிப்பு';
+
+  @override
+  String get pillar2Real =>
+      'இரண்டு கண்களின் கருவிழிகளிலும் ஒரே மாதிரியான ஒளி பிரதிபலிப்பு கோணங்கள்.';
+
+  @override
+  String get pillar2Fake => 'பொருந்தாத அல்லது சிதைந்த கார்னியல் பிரதிபலிப்பு.';
+
+  @override
+  String get gotItBtn => 'புரிந்தது';
+
+  @override
+  String get linkCopiedSuccess =>
+      'அறிக்கை சரிபார்ப்பு இணைப்பு நகலெடுக்கப்பட்டது!';
+
+  @override
+  String get onboardingSkip => 'தவிர்';
+
+  @override
+  String get onboardingNext => 'அடுத்து';
+
+  @override
+  String get onboardingGetStarted => 'தொடங்குங்கள்';
+
+  @override
+  String get onboardingSlide1Headline =>
+      'டீப்ஃபேக்குகளைக் கண்டறியவும்.\\nஉண்மையை நம்புங்கள்.';
+
+  @override
+  String get onboardingSlide1Subtitle =>
+      'டீப்ஃபேக் வீடியோக்களை தானாக கண்டறிய உருவாக்கப்பட்ட AI அமைப்பு.';
+
+  @override
+  String get onboardingSlide1Badge => 'டீப்ஃபேக் கண்டறிதல்';
+
+  @override
+  String get onboardingSlide2Headline =>
+      'நிகழ்நேர வீடியோ மற்றும்\\nகுரல் தடயவியல்';
+
+  @override
+  String get onboardingSlide2Subtitle =>
+      'முக அடையாளங்கள், ஆப்டிகல் இரைச்சல் மற்றும் நேர நிலைத்தன்மையை AI மாதிரிகள் பகுப்பாய்வு செய்கின்றன.';
+
+  @override
+  String get onboardingSlide2Badge => 'VeriFrame AI';
+
+  @override
+  String get onboardingSlide3Headline =>
+      'விளக்கக்கூடிய முடிவுகள் &\\nதடயவியல் அறிக்கைகள்';
+
+  @override
+  String get onboardingSlide3Subtitle =>
+      'தெளிவான நம்பகத்தன்மை மதிப்பெண்கள் மற்றும் ஆதாரங்களுடன் விரிவான தடயவியல் அறிக்கைகள்.';
+
+  @override
+  String get onboardingSlide3Badge => 'தடயவியல் அறிக்கை';
+
+  @override
+  String get onboardingFrameAnalysis => 'பிரேம் பகுப்பாய்வு';
+
+  @override
+  String onboardingConfidence(String score) {
+    return '$score% நம்பிக்கை';
+  }
+
+  @override
+  String get onboardingExplainableResults => 'விளக்கக்கூடிய முடிவுகள்';
+
+  @override
+  String get onboardingExplainableDesc =>
+      'நம்பகத்தன்மை மதிப்பெண்களுடன்\\nபடிப்படியான காரணங்கள்';
+
+  @override
+  String get modalityPhotoShield => 'புகைப்பட கவசம்';
 }

@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 import 'package:veriframe_app/service/pdf_service.dart';
 import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 
-/// Pixel-perfect forensic result card matching the lightweight designer specification.
-/// Features Manrope typography, animated dual-color gauge, custom detected evidence card,
-/// 3-column forensic metrics grid, and gradient action buttons.
 class ForensicResultCard extends StatefulWidget {
   final VerificationResult result;
   final VoidCallback? onScanAnother;
@@ -32,26 +30,47 @@ class _ForensicResultCardState extends State<ForensicResultCard>
   late AnimationController _animController;
   late Animation<double> _animation;
   bool _isGeneratingPdf = false;
+  double _tiltX = 0.0;
+  double _tiltY = 0.0;
+  bool _isScanning = false;
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1600),
     );
     _animation = CurvedAnimation(
       parent: _animController,
       curve: Curves.easeOutCubic,
     );
-    _animController.forward();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerSurpriseReveal();
+    });
+  }
+
+  void _triggerSurpriseReveal() {
+    if (mounted) {
+      setState(() {
+        _isScanning = true;
+      });
+      _animController.forward(from: 0.0).then((_) {
+        if (mounted) {
+          setState(() {
+            _isScanning = false;
+          });
+        }
+      });
+    }
   }
 
   @override
   void didUpdateWidget(covariant ForensicResultCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.result.verificationId != widget.result.verificationId) {
-      _animController.forward(from: 0.0);
+    if (oldWidget.result != widget.result) {
+      _triggerSurpriseReveal();
     }
   }
 
@@ -122,13 +141,16 @@ class _ForensicResultCardState extends State<ForensicResultCard>
   void _handleCopyLink() {
     final link = 'https://veriframe.web.app/verify/${widget.result.verificationId}';
     Clipboard.setData(ClipboardData(text: link));
+    final loc = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
-          children: const [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 8),
-            Text('Report verification link copied to clipboard!'),
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(loc?.linkCopiedSuccess ?? 'Report verification link copied to clipboard!'),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF10B981),
@@ -150,42 +172,39 @@ class _ForensicResultCardState extends State<ForensicResultCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
     final r = widget.result;
 
-    // Design tokens
-    final realColor = const Color(0xFF0E8C56); // Green (--real)
-    final warnColor = const Color(0xFFDC2626); // Red (--warn)
+    final realColor = const Color(0xFF10B981); 
+    final warnColor = const Color(0xFFF43F5E); 
     final lineBorder = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
-    final cardBg = isDark ? const Color(0xFF0F172A) : Colors.white;
-    final tileBg = isDark ? const Color(0xFF131C31) : Colors.white;
+    final tileBg = isDark ? const Color(0xFF0E1525).withOpacity(0.65) : const Color(0xFFF8FAFC);
     final ink = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     final inkMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final inkSoft = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
-    // Compute metrics
     final double authScore = r.authenticityScore > 0 ? r.authenticityScore : 78.5;
     final double manipScore = r.fakeProbability > 0 ? r.fakeProbability : (100.0 - authScore);
     final bool isAuthentic = authScore >= manipScore;
 
-    final String verdictLabel = isAuthentic ? 'Real' : 'Manipulated';
-    final String riskLabel = r.riskLevel.isNotEmpty ? r.riskLevel : (isAuthentic ? 'Low risk' : 'High risk');
+    final String verdictLabel = isAuthentic
+        ? (loc?.realVerdict ?? 'Real')
+        : (loc?.manipulatedVerdict ?? 'Manipulated');
+    final String riskLabel = r.riskLevel.isNotEmpty
+        ? r.riskLevel
+        : (isAuthentic ? (loc?.lowRiskLabel ?? 'LOW RISK') : (loc?.highRiskLabel ?? 'HIGH RISK'));
 
     final int keyframeCount = r.framesAnalysedCount ?? 8;
     final int avgMs = (r.processingTimeSec != null && keyframeCount > 0)
         ? ((r.processingTimeSec! * 1000) / keyframeCount).round()
         : 180;
 
-    // Modality detection (Image vs Video vs Audio)
     final mediaType = r.mediaType.toLowerCase();
     final source = r.source.toLowerCase();
     final bool isImage = mediaType.contains('image') || source.contains('image');
     final bool isAudio = mediaType.contains('audio') || source.contains('voice') || source.contains('audio');
+    final bool isLink = source.contains('link') || r.platform != null;
 
-    // Dynamically assigned model filename based on modality:
-    // Image -> image.tflite, Video -> video.tflite, Audio -> audio.tflite
-    final String modelFileName = isImage
-        ? 'image.tflite'
-        : (isAudio ? 'audio.tflite' : 'video.tflite');
+    final String modelFileName = isImage ? 'image.tflite' : (isAudio ? 'audio.tflite' : 'video.tflite');
 
     final String metric1Value = isImage
         ? '${r.framesAnalysedCount != null && r.framesAnalysedCount! > 0 ? r.framesAnalysedCount : 1}'
@@ -194,574 +213,654 @@ class _ForensicResultCardState extends State<ForensicResultCard>
             : keyframeCount.toString());
 
     final String metric1Label = isImage
-        ? 'Analyzed\nimage'
-        : (isAudio ? 'Analyzed\naudio segments' : 'Analyzed\nkeyframes');
-
+        ? (loc?.analyzedImage ?? 'Analyzed\nimage')
+        : (isAudio
+            ? (loc?.analyzedSegments ?? 'Analyzed\nsegments')
+            : (loc?.analyzedKeyframes ?? 'Analyzed\nkeyframes'));
     final String metric2Label = isImage
-        ? 'Average\ninference per\nimage'
-        : (isAudio ? 'Average\ninference per\nsegment' : 'Average\ninference per\nframe');
+        ? (loc?.avgInferencePerImage ?? 'Average\ninference\nper image')
+        : (loc?.avgInferencePerFrame ?? 'Average\ninference/frame');
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: lineBorder, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, _) {
-          final progress = _animation.value;
-          final animatedAuth = authScore * progress;
+    final String topicTitle = (r.mediaName != null && r.mediaName!.isNotEmpty)
+        ? r.mediaName!
+        : (isAudio
+            ? 'Voice Authenticity & Acoustic Forensics'
+            : (isImage
+                ? 'Image Authenticity & GAN Detection'
+                : (isLink && r.platform != null
+                    ? '${r.platform} Video Stream Analysis'
+                    : 'Video Authenticity & Deepfake Analysis')));
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // TOP CONTROLS BAR (Outside the card)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              // ── 1. Top Verdict Pill & Risk Level ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Surprise Reveal Button
+              InkWell(
+                onTap: _triggerSurpriseReveal,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF06B6D4), Color(0xFF2563EB), Color(0xFF4F46E5)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF06B6D4).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                      const SizedBox(width: 6),
+                      Text(loc?.surpriseRevealBtn ?? 'Surprise Reveal', style: _manrope(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+              
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  // Pill Tag: [ • Real ] or [ • Manipulated ]
+                  // How to identify
+                  InkWell(
+                    onTap: () => _showHowToIdentifySheet(context, isDark),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0E1525).withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.search_rounded, color: Colors.white70, size: 14),
+                          const SizedBox(width: 4),
+                          Text(loc?.howToIdentifyBtn ?? 'How to Identify', style: _manrope(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
+                        ]
+                      ),
+                    )
+                  ),
+                  // Real Pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isAuthentic
-                          ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFE8F8F0))
-                          : (isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.3) : const Color(0xFFFEF2F2)),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFF0E1525).withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isAuthentic ? realColor : warnColor,
-                          ),
-                        ),
+                        Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isAuthentic ? realColor : warnColor)),
                         const SizedBox(width: 6),
-                        Text(
-                          verdictLabel,
-                          style: _manrope(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: isAuthentic ? realColor : warnColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                        Text(verdictLabel, style: _manrope(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
+                      ]
+                    )
+                  )
+                ]
+              )
+            ]
+          )
+        ),
 
-                  // Risk Label: "Low risk" / "High risk"
-                  Text(
-                    riskLabel,
-                    style: _manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: inkMuted,
-                    ),
-                  ),
-                ],
+        // 3D CARD
+        GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              _tiltX = (_tiltX - details.delta.dy * 0.0012).clamp(-0.10, 0.10);
+              _tiltY = (_tiltY + details.delta.dx * 0.0012).clamp(-0.10, 0.10);
+            });
+          },
+          onPanEnd: (_) {
+            setState(() {
+              _tiltX = 0.0;
+              _tiltY = 0.0;
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateX(_tiltX)
+              ..rotateY(_tiltY),
+            transformAlignment: FractionalOffset.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark 
+                  ? [const Color(0xFF10182B).withOpacity(0.88), const Color(0xFF080C16).withOpacity(0.96)]
+                  : [Colors.white, const Color(0xFFF8FAFC)],
               ),
-              const SizedBox(height: 24),
-
-              // ── 2. Hero Metric: 78.5% Authenticity ──
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: animatedAuth.toStringAsFixed(1),
-                      style: _manrope(
-                        fontSize: 66,
-                        fontWeight: FontWeight.w200,
-                        color: ink,
-                        letterSpacing: -1.5,
-                        height: 1.0,
-                      ),
-                    ),
-                    TextSpan(
-                      text: ' %',
-                      style: _manrope(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w300,
-                        color: inkMuted,
-                      ),
-                    ),
-                  ],
-                ),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.08) : lineBorder,
+                width: 1,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Authenticity',
-                style: _manrope(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w400,
-                  color: inkMuted,
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              // ── 3. Thin Gauge Bar ──
-              SizedBox(
-                height: 3,
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: ((authScore * progress) * 100).toInt().clamp(1, 10000),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: realColor,
-                          borderRadius: BorderRadius.circular(1.5),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      flex: ((manipScore * progress) * 100).toInt().clamp(1, 10000),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: warnColor,
-                          borderRadius: BorderRadius.circular(1.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // ── 4. Sub Percentages Row (Authentic / Manipulated) ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Authentic
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: realColor,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Authentic',
-                            style: _manrope(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: inkMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${authScore.toStringAsFixed(1)}%',
-                        style: _manrope(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w400,
-                          color: ink,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Manipulated
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: warnColor,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Manipulated',
-                            style: _manrope(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: inkMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${manipScore.toStringAsFixed(1)}%',
-                        style: _manrope(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w400,
-                          color: warnColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // ── 5. Detected Evidence Section ──
-              Text(
-                'Detected evidence',
-                style: _manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: ink,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildEvidenceCard(
-                isAuthentic: isAuthentic,
-                isDark: isDark,
-                isImage: isImage,
-                isAudio: isAudio,
-                realColor: realColor,
-                warnColor: warnColor,
-                ink: ink,
-                inkMuted: inkMuted,
-              ),
-              const SizedBox(height: 28),
-
-              // ── 6. Forensic Observations Section ──
-              Text(
-                'Forensic observations',
-                style: _manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: ink,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Inference mode slim card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: tileBg,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: lineBorder, width: 1.1),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Inference mode',
-                      style: _manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: inkMuted,
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'On-device TFLite',
-                          style: _manrope(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: ink,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          modelFileName,
-                          style: _manrope(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w400,
-                            color: inkSoft,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // 3-column metric cards grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricTile(
-                      value: metric1Value,
-                      label: metric1Label,
-                      isDark: isDark,
-                      tileBg: tileBg,
-                      borderColor: lineBorder,
-                      ink: ink,
-                      inkMuted: inkMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricTile(
-                      value: avgMs.toString(),
-                      unit: 'ms',
-                      label: metric2Label,
-                      isDark: isDark,
-                      tileBg: tileBg,
-                      borderColor: lineBorder,
-                      ink: ink,
-                      inkMuted: inkMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricTile(
-                      value: manipScore.toStringAsFixed(1),
-                      unit: '%',
-                      label: 'Manipulation\nconfidence',
-                      isDark: isDark,
-                      tileBg: tileBg,
-                      borderColor: lineBorder,
-                      ink: warnColor,
-                      unitColor: warnColor,
-                      inkMuted: inkMuted,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // ── 7. Action Buttons ──
-              // Row: [ Report PDF ] [ Copy link ] (Blue gradient)
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildGradientButton(
-                      label: _isGeneratingPdf ? 'Creating PDF...' : 'Report PDF',
-                      icon: _isGeneratingPdf
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.description_outlined, size: 18, color: Colors.white),
-                      gradientColors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                      shadowColor: const Color(0xFF2563EB),
-                      onTap: _isGeneratingPdf ? null : _handlePdfReport,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildGradientButton(
-                      label: 'Copy link',
-                      icon: const Icon(Icons.link_rounded, size: 18, color: Colors.white),
-                      gradientColors: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                      shadowColor: const Color(0xFF2563EB),
-                      onTap: _handleCopyLink,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Full-width: [ Report media ] (Red gradient)
-              _buildGradientButton(
-                label: 'Report media',
-                icon: const Icon(Icons.flag_outlined, size: 18, color: Colors.white),
-                gradientColors: const [Color(0xFFEF4444), Color(0xFFDC2626)],
-                shadowColor: const Color(0xFFDC2626),
-                onTap: _handleReportMedia,
-              ),
-
-              // Full-width: [ Scan another media ] (Black / Dark Navy gradient)
-              if (widget.onScanAnother != null) ...[
-                const SizedBox(height: 12),
-                _buildGradientButton(
-                  label: widget.scanAnotherText ?? 'Scan another media',
-                  icon: const Icon(Icons.crop_free_rounded, size: 18, color: Colors.white),
-                  gradientColors: const [Color(0xFF1E293B), Color(0xFF0F172A)],
-                  shadowColor: Colors.black.withValues(alpha: 0.35),
-                  onTap: widget.onScanAnother,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.85 : 0.1),
+                  blurRadius: 30,
+                  offset: Offset(_tiltY * 35, 15 - _tiltX * 35),
                 ),
               ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEvidenceCard({
-    required bool isAuthentic,
-    required bool isDark,
-    required bool isImage,
-    required bool isAudio,
-    required Color realColor,
-    required Color warnColor,
-    required Color ink,
-    required Color inkMuted,
-  }) {
-    final String title;
-    final String fallbackDesc;
-
-    if (isAudio) {
-      title = isAuthentic ? 'Natural acoustic signature' : 'Voice cloning detected';
-      fallbackDesc = isAuthentic
-          ? 'Organic vocal tract resonance and authentic harmonics verified.'
-          : 'Synthetic pitch contours and vocoder spectral anomalies detected.';
-    } else if (isImage) {
-      title = isAuthentic ? 'Genuine camera signature' : 'Diffusion / GAN artifacts detected';
-      fallbackDesc = isAuthentic
-          ? 'Optical sensor noise and natural frequency gradients verified genuine.'
-          : 'High-frequency spectral anomalies and generative warping patterns detected.';
-    } else {
-      title = isAuthentic ? 'Genuine camera signature' : 'Synthetic manipulation detected';
-      fallbackDesc = isAuthentic
-          ? 'Optical textures show real camera sensor noise and natural motion gradients.'
-          : 'Unnatural facial warp and generative frequency anomalies detected.';
-    }
-
-    final description = widget.result.detectedEvidence.isNotEmpty
-        ? widget.result.detectedEvidence.first
-        : fallbackDesc;
-
-    final accentColor = isAuthentic ? realColor : warnColor;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isAuthentic
-            ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.18) : const Color(0xFFF2FBF6))
-            : (isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.18) : const Color(0xFFFEF2F2)),
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          left: BorderSide(color: accentColor, width: 2.8),
-          top: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0), width: 1.0),
-          right: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0), width: 1.0),
-          bottom: BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0), width: 1.0),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isAuthentic ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
-                color: accentColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: _manrope(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: accentColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: _manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-              height: 1.45,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricTile({
-    required String value,
-    String? unit,
-    required String label,
-    required bool isDark,
-    required Color tileBg,
-    required Color borderColor,
-    required Color ink,
-    Color? unitColor,
-    required Color inkMuted,
-  }) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 116),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-      decoration: BoxDecoration(
-        color: tileBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor, width: 1.1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: RichText(
-              text: TextSpan(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(26),
+              child: Stack(
                 children: [
-                  TextSpan(
-                    text: value,
-                    style: _manrope(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w200,
-                      color: ink,
-                      letterSpacing: -0.5,
-                      height: 1.0,
+                  // Top Glow Border
+                  if (isDark)
+                    Positioned(
+                      top: 0, left: 0, right: 0,
+                      child: Container(
+                        height: 2,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent, 
+                              const Color(0xFF00F0FF).withOpacity(0.8), 
+                              const Color(0xFF10B981).withOpacity(0.8), 
+                              Colors.transparent
+                            ]
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: const Color(0xFF00F0FF).withOpacity(0.5), blurRadius: 10),
+                            BoxShadow(color: const Color(0xFF10B981).withOpacity(0.5), blurRadius: 10),
+                          ]
+                        )
+                      )
                     ),
-                  ),
-                  if (unit != null)
-                    TextSpan(
-                      text: ' $unit',
-                      style: _manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w300,
-                        color: unitColor ?? inkMuted,
-                      ),
+                  
+                  // Laser Scanner Beam
+                  if (_isScanning)
+                    AnimatedBuilder(
+                      animation: _animation,
+                      builder: (context, child) {
+                        return Positioned(
+                          top: -10 + (_animation.value * 400),
+                          left: 0, right: 0,
+                          child: Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.transparent, const Color(0xFF00F0FF), const Color(0xFF10B981), Colors.transparent],
+                              ),
+                              boxShadow: [
+                                BoxShadow(color: const Color(0xFF00F0FF).withOpacity(0.8), blurRadius: 12),
+                                BoxShadow(color: const Color(0xFF10B981).withOpacity(0.8), blurRadius: 12),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
                     ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: _manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: inkMuted,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ),
+
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                    child: AnimatedBuilder(
+                      animation: _animation,
+                      builder: (context, _) {
+                        final progress = _animation.value;
+                        final animatedAuth = authScore * progress;
+                        final animatedManip = manipScore * progress;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // 1. Topic Row
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF06B6D4).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF06B6D4).withOpacity(0.2)),
+                                  ),
+                                  child: Text(
+                                    'TOPIC',
+                                    style: _manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF67E8F9), letterSpacing: 1.0),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
+                                  ),
+                                  child: Text(
+                                    r.platform != null ? r.platform!.toUpperCase() + ' STREAM' : 'VIDEO STREAM',
+                                    style: _manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF93C5FD), letterSpacing: 0.8),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('#VF-${r.verificationId.length > 4 ? r.verificationId.substring(0, 4) : '9021'}', style: _manrope(fontSize: 10, color: inkMuted, fontWeight: FontWeight.w600)),
+                                const Spacer(),
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: const Color(0xFF06B6D4).withOpacity(0.3)),
+                                    color: const Color(0xFF06B6D4).withOpacity(0.1),
+                                    boxShadow: [BoxShadow(color: const Color(0xFF06B6D4).withOpacity(0.1), blurRadius: 8)]
+                                  ),
+                                  child: const Icon(Icons.verified_user_outlined, size: 16, color: Color(0xFF67E8F9)),
+                                )
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              topicTitle,
+                              style: _manrope(fontSize: 18, fontWeight: FontWeight.w800, color: ink, letterSpacing: -0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Divider(color: Colors.white.withOpacity(0.08), height: 1, thickness: 1),
+                            const SizedBox(height: 16),
+
+                            // 2. Verdict Pill & Risk Level
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isAuthentic ? realColor.withOpacity(0.15) : warnColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: (isAuthentic ? realColor : warnColor).withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 8, height: 8,
+                                        decoration: BoxDecoration(shape: BoxShape.circle, color: isAuthentic ? realColor : warnColor),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        verdictLabel,
+                                        style: _manrope(fontSize: 13, fontWeight: FontWeight.w700, color: isAuthentic ? realColor : warnColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(loc?.assessmentLabel ?? 'ASSESSMENT: ', style: _manrope(fontSize: 10, fontWeight: FontWeight.w600, color: inkMuted, letterSpacing: 0.5)),
+                                    Text(riskLabel, style: _manrope(fontSize: 12, fontWeight: FontWeight.w800, color: isAuthentic ? realColor : warnColor, letterSpacing: 0.5)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // 3. Hero Metric
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  animatedAuth.toStringAsFixed(1),
+                                  style: _manrope(fontSize: 72, fontWeight: FontWeight.w200, color: ink, letterSpacing: -2.0, height: 1.0),
+                                ),
+                                Text(' %', style: _manrope(fontSize: 28, fontWeight: FontWeight.w300, color: const Color(0xFF67E8F9))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    loc?.authenticityUpperLabel ?? 'AUTHENTICITY',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: _manrope(fontSize: 12, fontWeight: FontWeight.w700, color: inkMuted, letterSpacing: 1.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // 4. Dual Gauge Bar
+                            Container(
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF080C16),
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: ((authScore * progress) * 100).toInt().clamp(1, 10000),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: [const Color(0xFF10B981), const Color(0xFF34D399)]),
+                                        borderRadius: BorderRadius.circular(3),
+                                        boxShadow: [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.4), blurRadius: 6)],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    flex: ((manipScore * progress) * 100).toInt().clamp(1, 10000),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: [const Color(0xFFF43F5E), const Color(0xFFFB7185)]),
+                                        borderRadius: BorderRadius.circular(3),
+                                        boxShadow: [BoxShadow(color: const Color(0xFFF43F5E).withOpacity(0.4), blurRadius: 6)],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 5. Sub Percentages
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: realColor)),
+                                    const SizedBox(width: 8),
+                                    Text(loc?.authenticStatus ?? 'Authentic', style: _manrope(fontSize: 13, color: inkMuted)),
+                                    const SizedBox(width: 8),
+                                    Text('${animatedAuth.toStringAsFixed(1)}%', style: _manrope(fontSize: 14, fontWeight: FontWeight.w700, color: ink)),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: warnColor)),
+                                    const SizedBox(width: 8),
+                                    Text(loc?.manipulatedStatus ?? 'Manipulated', style: _manrope(fontSize: 13, color: inkMuted)),
+                                    const SizedBox(width: 8),
+                                    Text('${animatedManip.toStringAsFixed(1)}%', style: _manrope(fontSize: 14, fontWeight: FontWeight.w700, color: warnColor)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // 6. Why this media is Real/Manipulated
+                            Row(
+                              children: [
+                                const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF67E8F9)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    isAuthentic 
+                                        ? (loc?.whyMediaReal ?? 'Why this media is Real')
+                                        : (loc?.whyMediaManipulated ?? 'Why this media is Manipulated'),
+                                    style: _manrope(fontSize: 14, fontWeight: FontWeight.w800, color: ink),
+                                  ),
+                                ),
+                              ]
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: tileBg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(isAuthentic ? Icons.check_rounded : Icons.close_rounded, size: 16, color: isAuthentic ? realColor : warnColor),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: _manrope(fontSize: 12, color: inkMuted, height: 1.4),
+                                            children: [
+                                              TextSpan(
+                                                text: isAuthentic ? (loc?.sensorMatchLabel ?? 'Optical Sensor Match: ') : (loc?.sensorMismatchLabel ?? 'Optical Sensor Mismatch: '),
+                                                style: _manrope(fontWeight: FontWeight.w700, color: ink),
+                                              ),
+                                              TextSpan(
+                                                text: isAuthentic ? (loc?.sensorMatchDesc ?? 'Silicon sensor pattern noise (PRNU) verified across all keyframes without AI smoothing.') : (loc?.sensorMismatchDesc ?? 'High-frequency spectral anomalies and generative warping patterns detected.'),
+                                              ),
+                                            ]
+                                          )
+                                        )
+                                      )
+                                    ]
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(isAuthentic ? Icons.check_rounded : Icons.close_rounded, size: 16, color: isAuthentic ? realColor : warnColor),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: _manrope(fontSize: 12, color: inkMuted, height: 1.4),
+                                            children: [
+                                              TextSpan(
+                                                text: isAuthentic ? (loc?.motionFlowLabel ?? 'Natural Motion Flow: ') : (loc?.unnaturalMotionLabel ?? 'Unnatural Motion Vectors: '),
+                                                style: _manrope(fontWeight: FontWeight.w700, color: ink),
+                                              ),
+                                              TextSpan(
+                                                text: isAuthentic ? (loc?.motionFlowDesc ?? 'Facial boundaries and specular lighting vectors remain continuous without seam jitter.') : (loc?.unnaturalMotionDesc ?? 'Generative flickering and temporal inconsistency detected in facial boundaries.'),
+                                              ),
+                                            ]
+                                          )
+                                        )
+                                      )
+                                    ]
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Divider(color: Colors.white.withOpacity(0.05), height: 1),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('💡', style: TextStyle(fontSize: 12)),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          isAuthentic 
+                                              ? (loc?.whyMediaMarginNoteReal(manipScore.toStringAsFixed(1)) ?? 'The remaining ${manipScore.toStringAsFixed(1)}% margin is standard H.264 compression quantization, not neural manipulation.')
+                                              : (loc?.whyMediaMarginNoteFake ?? 'The high manipulation confidence indicates this is highly likely an AI generated deepfake.'),
+                                          style: _manrope(fontSize: 11, color: inkMuted),
+                                        )
+                                      )
+                                    ]
+                                  )
+                                ]
+                              )
+                            ),
+                            const SizedBox(height: 24),
+
+                            // 7. Forensic Observations
+                            Text(
+                              loc?.forensicObservations ?? 'Forensic observations',
+                              style: _manrope(fontSize: 15, fontWeight: FontWeight.w800, color: ink),
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            // Inference Engine Card
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: tileBg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(loc?.inferenceEngine ?? 'Inference engine', style: _manrope(fontSize: 13, color: inkMuted)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(loc?.onDeviceTflite ?? 'On-device TFLite', style: _manrope(fontSize: 13, fontWeight: FontWeight.w800, color: ink)),
+                                      Text(modelFileName, style: _manrope(fontSize: 11, color: const Color(0xFF67E8F9), fontWeight: FontWeight.w600)),
+                                    ]
+                                  )
+                                ]
+                              )
+                            ),
+                            const SizedBox(height: 12),
+
+                            // 3 Grid Tiles
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                                    decoration: BoxDecoration(
+                                      color: tileBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(metric1Value, style: _manrope(fontSize: 16, fontWeight: FontWeight.w700, color: ink)),
+                                        const SizedBox(height: 4),
+                                        Text(metric1Label.replaceAll('\\n', '\n'), textAlign: TextAlign.center, style: _manrope(fontSize: 10, color: inkMuted)),
+                                      ]
+                                    )
+                                  )
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                                    decoration: BoxDecoration(
+                                      color: tileBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                                          textBaseline: TextBaseline.alphabetic,
+                                          children: [
+                                            Text(avgMs.toString(), style: _manrope(fontSize: 16, fontWeight: FontWeight.w700, color: ink)),
+                                            Text('ms', style: _manrope(fontSize: 10, color: inkMuted)),
+                                          ]
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(metric2Label.replaceAll('\\n', '\n'), textAlign: TextAlign.center, style: _manrope(fontSize: 10, color: inkMuted)),
+                                      ]
+                                    )
+                                  )
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                                    decoration: BoxDecoration(
+                                      color: tileBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text('${animatedManip.toStringAsFixed(1)}%', style: _manrope(fontSize: 16, fontWeight: FontWeight.w700, color: warnColor)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          (loc?.manipulationConfidence ?? 'Manipulation\nconfidence').replaceAll('\\n', '\n'),
+                                          textAlign: TextAlign.center,
+                                          style: _manrope(fontSize: 10, color: inkMuted),
+                                        ),
+                                      ]
+                                    )
+                                  )
+                                ),
+                              ]
+                            ),
+                            const SizedBox(height: 30),
+
+                            // 8. Action Buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildGradientButton(
+                                    label: _isGeneratingPdf
+                                        ? (loc?.creatingPdf ?? 'Creating PDF...')
+                                        : (loc?.reportPdf ?? 'Report PDF'),
+                                    icon: _isGeneratingPdf
+                                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                        : const Icon(Icons.description_outlined, size: 18, color: Colors.white),
+                                    gradientColors: const [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                                    shadowColor: const Color(0xFF2563EB),
+                                    onTap: _isGeneratingPdf ? null : _handlePdfReport,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildGradientButton(
+                                    label: loc?.shareLink ?? 'Share link',
+                                    icon: const Icon(Icons.share_outlined, size: 18, color: Colors.white),
+                                    gradientColors: const [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                                    shadowColor: const Color(0xFF2563EB),
+                                    onTap: _handleCopyLink,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildGradientButton(
+                              label: loc?.reportMediaBtn ?? 'Report media',
+                              icon: const Icon(Icons.flag_outlined, size: 18, color: Colors.white),
+                              gradientColors: const [Color(0xFFEF4444), Color(0xFFDC2626)],
+                              shadowColor: const Color(0xFFDC2626),
+                              onTap: _handleReportMedia,
+                            ),
+                            if (widget.onScanAnother != null) ...[
+                              const SizedBox(height: 12),
+                              _buildGradientButton(
+                                label: widget.scanAnotherText ?? (loc?.scanAnotherBtn ?? 'Scan another'),
+                                icon: const Icon(Icons.flip_camera_ios_outlined, size: 18, color: Colors.white),
+                                gradientColors: const [Color(0xFF1E293B), Color(0xFF0F172A)],
+                                shadowColor: const Color(0xFF0F172A),
+                                onTap: widget.onScanAnother,
+                              ),
+                            ]
+                          ]
+                        );
+                      }
+                    )
+                  )
+                ]
+              )
+            )
+          )
+        )
+      ]
     );
   }
 
@@ -770,58 +869,206 @@ class _ForensicResultCardState extends State<ForensicResultCard>
     required Widget icon,
     required List<Color> gradientColors,
     required Color shadowColor,
-    required VoidCallback? onTap,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor.withValues(alpha: 0.28),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: gradientColors,
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  width: 1,
-                ),
-              ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: gradientColors),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                icon,
-                const SizedBox(width: 8),
-                Text(
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: _manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    letterSpacing: -0.1,
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showHowToIdentifySheet(BuildContext context, bool isDark) {
+    final loc = AppLocalizations.of(context);
+    final sheetBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final cardBg = isDark ? const Color(0xFF131C31) : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final ink = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final inkMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: sheetBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: inkMuted.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00F0FF).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.psychology_outlined, color: Color(0xFF00F0FF), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            loc?.howToIdentifyTitle ?? 'How to Identify Real vs Fake',
+                            style: _manrope(fontSize: 16, fontWeight: FontWeight.w700, color: ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: Icon(Icons.close_rounded, color: inkMuted, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                loc?.howToIdentifySubtitle ?? 'Forensic algorithms & analysts verify these physical principles:',
+                style: _manrope(fontSize: 12, color: inkMuted),
+              ),
+              const SizedBox(height: 16),
+              _buildGuidePillar(
+                '1',
+                loc?.pillar1Title ?? 'Optical Silicon Sensor Noise',
+                const Color(0xFF00F0FF),
+                loc?.pillar1Real ?? 'Microscopic noise from camera sensors across pixels.',
+                loc?.pillar1Fake ?? 'Mathematical pixels with unnatural neural smoothing.',
+                cardBg,
+                borderColor,
+                inkMuted,
+                loc?.realVerdict ?? 'Real',
+                loc?.manipulatedVerdict ?? 'Fake',
+              ),
+              const SizedBox(height: 10),
+              _buildGuidePillar(
+                '2',
+                loc?.pillar2Title ?? 'Corneal Light Reflection',
+                const Color(0xFF10B981),
+                loc?.pillar2Real ?? 'Identical ambient light reflection angles in both eye pupils.',
+                loc?.pillar2Fake ?? 'Mismatched catchlights or distorted corneal reflection.',
+                cardBg,
+                borderColor,
+                inkMuted,
+                loc?.realVerdict ?? 'Real',
+                loc?.manipulatedVerdict ?? 'Fake',
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+                  child: Text(loc?.gotItBtn ?? 'Got It', style: _manrope(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuidePillar(
+    String number,
+    String title,
+    Color color,
+    String realText,
+    String fakeText,
+    Color cardBg,
+    Color borderColor,
+    Color inkMuted,
+    String realPrefix,
+    String fakePrefix,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: borderColor)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 18, height: 18,
+                decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: color)),
+                child: Center(child: Text(number, style: _manrope(fontSize: 10, fontWeight: FontWeight.w800, color: color))),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(title, style: _manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: color)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              style: _manrope(fontSize: 11, height: 1.35, color: inkMuted),
+              children: [
+                TextSpan(text: '$realPrefix: ', style: _manrope(fontWeight: FontWeight.w700, color: const Color(0xFF10B981))),
+                TextSpan(text: '$realText\n'),
+                TextSpan(text: '$fakePrefix: ', style: _manrope(fontWeight: FontWeight.w700, color: const Color(0xFFEF4444))),
+                TextSpan(text: fakeText),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }

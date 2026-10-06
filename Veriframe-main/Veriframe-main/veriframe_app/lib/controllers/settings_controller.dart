@@ -92,6 +92,7 @@ class SettingsController extends ChangeNotifier {
 /// [SettingsScope.controllerOf] for a non-listening lookup (e.g. in initState).
 class SettingsScope extends InheritedNotifier<SettingsController> {
   const SettingsScope({
+    super.key,
     required SettingsController controller,
     required super.child,
   }) : super(notifier: controller);

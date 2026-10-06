@@ -204,7 +204,7 @@ class RealityDefenderDetector:
             logger.warning("[RealityDefenderDetector] Call skipped: API key not configured or masked.")
             return {
                 "status": "skipped",
-                "reason": "Reality Defender API key is not configured or is masked.",
+                "reason": "Cloud verification API key is not configured or is masked.",
                 "is_fake": False,
                 "score": 0.0,
                 "confidence": 0.0,
@@ -215,7 +215,7 @@ class RealityDefenderDetector:
             logger.warning("[RealityDefenderDetector] Call skipped: SDK client unavailable.")
             return {
                 "status": "skipped",
-                "reason": "Reality Defender SDK unavailable.",
+                "reason": "Cloud verification SDK unavailable.",
                 "is_fake": False,
                 "score": 0.0,
                 "confidence": 0.0,
@@ -238,7 +238,7 @@ class RealityDefenderDetector:
             )
             return {
                 "status": "error",
-                "error": f"Reality Defender timed out after {timeout}s",
+                "error": f"Cloud verification timed out after {timeout}s",
                 "is_fake": False,
                 "score": 0.0,
                 "confidence": 0.0,

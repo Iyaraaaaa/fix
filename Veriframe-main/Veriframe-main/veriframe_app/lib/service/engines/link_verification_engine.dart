@@ -115,8 +115,19 @@ class LinkVerificationEngine {
             } else if (status == 'inferencing') {
               onProgress?.call(5, 0.80, '🧠 Server running deep learning neural models...');
             } else if (status == 'completed' || status == 'stopped') {
-              final rawResult = res['result'] as Map<String, dynamic>?;
+              var rawResult = res['result'] as Map<String, dynamic>?;
               if (rawResult != null && rawResult.isNotEmpty) {
+                rawResult = Map<String, dynamic>.from(rawResult);
+                if (rawResult['thumbnailBase64'] == null || rawResult['thumbnailBase64'].toString().isEmpty) {
+                  final fetchedThumb = await fetchLinkThumbnailBase64(trimmedUrl);
+                  if (fetchedThumb != null) {
+                    rawResult['thumbnailBase64'] = fetchedThumb;
+                  }
+                }
+                rawResult['videoUrl'] ??= trimmedUrl;
+                rawResult['mediaName'] ??= (trimmedUrl.length > 60 ? '${trimmedUrl.substring(0, 57)}...' : trimmedUrl);
+                rawResult['mediaPath'] ??= trimmedUrl;
+
                 onProgress?.call(7, 1.0, '✅ Forensic verification completed');
                 return VerificationResult.fromJson(rawResult);
               }
@@ -182,7 +193,7 @@ class LinkVerificationEngine {
         final elapsedSec = DateTime.now().difference(startTime).inMilliseconds / 1000.0;
         final urlHash = sha256.convert(utf8.encode(trimmedUrl)).toString();
         final isTrusted = _trustedDomains.contains(Uri.tryParse(trimmedUrl)?.host.toLowerCase());
-        final ytThumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
+        final ytThumb = await fetchLinkThumbnailBase64(trimmedUrl);
 
         return VerificationResult(
           verificationId: 'VRF-LNK-${DateTime.now().millisecondsSinceEpoch}',
@@ -272,7 +283,7 @@ class LinkVerificationEngine {
 
         String? thumb = result.thumbnailBase64;
         if (thumb == null || thumb.isEmpty) {
-          thumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
+          thumb = await fetchLinkThumbnailBase64(trimmedUrl);
         }
 
         return result.copyWith(
@@ -400,7 +411,7 @@ class LinkVerificationEngine {
 
     onProgress?.call(8, 1.0, 'URL Security Analysis complete.');
 
-    final ytThumb = await _fetchYoutubeThumbnailBase64(trimmedUrl);
+    final ytThumb = await fetchLinkThumbnailBase64(trimmedUrl);
 
     return VerificationResult(
       verificationId: 'VRF-URL-SEC-${DateTime.now().millisecondsSinceEpoch}',
@@ -442,20 +453,110 @@ class LinkVerificationEngine {
     );
   }
 
-  Future<String?> _fetchYoutubeThumbnailBase64(String url) async {
+  /// Extracts or fetches a thumbnail preview in base64 format for a given video/media URL.
+  /// Supports YouTube, Vimeo, direct image links, and generic HTML OpenGraph / Twitter metadata.
+  Future<String?> fetchLinkThumbnailBase64(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+
+    // 1. YouTube
+    final ytId = _extractYoutubeId(trimmed);
+    if (ytId != null && ytId.isNotEmpty) {
+      try {
+        final hqUri = Uri.parse('https://img.youtube.com/vi/$ytId/hqdefault.jpg');
+        final resp = await http.get(hqUri).timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200 && resp.bodyBytes.length > 1000) {
+          return base64Encode(resp.bodyBytes);
+        }
+        // Fallback to mqdefault
+        final mqUri = Uri.parse('https://img.youtube.com/vi/$ytId/mqdefault.jpg');
+        final mqResp = await http.get(mqUri).timeout(const Duration(seconds: 3));
+        if (mqResp.statusCode == 200 && mqResp.bodyBytes.length > 500) {
+          return base64Encode(mqResp.bodyBytes);
+        }
+      } catch (e) {
+        debugPrint('[LinkVerificationEngine] YouTube thumbnail fetch error: $e');
+      }
+    }
+
+    // 2. Vimeo oEmbed
+    if (trimmed.toLowerCase().contains('vimeo.com')) {
+      try {
+        final oembedUri = Uri.parse('https://vimeo.com/api/oembed.json?url=${Uri.encodeComponent(trimmed)}');
+        final oembedResp = await http.get(oembedUri).timeout(const Duration(seconds: 4));
+        if (oembedResp.statusCode == 200) {
+          final data = jsonDecode(oembedResp.body);
+          if (data is Map && data['thumbnail_url'] != null) {
+            final thumbUrl = data['thumbnail_url'].toString();
+            final imgResp = await http.get(Uri.parse(thumbUrl)).timeout(const Duration(seconds: 4));
+            if (imgResp.statusCode == 200 && imgResp.bodyBytes.isNotEmpty) {
+              return base64Encode(imgResp.bodyBytes);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[LinkVerificationEngine] Vimeo thumbnail fetch error: $e');
+      }
+    }
+
+    // 3. Direct Image URL
+    final lower = trimmed.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp')) {
+      try {
+        final imgResp = await http.get(Uri.parse(trimmed)).timeout(const Duration(seconds: 4));
+        if (imgResp.statusCode == 200 && imgResp.bodyBytes.isNotEmpty) {
+          return base64Encode(imgResp.bodyBytes);
+        }
+      } catch (_) {}
+    }
+
+    // 4. OpenGraph / Twitter Cards / Generic Web page
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      try {
+        final pageResp = await http.get(
+          Uri.parse(trimmed),
+          headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+        ).timeout(const Duration(seconds: 4));
+
+        if (pageResp.statusCode == 200) {
+          final html = pageResp.body;
+          final ogRegex = RegExp(r'''<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+          final ogSecureRegex = RegExp(r'''<meta\s+property=["']og:image:secure_url["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+          final twitterRegex = RegExp(r'''<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']''', caseSensitive: false);
+
+          final match = ogRegex.firstMatch(html) ?? ogSecureRegex.firstMatch(html) ?? twitterRegex.firstMatch(html);
+          if (match != null && match.group(1) != null) {
+            var imgUrl = match.group(1)!.trim();
+            if (imgUrl.isNotEmpty) {
+              if (imgUrl.startsWith('//')) {
+                imgUrl = 'https:$imgUrl';
+              } else if (imgUrl.startsWith('/') && Uri.tryParse(trimmed) != null) {
+                final base = Uri.parse(trimmed);
+                imgUrl = '${base.scheme}://${base.host}$imgUrl';
+              }
+              final imgResp = await http.get(Uri.parse(imgUrl)).timeout(const Duration(seconds: 4));
+              if (imgResp.statusCode == 200 && imgResp.bodyBytes.length > 500) {
+                return base64Encode(imgResp.bodyBytes);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[LinkVerificationEngine] OpenGraph thumbnail fetch error: $e');
+      }
+    }
+
+    return null;
+  }
+
+  String? _extractYoutubeId(String url) {
     final regExp = RegExp(
-      r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/ ]{11})',
+      r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/|live\/)|youtu\.be\/)([^"&?\/ ]{11})',
       caseSensitive: false,
     );
     final match = regExp.firstMatch(url);
     if (match != null && match.groupCount >= 1) {
-      final videoId = match.group(1);
-      try {
-        final resp = await http.get(Uri.parse('https://img.youtube.com/vi/$videoId/hqdefault.jpg')).timeout(const Duration(seconds: 4));
-        if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
-          return base64Encode(resp.bodyBytes);
-        }
-      } catch (_) {}
+      return match.group(1);
     }
     return null;
   }

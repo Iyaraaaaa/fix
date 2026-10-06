@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:veriframe_app/controllers/settings_controller.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
 import 'package:veriframe_app/utils/theme.dart';
 
 /// Shared, reusable application app bar used by every main screen.
@@ -19,13 +20,14 @@ PreferredSizeWidget globalAppBar(
   PreferredSizeWidget? bottom,
 }) {
   final controller = SettingsScope.of(context);
+  final loc = AppLocalizations.of(context);
   final scheme = Theme.of(context).colorScheme;
   final isDark = scheme.brightness == Brightness.dark;
 
   final languages = const [
     _AppLanguage('English', 'en', '🇺🇸'),
     _AppLanguage('සිංහල', 'si', '🇱🇰'),
-    _AppLanguage('தமிழ்', 'ta', '🇮🇳'),
+    _AppLanguage('தமிழ்', 'ta', '🇱🇰'),
   ];
 
   return AppBar(
@@ -75,20 +77,34 @@ PreferredSizeWidget globalAppBar(
       ...?extraActions,
       PopupMenuButton<Locale>(
         icon: Icon(Icons.language, color: scheme.onPrimary),
-        tooltip: 'Change Language',
+        tooltip: loc?.changeLanguage ?? 'Change Language',
+        initialValue: controller.locale,
         onSelected: (locale) => controller.setLocale(locale),
         itemBuilder: (_) => languages
             .map(
-              (l) => PopupMenuItem<Locale>(
-                value: Locale(l.code),
-                child: Row(
-                  children: [
-                    Text(l.flag),
-                    const SizedBox(width: 8),
-                    Text(l.name),
-                  ],
-                ),
-              ),
+              (l) {
+                final isSelected = controller.locale.languageCode == l.code;
+                return PopupMenuItem<Locale>(
+                  value: Locale(l.code),
+                  child: Row(
+                    children: [
+                      Text(l.flag, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l.name,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? scheme.primary : null,
+                          ),
+                        ),
+                      ),
+                      if (isSelected)
+                        Icon(Icons.check, size: 18, color: scheme.primary),
+                    ],
+                  ),
+                );
+              },
             )
             .toList(),
       ),

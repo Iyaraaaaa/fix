@@ -8,6 +8,7 @@ import 'package:veriframe_app/service/engines/link_verification_engine.dart';
 import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
 import 'package:veriframe_app/screens/report_detail_screen.dart' show ReportDetailPage;
+import 'package:veriframe_app/l10n/app_localizations.dart';
 
 enum TimelineStatus { completed, active, pending }
 
@@ -193,15 +194,39 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
     super.dispose();
   }
 
-  String get _stageName {
-    if (currentStageIndex < steps.length) {
-      return steps[currentStageIndex].label;
+  String _getStepLabel(int index, AppLocalizations loc) {
+    switch (index) {
+      case 0:
+        return loc.stepValidatingUrl;
+      case 1:
+        return loc.stepDetectingPlatform;
+      case 2:
+        return loc.stepDownloadingVideo;
+      case 3:
+        return loc.stepExtractingFrames;
+      case 4:
+        return loc.stepDetectingFaces;
+      case 5:
+        return loc.stepRunningAiAnalysis;
+      case 6:
+        return loc.stepGeneratingReport;
+      case 7:
+        return loc.stepVerificationComplete;
+      default:
+        return '';
     }
-    return 'Verification Complete';
+  }
+
+  String _stageName(AppLocalizations loc) {
+    if (currentStageIndex < steps.length) {
+      return _getStepLabel(currentStageIndex, loc);
+    }
+    return loc.stepVerificationComplete;
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF131D2E) : Colors.white;
     final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
@@ -211,9 +236,9 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
     return MainScaffold(
       backgroundColor: isDark ? const Color(0xFF0B1424) : const Color(0xFFF8FAFC),
       showBack: true,
-      title: const Text(
-        'Video Analysis',
-        style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+      title: Text(
+        loc.videoAnalysisTitle,
+        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -241,7 +266,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                             color: Color(0xFFEF4444), size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Verification Failed',
+                          loc.verificationFailed,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -272,9 +297,9 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: const Text(
-                          'Go Back & Try Another URL',
-                          style: TextStyle(color: Color(0xFFEF4444)),
+                        child: Text(
+                          loc.goBackAndTryAnother,
+                          style: const TextStyle(color: Color(0xFFEF4444)),
                         ),
                       ),
                     ),
@@ -310,10 +335,10 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                           children: [
                             Text(
                               _isDone && _errorMessage == null
-                                  ? 'Verification Complete'
+                                  ? loc.stepVerificationComplete
                                   : _isDone
-                                      ? 'Verification Failed'
-                                      : _stageName,
+                                      ? loc.verificationFailed
+                                      : _stageName(loc),
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
@@ -323,7 +348,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Stage ${(currentStageIndex + 1).clamp(1, 9)} of 9',
+                              loc.stageOf((currentStageIndex + 1).clamp(1, 9), 9),
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: subtitleColor,
@@ -347,7 +372,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _isDone ? 'Complete' : 'Processing...',
+                            _isDone ? loc.pipelineCompleted : loc.processingStatus,
                             style: TextStyle(
                               fontSize: 11,
                               color: subtitleColor,
@@ -400,6 +425,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                   steps.length,
                   (index) => _buildTimelineRow(
                     step: steps[index],
+                    label: _getStepLabel(index, loc),
                     index: index,
                     isLast: index == steps.length - 1,
                     isDark: isDark,
@@ -423,11 +449,11 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
                   ),
                 ),
                 child: Text(
-                  'PAUSE / CANCEL',
-                  style: TextStyle(
+                  loc.pauseOrCancel,
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFFEF4444),
+                    color: Color(0xFFEF4444),
                     letterSpacing: 0.4,
                   ),
                 ),
@@ -441,6 +467,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
 
   Widget _buildTimelineRow({
     required TimelineStep step,
+    required String label,
     required int index,
     required bool isLast,
     required bool isDark,
@@ -526,7 +553,7 @@ class _DownloadAnalysisPageState extends ConsumerState<DownloadAnalysisPage>
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  step.label,
+                  label,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: step.status == TimelineStatus.active

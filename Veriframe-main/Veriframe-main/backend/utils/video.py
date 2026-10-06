@@ -31,16 +31,21 @@ def extract_video_thumbnail_base64(video_path: str, max_size: int = 320) -> Opti
 
     try:
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if frame_count <= 0:
-            return None
+        frame = None
+        if frame_count > 0:
+            target_frame = max(0, min(frame_count // 10, frame_count - 1))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                frame = None
 
-        # Extract frame at ~10% of video duration, or first frame if very short
-        target_frame = max(0, min(frame_count // 10, frame_count - 1))
-        cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            # Fallback to first frame
+        if frame is None:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                frame = None
+
+        if frame is None:
             ret, frame = cap.read()
             if not ret or frame is None:
                 return None

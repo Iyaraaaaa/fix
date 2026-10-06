@@ -519,10 +519,10 @@ class AppLocalizationsSi extends AppLocalizations {
   String get signInSubtitle => 'ඉදිරියට යාමට ප්‍රවේශ වන්න';
 
   @override
-  String get emailLabel => 'විද්‍යුත් තැපැල';
+  String get emailLabel => 'විද්‍යුත් තැපෑල';
 
   @override
-  String get rememberMe => 'මතකයේ තබා ගන්න';
+  String get rememberMe => 'මතක තබා ගන්න';
 
   @override
   String get forgotPassword => 'මුරපදය අමතකද?';
@@ -543,7 +543,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get signUpTitle => 'ලියාපදිංචි වන්න';
 
   @override
-  String get createAccount => 'ඔබගේ ගිණුම සාදන්න';
+  String get createAccount => 'ගිණුමක් සාදන්න';
 
   @override
   String get confirmPassword => 'මුරපදය තහවුරු කරන්න';
@@ -1729,52 +1729,52 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get verifyBackendHelper =>
-      'Specify host base address (use LAN IP on physical phones)';
+      'සත්කාරක ලිපිනය සඳහන් කරන්න (භෞතික දුරකථනවල LAN IP භාවිතා කරන්න)';
 
   @override
   String notificationsMarkAllRead(Object count) {
-    return 'Mark all read ($count)';
+    return 'සියල්ල කියවූ බව සලකුණු කරන්න ($count)';
   }
 
   @override
-  String get notificationsDeleteTitle => 'Delete notification?';
+  String get notificationsDeleteTitle => 'දැනුම්දීම මකන්නද?';
 
   @override
   String get notificationsDeleteMessage =>
-      'This notification will be permanently removed.';
+      'මෙම දැනුම්දීම ස්ථිරවම ඉවත් කරනු ලැබේ.';
 
   @override
-  String get notificationsDeleteConfirm => 'Delete';
+  String get notificationsDeleteConfirm => 'මකන්න';
 
   @override
-  String get notificationsDeleteAllTitle => 'Delete all notifications?';
+  String get notificationsDeleteAllTitle => 'සියලු දැනුම්දීම් මකන්නද?';
 
   @override
   String get notificationsDeleteAllMessage =>
-      'All notifications will be permanently deleted. This cannot be undone.';
+      'සියලු දැනුම්දීම් ස්ථිරවම මකා දැමෙනු ඇත. මෙය නැවත අවලංගු කළ නොහැක.';
 
   @override
-  String get notificationsDeleteAllConfirm => 'Delete All';
+  String get notificationsDeleteAllConfirm => 'සියල්ල මකන්න';
 
   @override
-  String get notificationsNotLoggedIn => 'User not logged in.';
+  String get notificationsNotLoggedIn => 'පරිශීලකයා ප්‍රවිෂ්ට වී නොමැත.';
 
   @override
   String notificationsError(Object error) {
-    return 'Error: $error';
+    return 'දෝෂය: $error';
   }
 
   @override
-  String get accountDeleted => 'Your account has been deleted successfully.';
+  String get accountDeleted => 'ඔබගේ ගිණුම සාර්ථකව මකා දමන ලදී.';
 
   @override
-  String get reportsTitle => 'Forensic reports';
+  String get reportsTitle => 'විධිවිචාරණ වාර්තා';
 
   @override
-  String get reportsHistoryTitle => 'Media history';
+  String get reportsHistoryTitle => 'මාධ්‍ය ඉතිහාසය';
 
   @override
-  String get reportsHistorySubtitle => 'History of media Verification';
+  String get reportsHistorySubtitle => 'මාධ්‍ය සත්‍යාපන ඉතිහාසය';
 
   @override
   String get reportsNotLoggedIn => 'පරිශීලකයා ප්‍රවේශ වූ නැත.';
@@ -2496,4 +2496,723 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get reportActionsUnavailable => 'No actions available for this report';
+
+  @override
+  String get modalitySelectTitle => 'තහවුරු කිරීමේ වර්ගය තෝරන්න';
+
+  @override
+  String get modalitySelectSubtitle =>
+      'ඩීප්ෆේක් සහ AI උත්පාදනය සඳහා ඔබ පරීක්ෂා කිරීමට බලාපොරොත්තු වන මාධ්‍ය වර්ගය තෝරන්න.';
+
+  @override
+  String get modalityVideoTitle => 'වීඩියෝ තහවුරු කිරීම';
+
+  @override
+  String get modalityVideoDesc =>
+      'සත්‍යතාව සඳහා වීඩියෝ, යූටියුබ් සබැඳි සහ සජීවී ප්‍රවාහ විශ්ලේෂණය කරන්න';
+
+  @override
+  String get modalityVideoBadge => 'වීඩියෝ සහ සජීවී';
+
+  @override
+  String get modalityLocalVideo => 'දේශීය වීඩියෝව';
+
+  @override
+  String get modalityVideoLink => 'වීඩියෝ සබැඳිය';
+
+  @override
+  String get modalityLiveStream => 'සජීවී ප්‍රවාහය';
+
+  @override
+  String get modalityImageTitle => 'ඡායාරූප තහවුරු කිරීම';
+
+  @override
+  String get modalityImageDesc =>
+      'AI කෞතුක වස්තු, මුහුණු හුවමාරු, GAN රූප සහ ඩීප්ෆේක් හඳුනාගන්න';
+
+  @override
+  String get modalityImageBadge => 'ඡායාරූප සහ URL';
+
+  @override
+  String get modalityLocalPhoto => 'දේශීය ඡායාරූපය';
+
+  @override
+  String get modalityImageLink => 'ඡායාරූප සබැඳිය';
+
+  @override
+  String get modalityAudioTitle => 'ශ්‍රව්‍ය හඬ තහවුරු කිරීම';
+
+  @override
+  String get modalityAudioDesc =>
+      'හඬ ක්ලෝනකරණය, කෘතිම කථනය සහ ශ්‍රව්‍ය කෞතුක වස්තු හඳුනාගන්න';
+
+  @override
+  String get modalityAudioBadge => 'හඬ ක්ලෝන AI';
+
+  @override
+  String get modalityLocalAudio => 'දේශීය ශ්‍රව්‍යය';
+
+  @override
+  String get imageForensicsTitle => 'ඡායාරූප අධිකරණ වෛද්‍ය විද්‍යාව';
+
+  @override
+  String get localImageTab => 'දේශීය ඡායාරූපය';
+
+  @override
+  String get imageLinkTab => 'ඡායාරූප සබැඳිය';
+
+  @override
+  String get inspectImageFilesTitle => 'ඡායාරූප ගොනු පරීක්ෂා කරන්න';
+
+  @override
+  String get inspectImageFilesDesc =>
+      'අපගේ අධිකරණ වෛද්‍ය AI ආකෘතිය භාවිතයෙන් ඩීප්ෆේක්, මුහුණු හුවමාරු, GAN උත්පාදන කෞතුක වස්තු සහ කෘතිම වෙනස්කම් සඳහා JPEG, PNG, WEBP ගොනු විශ්ලේෂණය කරන්න.';
+
+  @override
+  String get localImageAnalysisTitle => 'දේශීය ඡායාරූප විශ්ලේෂණය';
+
+  @override
+  String get selectImageFileHint => 'ඡායාරූප ගොනුව තෝරන්න';
+
+  @override
+  String get browseImageBtn => 'ඡායාරූපය සොයන්න';
+
+  @override
+  String get analyzeImageBtn => 'ඡායාරූපය විශ්ලේෂණය කරන්න';
+
+  @override
+  String get scanImageUrlTitle => 'ඡායාරූප URL ස්කෑන් කරන්න';
+
+  @override
+  String get scanImageUrlDesc =>
+      'ප්‍රසිද්ධ වෙබ් ලිපින, ප්‍රවෘත්ති සබැඳි සහ රූප සත්කාරක සේවාවන්ගෙන් සෘජුවම පින්තූර තහවුරු කරන්න.';
+
+  @override
+  String get imageUrlVerificationTitle => 'ඡායාරූප URL තහවුරු කිරීම';
+
+  @override
+  String get pasteImageUrlHint => 'ඡායාරූප URL අලවන්න';
+
+  @override
+  String get enterImageUrlPlaceholder =>
+      'සෘජු ඡායාරූප URL ඇතුළත් කරන්න (JPG, PNG, WebP)...';
+
+  @override
+  String get analyzeLinkBtn => 'සබැඳිය විශ්ලේෂණය කරන්න';
+
+  @override
+  String get imageForensicReportTitle => 'ඡායාරූප අධිකරණ වෛද්‍ය වාර්තාව';
+
+  @override
+  String get scanAnotherImageBtn => 'වෙනත් ඡායාරූපයක් ස්කෑන් කරන්න';
+
+  @override
+  String get backendServerSettingsTitle => 'පසුබිම් සේවාදායක සැකසුම්';
+
+  @override
+  String get resetToDefaultBtn => 'යථා තත්ත්වයට පත් කරන්න';
+
+  @override
+  String get audioVerificationTitle => 'ශ්‍රව්‍ය තහවුරු කිරීම';
+
+  @override
+  String get audioVoiceDeepfakeTitle => 'ශ්‍රව්‍ය හඬ ඩීප්ෆේක් හඳුනාගැනීම';
+
+  @override
+  String get audioVoiceDeepfakeDesc =>
+      'හඬ ක්ලෝනකරණය, කෘතිම කථන සංශ්ලේෂණය සහ ධ්වනි වෙනස්කම් සඳහා ශ්‍රව්‍ය ක්ලිප් විශ්ලේෂණය කරන්න.';
+
+  @override
+  String get uploadAudioClipTitle => 'ශ්‍රව්‍ය ක්ලිප් එක උඩුගත කරන්න';
+
+  @override
+  String get supportedAudioFormatsHint =>
+      'සහය දක්වන ආකෘති: MP3, WAV, M4A, AAC, OGG';
+
+  @override
+  String get browseAudioFileBtn => 'ශ්‍රව්‍ය ගොනුව සොයන්න';
+
+  @override
+  String get verifyAudioBtn => 'ශ්‍රව්‍යය තහවුරු කරන්න';
+
+  @override
+  String get audioForensicReportTitle => 'ශ්‍රව්‍ය අධිකරණ වෛද්‍ය වාර්තාව';
+
+  @override
+  String get scanAnotherAudioBtn => 'වෙනත් ශ්‍රව්‍යයක් ස්කෑන් කරන්න';
+
+  @override
+  String get forensicReportTitle => 'අධිකරණ වෛද්‍ය වාර්තාව';
+
+  @override
+  String get escalateToAuthority => 'බලධාරීන්ට යොමු කරන්න';
+
+  @override
+  String get pdfReportBtn => 'PDF වාර්තාව';
+
+  @override
+  String get evidenceBtn => 'සාක්ෂි';
+
+  @override
+  String get escalateBtn => 'යොමු කරන්න';
+
+  @override
+  String get openVideoLinkBtn => 'වීඩියෝ සබැඳිය විවෘත කරන්න';
+
+  @override
+  String get playLiveStreamRecording => 'සජීවී ප්‍රවාහ පටිගත කිරීම ධාවනය කරන්න';
+
+  @override
+  String get doneViewingBtn => 'නැරඹීම අවසන්';
+
+  @override
+  String get openImageLinkInBrowser => 'බ්‍රවුසරයේ රූප සබැඳිය විවෘත කරන්න';
+
+  @override
+  String get openInEvidencePlayer => 'සාක්ෂි වාදකයේ විවෘත කරන්න';
+
+  @override
+  String get forensicAnalysisSignals => 'අධිකරණ වෛද්‍ය විශ්ලේෂණ සංඥා';
+
+  @override
+  String get aiExplainabilityReasoning => 'AI පැහැදිලි කිරීම සහ තර්කනය';
+
+  @override
+  String get investigativeSummary => 'විමර්ශන සාරාංශය';
+
+  @override
+  String get mediaDetails => 'මාධ්‍ය විස්තර';
+
+  @override
+  String get videoAnalysisTitle => 'වීඩියෝ විශ්ලේෂණය';
+
+  @override
+  String get stepValidatingUrl => 'URL වලංගු කරමින්';
+
+  @override
+  String get stepDetectingPlatform => 'වේදිකාව හඳුනාගනිමින්';
+
+  @override
+  String get stepDownloadingVideo => 'වීඩියෝව බාගත කරමින්';
+
+  @override
+  String get stepExtractingFrames => 'රාමු ලබා ගනිමින්';
+
+  @override
+  String get stepDetectingFaces => 'මුහුණු හඳුනාගනිමින්';
+
+  @override
+  String get stepRunningAiAnalysis => 'AI විශ්ලේෂණය ක්‍රියාත්මක කරමින්';
+
+  @override
+  String get stepGeneratingReport => 'වාර්තාව සකස් කරමින්';
+
+  @override
+  String get stepVerificationComplete => 'තහවුරු කිරීම සම්පූර්ණයි';
+
+  @override
+  String get analyzingVideoStream => 'වීඩියෝ ප්‍රවාහය විශ්ලේෂණය කරමින්';
+
+  @override
+  String get analyzingVideoStreamDesc =>
+      'VeriFrame මාධ්‍යය බාගත කර පරීක්ෂා කරන තුරු කරුණාකර රැඳී සිටින්න.';
+
+  @override
+  String get viewReportBtn => 'වාර්තාව බලන්න';
+
+  @override
+  String get passwordLabel => 'මුරපදය';
+
+  @override
+  String get dontHaveAccount => 'ගිණුමක් නැද්ද?';
+
+  @override
+  String get alreadyHaveAccount => 'දැනටමත් ගිණුමක් තිබේද?';
+
+  @override
+  String get fullNameLabel => 'සම්පූර්ණ නම';
+
+  @override
+  String get verificationFailed => 'සත්‍යාපනය අසාර්ථක විය';
+
+  @override
+  String get goBackAndTryAnother => 'ආපසු ගොස් වෙනත් URL එකක් උත්සාහ කරන්න';
+
+  @override
+  String get pauseOrCancel => 'විරාම කරන්න / අවලංගු කරන්න';
+
+  @override
+  String get processingStatus => 'ක්‍රියාත්මක වෙමින් පවතී...';
+
+  @override
+  String stageOf(int current, int total) {
+    return '$total න් අදියර $current';
+  }
+
+  @override
+  String get orText => 'හෝ';
+
+  @override
+  String get audioLabel => 'ශ්‍රව්‍ය';
+
+  @override
+  String get imageLabel => 'පින්තූරය';
+
+  @override
+  String get evidenceLabel => 'සාක්ෂි';
+
+  @override
+  String get openPdf => 'PDF විවෘත කරන්න';
+
+  @override
+  String get localVideoEvidence => 'දේශීය වීඩියෝ සාක්ෂි';
+
+  @override
+  String get videoLinkEvidence => 'වීඩියෝ සබැඳි සාක්ෂි';
+
+  @override
+  String get liveStreamEvidence => 'සජීවී විකාශන සාක්ෂි';
+
+  @override
+  String get imageEvidence => 'පින්තූර සාක්ෂි';
+
+  @override
+  String get audioEvidence => 'ශ්‍රව්‍ය සාක්ෂි';
+
+  @override
+  String get verifySelectPlatform => 'වේදිකාව තෝරන්න';
+
+  @override
+  String get verifyChoosePlatform => 'ඔබගේ වීඩියෝව පවතින වේදිකාව තෝරන්න';
+
+  @override
+  String get verifyVideoLinkLabel => 'වීඩියෝ සබැඳිය';
+
+  @override
+  String get verifyClear => 'මකන්න';
+
+  @override
+  String get verifyPaste => 'අලවන්න';
+
+  @override
+  String verifyPasteLinkPlaceholder(String platform) {
+    return 'ඔබගේ $platform සබැඳිය මෙහි අලවන්න...';
+  }
+
+  @override
+  String get verifyNowButton => 'දැන් තහවුරු කරන්න';
+
+  @override
+  String get verifyLiveTelemetryHud => 'සජීවී ප්‍රවාහ දත්ත පුවරුව';
+
+  @override
+  String get verifyStreamProtocols => 'RTSP / RTMP / කැමරාව';
+
+  @override
+  String get verifyRealTimeStreamTitle =>
+      'තත්‍ය කාලීන සජීවී ප්‍රවාහ තහවුරු කිරීම';
+
+  @override
+  String get verifyRealTimeStreamDesc =>
+      'තත්‍ය කාලීනව සජීවී වීඩියෝ ප්‍රවාහයන් කාලානුරූපී විශ්වාසනීයත්වයකින් නිරීක්ෂණය කරන්න.';
+
+  @override
+  String get verifyEnterStreamUrlOptional =>
+      'RTSP, RTMP, හෝ HLS ප්‍රවාහ සබැඳිය ඇතුළත් කරන්න (විකල්ප)...';
+
+  @override
+  String get verifyLiveCameraStreamBtn => 'සජීවී කැමරා ප්‍රවාහය';
+
+  @override
+  String get verifyRtspNetworkStreamBtn => 'RTSP / ජාල ප්‍රවාහය';
+
+  @override
+  String get verifyEnterStreamUrlAlert =>
+      'කරුණාකර RTSP/RTMP/HLS ප්‍රවාහ සබැඳියක් ඇතුළත් කරන්න හෝ සජීවී කැමරා ප්‍රවාහය තෝරන්න.';
+
+  @override
+  String get verifyRunsOnDevice => 'උපාංගයේම ක්‍රියාත්මක වේ';
+
+  @override
+  String verifySecondsRemaining(int seconds) {
+    return 'තව තත්පර ~$seconds ක් ඇත';
+  }
+
+  @override
+  String get linkStageValidatingUrlTitle => 'සබැඳිය වලංගු කිරීම';
+
+  @override
+  String get linkStageValidatingUrlDesc =>
+      'සබැඳියේ නිරවද්‍යතාව සහ ආරක්ෂාව පරීක්ෂා කෙරේ';
+
+  @override
+  String get linkStageDetectingPlatformTitle => 'වේදිකාව හඳුනා ගැනීම';
+
+  @override
+  String get linkStageDetectingPlatformDesc =>
+      'වීඩියෝ සත්කාරක වේදිකාව හඳුනා ගැනීම';
+
+  @override
+  String get linkStageDownloadingStreamTitle => 'ප්‍රවාහය බාගත කිරීම';
+
+  @override
+  String get linkStageDownloadingStreamDesc =>
+      'විශ්ලේෂණය සඳහා මාධ්‍ය ලබා ගැනීම';
+
+  @override
+  String get linkStageSamplingKeyframesTitle => 'ප්‍රධාන රාමු ලබා ගැනීම';
+
+  @override
+  String get linkStageSamplingKeyframesDesc =>
+      'වීඩියෝවේ ප්‍රධාන රාමු විශ්ලේෂණය සඳහා ලබා ගැනීම';
+
+  @override
+  String get linkStageBiometricDetectionTitle => 'ජෛවමිතික හඳුනා ගැනීම';
+
+  @override
+  String get linkStageBiometricDetectionDesc =>
+      'මුහුණේ සීමා සහ ලක්ෂණ හඳුනා ගැනීම';
+
+  @override
+  String get linkStageNeuralDeepfakeTitle => 'කෘතිම බුද්ධි ඩීප්ෆේක් විශ්ලේෂණය';
+
+  @override
+  String get linkStageNeuralDeepfakeDesc =>
+      'කෘතිම බුද්ධි ආකෘති මඟින් රාමු පරීක්ෂා කිරීම';
+
+  @override
+  String get linkStageForensicAggregationTitle => 'විමර්ශනාත්මක ඒකාබද්ධ කිරීම';
+
+  @override
+  String get linkStageForensicAggregationDesc =>
+      'කාලානුරූපී සහ රූපමය සාක්ෂි එක්රැස් කිරීම';
+
+  @override
+  String get linkStageVerificationCompleteTitle => 'තහවුරු කිරීම සම්පූර්ණයි';
+
+  @override
+  String get linkStageVerificationCompleteDesc => 'විමර්ශන වාර්තාව සකස් කිරීම';
+
+  @override
+  String get linkVerdictAuthenticTitle => 'සත්‍ය බව තහවුරුයි';
+
+  @override
+  String get linkVerdictSyntheticTitle => 'ව්‍යාජ / වෙනස් කරන ලද';
+
+  @override
+  String get linkVerdictInconclusiveTitle => 'අවිනිශ්චිත සාක්ෂි';
+
+  @override
+  String get linkVerdictUnverifiedTitle => 'තහවුරු නොකළ සබැඳිය';
+
+  @override
+  String get linkVerdictAuthenticDesc =>
+      'සියලු සාම්පල කළ රාමු තුළ ස්වභාවික කැමරා සංවේදක රටා තහවුරු විය.';
+
+  @override
+  String get linkVerdictSyntheticDesc =>
+      'වීඩියෝව පුරා කෘතිමව ජනනය කරන ලද ලක්ෂණ සහ මුහුණේ විකෘතිතා හඳුනා ගන්නා ලදී.';
+
+  @override
+  String get linkVerdictInconclusiveDesc =>
+      'ජෛවමිතික දර්ශක මධ්‍යස්ථ මට්ටමක පවතී. සම්පීඩිත ගුණාත්මකභාවය හේතුවෙන් තීරණය අවිනිශ්චිතය.';
+
+  @override
+  String get linkVerdictUnverifiedDesc =>
+      'වීඩියෝව සෘජුවම බාගත කිරීමට නොහැකි විය. කරුණාකර වීඩියෝ ගොනුව උඩුගත කරන්න.';
+
+  @override
+  String get linkAuthenticityIndex => 'සත්‍යතා දර්ශකය';
+
+  @override
+  String get linkDeepfakeRiskIndex => 'ඩීප්ෆේක් අවදානම් දර්ශකය';
+
+  @override
+  String get linkConfidenceScore => 'විශ්වාසනීය ලකුණු';
+
+  @override
+  String linkAuthenticPercent(String score) {
+    return 'සත්‍ය: $score%';
+  }
+
+  @override
+  String linkManipulationPercent(String score) {
+    return 'ව්‍යාජ: $score%';
+  }
+
+  @override
+  String linkFramesCount(int count) {
+    return 'රාමු $count';
+  }
+
+  @override
+  String linkKeyframesCount(int count) {
+    return 'ප්‍රධාන රාමු $count';
+  }
+
+  @override
+  String get linkDiagnosticsTitle => 'කෘතිම බුද්ධි විමර්ශන විශ්ලේෂණය';
+
+  @override
+  String get linkMetricConfidence => 'සමස්ත විශ්වාසනීයත්වය';
+
+  @override
+  String get linkMetricSampledFrames => 'සාම්පල කළ රාමු';
+
+  @override
+  String get linkMetricFaceCoverage => 'මුහුණ ආවරණය';
+
+  @override
+  String get linkMetricTrackingStability => 'ලුහුබැඳීමේ ස්ථාවරත්වය';
+
+  @override
+  String get linkMetricFrameConsistency => 'රාමු අනුකූලතාව';
+
+  @override
+  String get linkMetricLatency => 'විශ්ලේෂණ කාලය';
+
+  @override
+  String get linkNoSuspiciousFrames => 'ව්‍යාජ රාමු හමු නොවීය';
+
+  @override
+  String get linkNoSuspiciousFramesDesc =>
+      'සියලු රාමු ස්වභාවික අනුකූලතාවයෙන් සමත් විය.';
+
+  @override
+  String linkSuspiciousFramesDetected(int count) {
+    return 'සැක සහිත රාමු හඳුනා ගන්නා ලදී ($count)';
+  }
+
+  @override
+  String linkFrameNumber(int number) {
+    return 'රාමුව #$number';
+  }
+
+  @override
+  String linkFakePercent(String percent) {
+    return 'ව්‍යාජ: $percent%';
+  }
+
+  @override
+  String linkTrackingPercent(String percent) {
+    return 'ලුහුබැඳීම: $percent%';
+  }
+
+  @override
+  String get linkAuditTimeline => 'විමර්ශන කාලසටහන';
+
+  @override
+  String get linkRetrievalFailed => 'වීඩියෝව ලබා ගැනීම අසාර්ථක විය';
+
+  @override
+  String get linkRetrievalFailedDesc =>
+      'වේදිකාවේ ප්‍රවේශ සීමා හෝ ආරක්ෂාව පවතී.';
+
+  @override
+  String get linkUploadDirectlyBtn => 'වීඩියෝ ගොනුව සෘජුවම උඩුගත කරන්න';
+
+  @override
+  String get surpriseRevealBtn => 'ක්ෂණික හෙළිදරව්ව';
+
+  @override
+  String get howToIdentifyBtn => 'හඳුනා ගන්නේ කෙසේද';
+
+  @override
+  String get realVerdict => 'සත්‍ය';
+
+  @override
+  String get manipulatedVerdict => 'ව්‍යාජ';
+
+  @override
+  String get assessmentLabel => 'තක්සේරුව: ';
+
+  @override
+  String get lowRiskLabel => 'අඩු අවදානම';
+
+  @override
+  String get highRiskLabel => 'වැඩි අවදානම';
+
+  @override
+  String get authenticityUpperLabel => 'සත්‍යතාව';
+
+  @override
+  String get authenticStatus => 'සත්‍ය';
+
+  @override
+  String get manipulatedStatus => 'ව්‍යාජ';
+
+  @override
+  String get whyMediaReal => 'මෙම මාධ්‍යය සත්‍ය වන්නේ ඇයි';
+
+  @override
+  String get whyMediaManipulated => 'මෙම මාධ්‍යය ව්‍යාජ වන්නේ ඇයි';
+
+  @override
+  String get sensorMatchLabel => 'දෘශ්‍ය සංවේදක ගැළපීම: ';
+
+  @override
+  String get sensorMismatchLabel => 'දෘශ්‍ය සංවේදක නොගැළපීම: ';
+
+  @override
+  String get sensorMatchDesc =>
+      'කැමරා සංවේදක ශබ්ද රටාව (PRNU) සියලු රාමුවල ස්වභාවිකව පවතී.';
+
+  @override
+  String get sensorMismatchDesc =>
+      'කෘතිම බුද්ධිය මඟින් ජනනය කරන ලද විකෘතිතා රටා හඳුනා ගන්නා ලදී.';
+
+  @override
+  String get motionFlowLabel => 'ස්වභාවික චලන රටාව: ';
+
+  @override
+  String get unnaturalMotionLabel => 'අස්වාභාවික චලන දෛශික: ';
+
+  @override
+  String get motionFlowDesc => 'මුහුණේ සීමා සහ ආලෝක රටා ස්වභාවිකව පවතී.';
+
+  @override
+  String get unnaturalMotionDesc =>
+      'මුහුණේ සීමාවල කෘතිම වෙව්ලීම් සහ කාලානුරූපී නොගැළපීම් හඳුනා ගැනිණි.';
+
+  @override
+  String whyMediaMarginNoteReal(String score) {
+    return 'ඉතිරි $score% ප්‍රමාණය සාමාන්‍ය H.264 වීඩියෝ සම්පීඩනය නිසා ඇති වූවකි.';
+  }
+
+  @override
+  String get whyMediaMarginNoteFake =>
+      'ඉහළ ව්‍යාජ ප්‍රතිශතය පෙන්නුම් කරන්නේ මෙය කෘතිම බුද්ධියෙන් නිර්මාණය කළ ඩීප්ෆේක් එකක් බවයි.';
+
+  @override
+  String get forensicObservations => 'විමර්ශන නිරීක්ෂණ';
+
+  @override
+  String get inferenceEngine => 'විශ්ලේෂණ එන්ජිම';
+
+  @override
+  String get onDeviceTflite => 'උපාංගයේ TFLite';
+
+  @override
+  String get analyzedKeyframes => 'විශ්ලේෂිත\\nරාමු';
+
+  @override
+  String get analyzedImage => 'විශ්ලේෂිත\\nපින්තූරය';
+
+  @override
+  String get analyzedSegments => 'විශ්ලේෂිත\\nකොටස්';
+
+  @override
+  String get avgInferencePerFrame => 'රාමුවකට\\nසාමාන්‍ය කාලය';
+
+  @override
+  String get avgInferencePerImage => 'පින්තූරයකට\\nසාමාන්‍ය කාලය';
+
+  @override
+  String get manipulationConfidence => 'ව්‍යාජතා\\nවිශ්වාසනීයත්වය';
+
+  @override
+  String get creatingPdf => 'PDF සාදමින්...';
+
+  @override
+  String get reportPdf => 'PDF වාර්තාව';
+
+  @override
+  String get shareLink => 'සබැඳිය බෙදාගන්න';
+
+  @override
+  String get reportMediaBtn => 'මාධ්‍ය වාර්තා කරන්න';
+
+  @override
+  String get scanAnotherBtn => 'තවත් එකක් පරීක්ෂා කරන්න';
+
+  @override
+  String get howToIdentifyTitle => 'සත්‍ය සහ ව්‍යාජ හඳුනා ගන්නේ කෙසේද';
+
+  @override
+  String get howToIdentifySubtitle =>
+      'විමර්ශන ඇල්ගොරිතම මෙම භෞතික සාධක පරීක්ෂා කරයි:';
+
+  @override
+  String get pillar1Title => 'දෘශ්‍ය සිලිකන් සංවේදක රටාව';
+
+  @override
+  String get pillar1Real => 'පික්සල හරහා කැමරා සංවේදකයේ ස්වභාවික රටා.';
+
+  @override
+  String get pillar1Fake =>
+      'කෘතිම බුද්ධි ආකෘතිවලින් සකස් කළ අස්වාභාවික පික්සල.';
+
+  @override
+  String get pillar2Title => 'ඇසේ ආලෝක පරාවර්තනය';
+
+  @override
+  String get pillar2Real => 'දෙඇසේම එකම කෝණයකින් සිදුවන පරිසර ආලෝක පරාවර්තනය.';
+
+  @override
+  String get pillar2Fake => 'නොගැළපෙන හෝ විකෘති වූ ඇසේ ආලෝක පරාවර්තන.';
+
+  @override
+  String get gotItBtn => 'තේරුම් ගත්තා';
+
+  @override
+  String get linkCopiedSuccess => 'වාර්තා සබැඳිය පිටපත් කරගන්නා ලදී!';
+
+  @override
+  String get onboardingSkip => 'මඟහරින්න';
+
+  @override
+  String get onboardingNext => 'ඊළඟ';
+
+  @override
+  String get onboardingGetStarted => 'ආරම්භ කරන්න';
+
+  @override
+  String get onboardingSlide1Headline =>
+      'ඩීප්ෆේක් හඳුනා ගන්න.\\nසත්‍යය විශ්වාස කරන්න.';
+
+  @override
+  String get onboardingSlide1Subtitle =>
+      'ඩීප්ෆේක් වීඩියෝ ස්වයංක්‍රීයව හඳුනා ගැනීමට තැනූ කෘතිම බුද්ධි පද්ධතියකි.';
+
+  @override
+  String get onboardingSlide1Badge => 'ඩීප්ෆේක් හඳුනාගැනීම';
+
+  @override
+  String get onboardingSlide2Headline => 'තත්‍ය කාලීන වීඩියෝ සහ\\nහඬ විමර්ශනය';
+
+  @override
+  String get onboardingSlide2Subtitle =>
+      'මුහුණේ ලක්ෂණ, දෘශ්‍ය සංවේදක සහ කාල අනුකූලතාව කෘතිම බුද්ධියෙන් පරීක්ෂා කෙරේ.';
+
+  @override
+  String get onboardingSlide2Badge => 'VeriFrame AI';
+
+  @override
+  String get onboardingSlide3Headline =>
+      'පැහැදිලි කළ හැකි ප්‍රතිඵල සහ\\nවිමර්ශන වාර්තා';
+
+  @override
+  String get onboardingSlide3Subtitle =>
+      'විශ්වාසනීය ලකුණු සහ සාක්ෂි සහිත පියවරෙන් පියවර විමර්ශන වාර්තා ලබා ගන්න.';
+
+  @override
+  String get onboardingSlide3Badge => 'විමර්ශන වාර්තාව';
+
+  @override
+  String get onboardingFrameAnalysis => 'රාමු විශ්ලේෂණය';
+
+  @override
+  String onboardingConfidence(String score) {
+    return '$score% විශ්වාසනීයත්වය';
+  }
+
+  @override
+  String get onboardingExplainableResults => 'පැහැදිලි කළ හැකි ප්‍රතිඵල';
+
+  @override
+  String get onboardingExplainableDesc =>
+      'විශ්වාසනීය ලකුණු සහිත\\nපියවරෙන් පියවර තර්කනය';
+
+  @override
+  String get modalityPhotoShield => 'ඡායාරූප ආරක්ෂණය';
 }

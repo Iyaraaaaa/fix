@@ -12,6 +12,7 @@ from config import config as app_config
 from calibration.confidence_calibration import ConfidenceCalibrator
 from services.reality_defender_service import RealityDefenderService
 from utils.transparency import THRESHOLDS_IMAGE_AUDIO
+from pipelines.acoustic_match_pipeline import AcousticMatchForensics
 
 logger = logging.getLogger("veriframe.pipelines.audio")
 
@@ -41,6 +42,7 @@ class AudioPipeline:
         self.aud_interpreter = aud_interpreter
         self.aud_input_details = aud_input_details
         self.aud_output_details = aud_output_details
+        self.acoustic_match = AcousticMatchForensics()
 
         # Build a fixed deterministic projection matrix: spectral_features -> 1536
         # (acts as a random Gaussian projection of spectral statistics to 1536 dimensions)
@@ -211,6 +213,41 @@ class AudioPipeline:
             logger.debug(f"[AudioPipeline] Fallback for non-wav: {e}")
             return {"fake_probability": 0.25, "duration": 0.0, "sample_rate": 0, "evidence": []}
 
+    def _ensure_wav(self, audio_path: str) -> tuple[str, bool]:
+        """
+        Ensures the audio can be opened as a readable WAV file.
+        If it cannot, converts it to a temporary 16kHz mono WAV file using imageio_ffmpeg.
+        Returns (resolved_wav_path, is_temporary).
+        """
+        try:
+            with wave.open(audio_path, "rb") as wf:
+                if wf.getnframes() > 0:
+                    return audio_path, False
+        except Exception:
+            pass
+
+        try:
+            import subprocess
+            import tempfile
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            tmp_wav.close()
+            cmd = [
+                ffmpeg_exe, "-y", "-i", audio_path,
+                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                tmp_wav.name
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=25)
+            if res.returncode == 0 and os.path.exists(tmp_wav.name) and os.path.getsize(tmp_wav.name) > 44:
+                return tmp_wav.name, True
+            if os.path.exists(tmp_wav.name):
+                os.remove(tmp_wav.name)
+        except Exception as e:
+            logger.warning(f"[AudioPipeline] Audio conversion via ffmpeg failed: {e}")
+
+        return audio_path, False
+
     def process(self, audio_path: str, source: str = "Local Audio") -> Dict[str, Any]:
         start_time = time.time()
         logger.info(f"[AudioPipeline] Starting audio verification: {audio_path}")
@@ -230,144 +267,163 @@ class AudioPipeline:
             f"Payload Hash: {audio_hash[:16]}...",
         ]
 
-        # 1. Local Spectral & Acoustic Forensics
-        local_eval = self._analyze_wav_forensics(audio_path)
-        local_fake_prob = local_eval.get("fake_probability", 0.25)
-        if local_eval.get("duration", 0) > 0:
-            forensic_observations.append(f"Estimated audio timeline: {local_eval['duration']}s at {local_eval.get('sample_rate')}Hz.")
-        if local_eval.get("evidence"):
-            detected_evidence.extend(local_eval["evidence"])
+        wav_path, is_temp_wav = self._ensure_wav(audio_path)
+        try:
+            # 1. Local Spectral & Acoustic Forensics
+            local_eval = self._analyze_wav_forensics(wav_path)
+            local_fake_prob = local_eval.get("fake_probability", 0.25)
+            if local_eval.get("duration", 0) > 0:
+                forensic_observations.append(f"Estimated audio timeline: {local_eval['duration']}s at {local_eval.get('sample_rate')}Hz.")
+            if local_eval.get("evidence"):
+                detected_evidence.extend(local_eval["evidence"])
 
-        # 2. Audio.tflite On-Device Neural Inference (controlled by AUDIO_TFLITE_ENABLED)
-        tflite_fake_prob = None
-        if getattr(app_config, "AUDIO_TFLITE_ENABLED", False):
-            tflite_fake_prob = self._run_tflite_inference(audio_path)
-            if tflite_fake_prob is not None:
-                forensic_observations.append(f"Audio.tflite On-Device Score: {round(tflite_fake_prob * 100, 1)}% synthetic probability.")
-                local_composite = 0.40 * local_fake_prob + 0.60 * tflite_fake_prob
+            # 2. Audio.tflite On-Device Neural Inference (controlled by AUDIO_TFLITE_ENABLED)
+            tflite_fake_prob = None
+            if getattr(app_config, "AUDIO_TFLITE_ENABLED", False):
+                tflite_fake_prob = self._run_tflite_inference(wav_path)
+                if tflite_fake_prob is not None:
+                    forensic_observations.append(f"Audio.tflite On-Device Score: {round(tflite_fake_prob * 100, 1)}% synthetic probability.")
+                    local_composite = 0.40 * local_fake_prob + 0.60 * tflite_fake_prob
+                else:
+                    local_composite = local_fake_prob
             else:
                 local_composite = local_fake_prob
-        else:
-            local_composite = local_fake_prob
 
-        # 3. Reality Defender Voice AI Detection
-        rd_result = None
-        rd_available = False
-        degraded = False
-        engines_used = ["acoustic_heuristics"]
+            # 3. Reality Defender Voice AI Detection
+            rd_result = None
+            rd_available = False
+            degraded = False
+            engines_used = ["acoustic_heuristics"]
 
-        if getattr(app_config, "AUDIO_TFLITE_ENABLED", False) and tflite_fake_prob is not None:
-            engines_used.append("audio_tflite")
+            if getattr(app_config, "AUDIO_TFLITE_ENABLED", False) and tflite_fake_prob is not None:
+                engines_used.append("audio_tflite")
 
-        models_used = "VeriFrame Local Acoustic Forensics"
-        if "audio_tflite" in engines_used:
-            models_used = "VeriFrame Acoustic Forensics + Audio.tflite"
+            models_used = "VeriFrame Local Acoustic Forensics"
+            if "audio_tflite" in engines_used:
+                models_used = "VeriFrame Acoustic Forensics + Audio.tflite"
 
-        if self.rd_service and self.rd_service.detector.is_configured():
-            try:
-                rd_result = self.rd_service.analyze_media(audio_path)
-            except Exception as e:
-                logger.warning(f"[AudioPipeline] Reality Defender failed: {e}")
-                degraded = True
-        else:
-            degraded = True
-
-        if rd_result and rd_result.get("status") == "success":
-            if rd_result.get("partial"):
-                degraded = True
-                forensic_observations.extend(rd_result.get("observations") or [])
-                forensic_observations.append(
-                    "Reality Defender result was PARTIAL (models still ANALYZING at the deadline) and was "
-                    "excluded from the ensemble; local-only result."
-                )
-                models_used = (models_used + " (Reality Defender partial, excluded)")
-                detected_evidence.extend(rd_result.get("evidence") or [])
-                final_fake_prob = local_composite
+            if self.rd_service and self.rd_service.detector.is_configured():
+                try:
+                    rd_result = self.rd_service.analyze_media(audio_path)
+                except Exception as e:
+                    logger.warning(f"[AudioPipeline] Reality Defender failed: {e}")
+                    degraded = True
             else:
-                rd_available = True
-                engines_used.append("reality_defender")
-                rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
-                if "audio_tflite" in engines_used:
-                    final_fake_prob = 0.50 * local_composite + 0.50 * rd_fake_prob
-                    models_used = "Ensemble: Audio.tflite (On-Device) + Spectral Forensics + Reality Defender Voice AI"
+                degraded = True
+
+            if rd_result and rd_result.get("status") == "success":
+                if rd_result.get("partial"):
+                    degraded = True
+                    forensic_observations.extend(rd_result.get("observations") or [])
+                    forensic_observations.append(
+                        "Cloud verification result was PARTIAL (models still ANALYZING at the deadline) and was "
+                        "excluded from the ensemble; local-only result."
+                    )
+                    models_used = (models_used + " (Cloud verification partial, excluded)")
+                    detected_evidence.extend(rd_result.get("evidence") or [])
+                    final_fake_prob = local_composite
                 else:
-                    final_fake_prob = 0.40 * local_composite + 0.60 * rd_fake_prob
-                    models_used = "Ensemble: Acoustic Forensics + Reality Defender Voice AI"
-                if rd_result.get("evidence"):
-                    detected_evidence.extend(rd_result["evidence"])
-                if rd_result.get("observations"):
-                    forensic_observations.extend(rd_result["observations"])
-                forensic_observations.append(f"Reality Defender Cloud Deepfake Voice Score: {rd_result.get('fake_probability')}%.")
-        else:
-            degraded = True
-            final_fake_prob = local_composite
-            forensic_observations.append("Local acoustic spectral decomposition executed.")
-            forensic_observations.append("Audio deep model is unavailable; local-only result.")
+                    rd_available = True
+                    engines_used.append("reality_defender")
+                    rd_fake_prob = float(rd_result.get("fake_probability", 0.0)) / 100.0
+                    if "audio_tflite" in engines_used:
+                        final_fake_prob = 0.50 * local_composite + 0.50 * rd_fake_prob
+                        models_used = "Ensemble: Audio.tflite (On-Device) + Spectral Forensics + Cloud Voice AI"
+                    else:
+                        final_fake_prob = 0.40 * local_composite + 0.60 * rd_fake_prob
+                        models_used = "Ensemble: Acoustic Forensics + Cloud Voice AI"
+                    if rd_result.get("evidence"):
+                        detected_evidence.extend(rd_result["evidence"])
+                    if rd_result.get("observations"):
+                        forensic_observations.extend(rd_result["observations"])
+                    forensic_observations.append(f"Cloud Deepfake Voice Score: {rd_result.get('fake_probability')}%.")
+            else:
+                degraded = True
+                final_fake_prob = local_composite
+                forensic_observations.append("Local acoustic spectral decomposition executed.")
+                forensic_observations.append("Audio deep model is unavailable; local-only result.")
 
-        # Calibrate & Generate Verdict
-        calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
-        fake_percentage = round(calibrated_fake_prob * 100.0, 2)
-        auth_percentage = round((1.0 - calibrated_fake_prob) * 100.0, 2)
+            # Calibrate & Generate Verdict
+            calibrated_fake_prob = self.calibrator.calibrate(final_fake_prob)
+            fake_percentage = round(calibrated_fake_prob * 100.0, 2)
+            auth_percentage = round((1.0 - calibrated_fake_prob) * 100.0, 2)
 
-        if fake_percentage > THRESHOLDS_IMAGE_AUDIO["manipulated_above_pct"]:
-            legacy_verdict = "MANIPULATED"
-            fine_verdict = "FAKE" if fake_percentage >= THRESHOLDS_IMAGE_AUDIO["fake_confirmed_at_or_above_pct"] else "LIKELY_FAKE"
-            risk_level = "HIGH"
-        elif fake_percentage < THRESHOLDS_IMAGE_AUDIO["authentic_below_pct"]:
-            legacy_verdict = "AUTHENTIC"
-            fine_verdict = "REAL" if fake_percentage <= THRESHOLDS_IMAGE_AUDIO["real_confirmed_at_or_below_pct"] else "LIKELY_REAL"
-            risk_level = "LOW"
-            if not detected_evidence:
-                detected_evidence.append(f"Natural acoustic vocal timbre and continuous air pressure verified (Authenticity: {auth_percentage}%).")
-        else:
-            legacy_verdict = "INCONCLUSIVE"
-            fine_verdict = "UNCERTAIN"
-            risk_level = "MEDIUM"
-            if not detected_evidence:
-                detected_evidence.append("Voice features lie in ambiguous acoustic envelope range.")
-
-        confidence_val = round(abs(calibrated_fake_prob - 0.5) * 200.0, 2)
-
-        # If Reality Defender is unavailable, do NOT return a MANIPULATED/HIGH verdict from acoustic heuristics alone.
-        # Return verdict INCONCLUSIVE, low confidence, and a field "engines_used": ["acoustic_heuristics"] with a message that the audio deep model is unavailable.
-        if not rd_available:
-            if legacy_verdict == "MANIPULATED" or risk_level == "HIGH":
+            if fake_percentage > THRESHOLDS_IMAGE_AUDIO["manipulated_above_pct"]:
+                legacy_verdict = "MANIPULATED"
+                fine_verdict = "FAKE" if fake_percentage >= THRESHOLDS_IMAGE_AUDIO["fake_confirmed_at_or_above_pct"] else "LIKELY_FAKE"
+                risk_level = "HIGH"
+            elif fake_percentage < THRESHOLDS_IMAGE_AUDIO["authentic_below_pct"]:
+                legacy_verdict = "AUTHENTIC"
+                fine_verdict = "REAL" if fake_percentage <= THRESHOLDS_IMAGE_AUDIO["real_confirmed_at_or_below_pct"] else "LIKELY_REAL"
+                risk_level = "LOW"
+                if not detected_evidence:
+                    detected_evidence.append(f"Natural acoustic vocal timbre and continuous air pressure verified (Authenticity: {auth_percentage}%).")
+            else:
                 legacy_verdict = "INCONCLUSIVE"
                 fine_verdict = "UNCERTAIN"
                 risk_level = "MEDIUM"
-            confidence_val = min(confidence_val, 30.0)
-            confidence_label = "Low"
-        else:
-            confidence_label = "High" if confidence_val >= 75.0 else ("Medium" if confidence_val >= 50.0 else "Low")
+                if not detected_evidence:
+                    detected_evidence.append("Voice features lie in ambiguous acoustic envelope range.")
 
-        processing_time = round(time.time() - start_time, 2)
+            confidence_val = round(abs(calibrated_fake_prob - 0.5) * 200.0, 2)
 
-        # Extract waveform thumbnail for report preview
-        thumbnail_base64 = self._extract_waveform_thumbnail(audio_path)
+            # If Reality Defender is unavailable, do NOT return a MANIPULATED/HIGH verdict from acoustic heuristics alone.
+            # Return verdict INCONCLUSIVE, low confidence, and a field "engines_used": ["acoustic_heuristics"] with a message that the audio deep model is unavailable.
+            if not rd_available:
+                if legacy_verdict == "MANIPULATED" or risk_level == "HIGH":
+                    legacy_verdict = "INCONCLUSIVE"
+                    fine_verdict = "UNCERTAIN"
+                    risk_level = "MEDIUM"
+                confidence_val = min(confidence_val, 30.0)
+                confidence_label = "Low"
+            else:
+                confidence_label = "High" if confidence_val >= 75.0 else ("Medium" if confidence_val >= 50.0 else "Low")
 
-        return {
-            "verificationId": f"VRF-AUD-{int(time.time() * 1000)}",
-            "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "mediaType": f"audio/{file_ext.lstrip('.')}",
-            "source": source,
-            "authenticityScore": auth_percentage,
-            "fakeProbability": fake_percentage,
-            "confidence": confidence_val,
-            "verdict": legacy_verdict,
-            "fineVerdict": fine_verdict,
-            "riskLevel": risk_level,
-            "modelsUsed": models_used,
-            "detectedEvidence": detected_evidence,
-            "forensicObservations": forensic_observations,
-            "reportHash": audio_hash,
-            "durationSec": local_eval.get("duration", 0.0),
-            "processingTimeSec": processing_time,
-            "reality_defender": rd_result,
-            "confidence_label": confidence_label,
-            "thumbnailBase64": thumbnail_base64,
-            "engines_used": engines_used,
-            "degraded": degraded,
-        }
+            processing_time = round(time.time() - start_time, 2)
+
+            # Extract waveform thumbnail for report preview
+            thumbnail_base64 = self._extract_waveform_thumbnail(wav_path)
+
+            # 4. Acoustic Reverberation (RT60) Forensics
+            acoustic_res = self.acoustic_match.process(wav_path)
+            if acoustic_res.get("observation"):
+                forensic_observations.append(acoustic_res["observation"])
+
+            return {
+                "verificationId": f"VRF-AUD-{int(time.time() * 1000)}",
+                "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "mediaType": f"audio/{file_ext.lstrip('.')}",
+                "source": source,
+                "authenticityScore": auth_percentage,
+                "fakeProbability": fake_percentage,
+                "confidence": confidence_val,
+                "metadataScore": 100.0,
+                "frameConsistency": 100.0,
+                "ocrConfidence": 0.0,
+                "trackingConfidence": 0.0,
+                "manipulationScore": fake_percentage,
+                "verdict": legacy_verdict,
+                "fineVerdict": fine_verdict,
+                "riskLevel": risk_level,
+                "modelsUsed": models_used,
+                "detectedEvidence": detected_evidence,
+                "forensicObservations": forensic_observations,
+                "reportHash": audio_hash,
+                "durationSec": local_eval.get("duration", 0.0),
+                "processingTimeSec": processing_time,
+                "reality_defender": rd_result,
+                "acousticMatch": acoustic_res,
+                "confidence_label": confidence_label,
+                "thumbnailBase64": thumbnail_base64,
+                "engines_used": engines_used,
+                "degraded": degraded,
+            }
+        finally:
+            if is_temp_wav and os.path.exists(wav_path):
+                try:
+                    os.remove(wav_path)
+                except Exception:
+                    pass
 
 
     def _extract_waveform_thumbnail(self, audio_path: str, width: int = 320, height: int = 180) -> Optional[str]:

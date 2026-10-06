@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:veriframe_app/l10n/app_localizations.dart';
+import 'package:veriframe_app/widgets/language_selector_button.dart';
 
 class OnBoardingScreen extends StatefulWidget {
   const OnBoardingScreen({super.key});
@@ -19,29 +21,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   static const _bg = Color(0xFF0D1B2A);
   static const _accent = Color(0xFF1565C0);
   static const _scan = Color(0xFF00E5FF);
-
-  final List<Map<String, dynamic>> pageArr = [
-    {
-      "headline": "Detect Deepfakes.\nTrust What's Real.",
-      "subtitle":
-          "An AI system built to detect\ndeepfake videos automatically.",
-      "badgeLabel": "Deepfake Detection",
-      "illustration": 0,
-    },
-    {
-      "headline": "Deepfake හඳුනා\nගන්න AI සමඟ",
-      "subtitle":
-          "AI පද්ධතියක් තුළින් deepfake වීඩියෝ\nස්වයංක්‍රීයව හඳුනා ගැනීම.",
-      "badgeLabel": "VeriFrame AI",
-      "illustration": 1,
-    },
-    {
-      "headline": "நிகழ்நேர வீடியோ\nசரிபார்ப்பு",
-      "subtitle": "AI மூலம் deepfake வீடியோக்களை\nதானாக கண்டறியும் அமைப்பு.",
-      "badgeLabel": "Frame Analysis",
-      "illustration": 2,
-    },
-  ];
 
   @override
   void initState() {
@@ -72,15 +51,66 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     super.dispose();
   }
 
+  List<Map<String, dynamic>> _getPages(AppLocalizations? loc) {
+    return [
+      {
+        "headline": loc?.onboardingSlide1Headline.replaceAll('\\n', '\n') ??
+            "Detect Deepfakes.\nTrust What's Real.",
+        "subtitle": loc?.onboardingSlide1Subtitle.replaceAll('\\n', '\n') ??
+            "An AI system built to detect\ndeepfake videos automatically.",
+        "badgeLabel": loc?.onboardingSlide1Badge ?? "Deepfake Detection",
+        "illustration": 0,
+      },
+      {
+        "headline": loc?.onboardingSlide2Headline.replaceAll('\\n', '\n') ??
+            "Real-Time Video &\nVoice Forensics",
+        "subtitle": loc?.onboardingSlide2Subtitle.replaceAll('\\n', '\n') ??
+            "AI models analyze facial landmarks,\noptical noise, and temporal consistency.",
+        "badgeLabel": loc?.onboardingSlide2Badge ?? "VeriFrame AI",
+        "illustration": 1,
+      },
+      {
+        "headline": loc?.onboardingSlide3Headline.replaceAll('\\n', '\n') ??
+            "Explainable Results &\nForensic Reports",
+        "subtitle": loc?.onboardingSlide3Subtitle.replaceAll('\\n', '\n') ??
+            "Step-by-step forensic reasoning with\nclear confidence scores and evidence.",
+        "badgeLabel": loc?.onboardingSlide3Badge ?? "Forensic Audit",
+        "illustration": 2,
+      },
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final loc = AppLocalizations.of(context);
+    final pageArr = _getPages(loc);
 
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           children: [
+            // Top Bar with Brand and Language selector
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'VERIFRAME',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                  const LanguageSelectorButton(iconColor: Colors.white),
+                ],
+              ),
+            ),
+
             // PageView
             Expanded(
               child: PageView.builder(
@@ -88,30 +118,30 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                 itemCount: pageArr.length,
                 onPageChanged: (p) => setState(() => selectPage = p),
                 itemBuilder: (context, index) =>
-                    _buildPage(pageArr[index], size),
+                    _buildPage(pageArr[index], size, loc, pageArr.length),
               ),
             ),
 
             // Bottom controls
-            _buildBottomControls(context),
+            _buildBottomControls(context, pageArr.length, loc),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPage(Map<String, dynamic> obj, Size size) {
+  Widget _buildPage(Map<String, dynamic> obj, Size size, AppLocalizations? loc, int totalPages) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 28),
+          const SizedBox(height: 12),
 
           // Illustration card
-          _buildIllustrationCard(obj, size),
+          _buildIllustrationCard(obj, size, loc),
 
-          const SizedBox(height: 36),
+          const SizedBox(height: 24),
 
           // Badge
           Container(
@@ -145,14 +175,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Headline
           Text(
             obj["headline"] as String,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 27,
+              fontSize: 24,
               fontWeight: FontWeight.w700,
               height: 1.25,
               letterSpacing: -0.3,
@@ -165,17 +195,17 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           Text(
             obj["subtitle"] as String,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withValues(alpha: 0.55),
               fontSize: 13,
-              height: 1.6,
+              height: 1.5,
             ),
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           // Dots
           Row(
-            children: List.generate(pageArr.length, (i) {
+            children: List.generate(totalPages, (i) {
               final active = selectPage == i;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
@@ -194,9 +224,10 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     );
   }
 
-  Widget _buildIllustrationCard(Map<String, dynamic> obj, Size size) {
+  Widget _buildIllustrationCard(Map<String, dynamic> obj, Size size, AppLocalizations? loc) {
+    final cardHeight = (size.height * 0.33).clamp(180.0, 260.0);
     return Container(
-      height: size.height * 0.36,
+      height: cardHeight,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Colors.white.withValues(alpha: 0.04),
@@ -210,13 +241,13 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
           CustomPaint(painter: _GridPainter()),
 
           // Content
-          Center(child: _buildIllustration(obj["illustration"] as int)),
+          Center(child: _buildIllustration(obj["illustration"] as int, loc)),
 
           // Scan line
           AnimatedBuilder(
             animation: _scanAnimation,
             builder: (_, __) => Positioned(
-              top: _scanAnimation.value * size.height * 0.36,
+              top: _scanAnimation.value * cardHeight,
               left: 0,
               right: 0,
               child: Container(
@@ -270,19 +301,18 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     );
   }
 
-  Widget _buildIllustration(int index) {
+  Widget _buildIllustration(int index, AppLocalizations? loc) {
     switch (index) {
       case 0:
-        return _faceGrid();
+        return _faceGrid(loc);
       case 1:
-        return _analysisPanel();
+        return _analysisPanel(loc);
       default:
-        return _explainPanel();
+        return _explainPanel(loc);
     }
   }
 
-  // Illustration 0 — Sinhala
-  Widget _faceGrid() {
+  Widget _faceGrid(AppLocalizations? loc) {
     final statuses = [true, false, true, false, true, null, false, null, true];
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -294,7 +324,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Frame Analysis",
+                loc?.onboardingFrameAnalysis ?? "Frame Analysis",
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 10,
@@ -354,8 +384,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     );
   }
 
-  // Illustration 1 — Tamil
-  Widget _analysisPanel() {
+  Widget _analysisPanel(AppLocalizations? loc) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       child: Column(
@@ -367,12 +396,12 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             size: 30,
           ),
           const SizedBox(height: 14),
-          _bar("Real", 0.94, Colors.greenAccent),
+          _bar(loc?.realVerdict ?? "Real", 0.94, Colors.greenAccent),
           const SizedBox(height: 8),
-          _bar("Fake", 0.06, Colors.redAccent),
+          _bar(loc?.manipulatedVerdict ?? "Fake", 0.06, Colors.redAccent),
           const SizedBox(height: 14),
           Text(
-            "97.4% confidence",
+            loc?.onboardingConfidence("97.4") ?? "97.4% confidence",
             style: TextStyle(
               color: _scan.withValues(alpha: 0.8),
               fontSize: 12,
@@ -434,8 +463,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     );
   }
 
-  // Illustration 2 — English
-  Widget _explainPanel() {
+  Widget _explainPanel(AppLocalizations? loc) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -446,7 +474,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
         ),
         const SizedBox(height: 12),
         Text(
-          "Explainable Results",
+          loc?.onboardingExplainableResults ?? "Explainable Results",
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.7),
             fontSize: 13,
@@ -455,7 +483,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          "Step-by-step reasoning\nwith confidence scores",
+          loc?.onboardingExplainableDesc.replaceAll('\\n', '\n') ??
+              "Step-by-step reasoning\nwith confidence scores",
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.35),
@@ -467,8 +496,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     );
   }
 
-  Widget _buildBottomControls(BuildContext context) {
-    final isLast = selectPage == pageArr.length - 1;
+  Widget _buildBottomControls(BuildContext context, int totalPages, AppLocalizations? loc) {
+    final isLast = selectPage == totalPages - 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
       child: Row(
@@ -480,7 +509,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
               child: Text(
-                "Skip",
+                loc?.onboardingSkip ?? "Skip",
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 14,
@@ -512,7 +541,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isLast ? "Get Started" : "Next",
+                    isLast
+                        ? (loc?.onboardingGetStarted ?? "Get Started")
+                        : (loc?.onboardingNext ?? "Next"),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -520,10 +551,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    isLast
-                        ? Icons.arrow_forward_rounded
-                        : Icons.arrow_forward_rounded,
+                  const Icon(
+                    Icons.arrow_forward_rounded,
                     color: Colors.white,
                     size: 15,
                   ),

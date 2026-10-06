@@ -517,7 +517,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emailLabel => 'Email';
 
   @override
-  String get rememberMe => 'Remember me';
+  String get rememberMe => 'Remember Me';
 
   @override
   String get forgotPassword => 'Forgot Password?';
@@ -538,7 +538,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signUpTitle => 'SIGN UP';
 
   @override
-  String get createAccount => 'Create your account';
+  String get createAccount => 'Create Account';
 
   @override
   String get confirmPassword => 'Confirm Password';
@@ -2474,4 +2474,729 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportActionsUnavailable => 'No actions available for this report';
+
+  @override
+  String get modalitySelectTitle => 'Select Verification Type';
+
+  @override
+  String get modalitySelectSubtitle =>
+      'Choose what type of media you want to inspect for deepfakes and AI generation.';
+
+  @override
+  String get modalityVideoTitle => 'Video Verification';
+
+  @override
+  String get modalityVideoDesc =>
+      'Analyze videos, YouTube links & live streams for authenticity';
+
+  @override
+  String get modalityVideoBadge => 'VIDEO & STREAM';
+
+  @override
+  String get modalityLocalVideo => 'Local Video';
+
+  @override
+  String get modalityVideoLink => 'Video Link';
+
+  @override
+  String get modalityLiveStream => 'Live Stream';
+
+  @override
+  String get modalityImageTitle => 'Image Verification';
+
+  @override
+  String get modalityImageDesc =>
+      'Detect AI artifacts, face swaps, GAN images & deep fakes';
+
+  @override
+  String get modalityImageBadge => 'IMAGE & URL';
+
+  @override
+  String get modalityLocalPhoto => 'Local Photo';
+
+  @override
+  String get modalityImageLink => 'Image Link';
+
+  @override
+  String get modalityAudioTitle => 'Audio Voice Verification';
+
+  @override
+  String get modalityAudioDesc =>
+      'Detect voice cloning, synthetic speech & audio artifacts';
+
+  @override
+  String get modalityAudioBadge => 'VOICE CLONE AI';
+
+  @override
+  String get modalityLocalAudio => 'Local Audio';
+
+  @override
+  String get imageForensicsTitle => 'Image Forensics';
+
+  @override
+  String get localImageTab => 'Local Image';
+
+  @override
+  String get imageLinkTab => 'Image Link';
+
+  @override
+  String get inspectImageFilesTitle => 'Inspect Image Files';
+
+  @override
+  String get inspectImageFilesDesc =>
+      'Analyze JPEG, PNG, WEBP files for deepfakes, face swaps, GAN generation artifacts, and synthetic manipulations using our forensic AI model.';
+
+  @override
+  String get localImageAnalysisTitle => 'Local Image Analysis';
+
+  @override
+  String get selectImageFileHint => 'Select Image File';
+
+  @override
+  String get browseImageBtn => 'BROWSE IMAGE';
+
+  @override
+  String get analyzeImageBtn => 'Analyze Image';
+
+  @override
+  String get scanImageUrlTitle => 'Scan Image URL';
+
+  @override
+  String get scanImageUrlDesc =>
+      'Verify images directly from public web addresses, news links, and image hosting services.';
+
+  @override
+  String get imageUrlVerificationTitle => 'Image URL Verification';
+
+  @override
+  String get pasteImageUrlHint => 'Paste Image URL';
+
+  @override
+  String get enterImageUrlPlaceholder =>
+      'Enter direct image URL (JPG, PNG, WebP)...';
+
+  @override
+  String get analyzeLinkBtn => 'ANALYZE LINK';
+
+  @override
+  String get imageForensicReportTitle => 'IMAGE FORENSIC REPORT';
+
+  @override
+  String get scanAnotherImageBtn => 'Scan Another Image';
+
+  @override
+  String get backendServerSettingsTitle => 'Backend Server Settings';
+
+  @override
+  String get resetToDefaultBtn => 'Reset to Default';
+
+  @override
+  String get audioVerificationTitle => 'Audio Verification';
+
+  @override
+  String get audioVoiceDeepfakeTitle => 'Audio Voice Deepfake Detection';
+
+  @override
+  String get audioVoiceDeepfakeDesc =>
+      'Analyze audio clips for voice cloning, synthetic speech synthesis, and acoustic manipulation.';
+
+  @override
+  String get uploadAudioClipTitle => 'Upload Audio Clip';
+
+  @override
+  String get supportedAudioFormatsHint =>
+      'Supported formats: MP3, WAV, M4A, AAC, OGG';
+
+  @override
+  String get browseAudioFileBtn => 'BROWSE AUDIO FILE';
+
+  @override
+  String get verifyAudioBtn => 'Verify Audio';
+
+  @override
+  String get audioForensicReportTitle => 'AUDIO FORENSIC REPORT';
+
+  @override
+  String get scanAnotherAudioBtn => 'Scan Another Audio';
+
+  @override
+  String get forensicReportTitle => 'Forensic Report';
+
+  @override
+  String get escalateToAuthority => 'Escalate to Authority';
+
+  @override
+  String get pdfReportBtn => 'PDF Report';
+
+  @override
+  String get evidenceBtn => 'Evidence';
+
+  @override
+  String get escalateBtn => 'Escalate';
+
+  @override
+  String get openVideoLinkBtn => 'Open Video Link';
+
+  @override
+  String get playLiveStreamRecording => 'Play Live Stream Recording';
+
+  @override
+  String get doneViewingBtn => 'Done Viewing';
+
+  @override
+  String get openImageLinkInBrowser => 'Open Image Link in Browser';
+
+  @override
+  String get openInEvidencePlayer => 'Open in Evidence Player';
+
+  @override
+  String get forensicAnalysisSignals => 'FORENSIC ANALYSIS SIGNALS';
+
+  @override
+  String get aiExplainabilityReasoning => 'AI EXPLAINABILITY & REASONING';
+
+  @override
+  String get investigativeSummary => 'INVESTIGATIVE SUMMARY';
+
+  @override
+  String get mediaDetails => 'MEDIA DETAILS';
+
+  @override
+  String get videoAnalysisTitle => 'Video Analysis';
+
+  @override
+  String get stepValidatingUrl => 'Validating URL';
+
+  @override
+  String get stepDetectingPlatform => 'Detecting Platform';
+
+  @override
+  String get stepDownloadingVideo => 'Downloading Video';
+
+  @override
+  String get stepExtractingFrames => 'Extracting Frames';
+
+  @override
+  String get stepDetectingFaces => 'Detecting Faces';
+
+  @override
+  String get stepRunningAiAnalysis => 'Running AI Analysis';
+
+  @override
+  String get stepGeneratingReport => 'Generating Report';
+
+  @override
+  String get stepVerificationComplete => 'Verification Complete';
+
+  @override
+  String get analyzingVideoStream => 'Analyzing Video Stream';
+
+  @override
+  String get analyzingVideoStreamDesc =>
+      'Please wait while VeriFrame downloads and inspects the media.';
+
+  @override
+  String get viewReportBtn => 'View Report';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get dontHaveAccount => 'Don\'t have an account?';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account?';
+
+  @override
+  String get fullNameLabel => 'Full Name';
+
+  @override
+  String get verificationFailed => 'Verification Failed';
+
+  @override
+  String get goBackAndTryAnother => 'Go Back & Try Another URL';
+
+  @override
+  String get pauseOrCancel => 'PAUSE / CANCEL';
+
+  @override
+  String get processingStatus => 'Processing...';
+
+  @override
+  String stageOf(int current, int total) {
+    return 'Stage $current of $total';
+  }
+
+  @override
+  String get orText => 'OR';
+
+  @override
+  String get audioLabel => 'Audio';
+
+  @override
+  String get imageLabel => 'Image';
+
+  @override
+  String get evidenceLabel => 'Evidence';
+
+  @override
+  String get openPdf => 'Open PDF';
+
+  @override
+  String get localVideoEvidence => 'Local Video Evidence';
+
+  @override
+  String get videoLinkEvidence => 'Video Link Evidence';
+
+  @override
+  String get liveStreamEvidence => 'Live Stream Evidence';
+
+  @override
+  String get imageEvidence => 'Image Evidence';
+
+  @override
+  String get audioEvidence => 'Audio Evidence';
+
+  @override
+  String get verifySelectPlatform => 'Select Platform';
+
+  @override
+  String get verifyChoosePlatform => 'Choose where your video is hosted';
+
+  @override
+  String get verifyVideoLinkLabel => 'VIDEO LINK';
+
+  @override
+  String get verifyClear => 'Clear';
+
+  @override
+  String get verifyPaste => 'Paste';
+
+  @override
+  String verifyPasteLinkPlaceholder(String platform) {
+    return 'Paste your $platform link here...';
+  }
+
+  @override
+  String get verifyNowButton => 'VERIFY NOW';
+
+  @override
+  String get verifyLiveTelemetryHud => 'LIVE STREAM TELEMETRY HUD';
+
+  @override
+  String get verifyStreamProtocols => 'RTSP / RTMP / CAMERA';
+
+  @override
+  String get verifyRealTimeStreamTitle =>
+      'Real-Time Continuous Stream Verification';
+
+  @override
+  String get verifyRealTimeStreamDesc =>
+      'Monitor live video streams in real-time with continuous sliding-window temporal confidence tracking.';
+
+  @override
+  String get verifyEnterStreamUrlOptional =>
+      'Enter RTSP, RTMP, or HLS stream URL (optional)...';
+
+  @override
+  String get verifyLiveCameraStreamBtn => 'Live Camera Stream';
+
+  @override
+  String get verifyRtspNetworkStreamBtn => 'RTSP/Network Stream';
+
+  @override
+  String get verifyEnterStreamUrlAlert =>
+      'Please enter an RTSP/RTMP/HLS stream URL or select Live Camera Stream.';
+
+  @override
+  String get verifyRunsOnDevice => 'Runs on device';
+
+  @override
+  String verifySecondsRemaining(int seconds) {
+    return '~${seconds}s remaining';
+  }
+
+  @override
+  String get linkStageValidatingUrlTitle => 'Validating URL';
+
+  @override
+  String get linkStageValidatingUrlDesc =>
+      'Checking URL syntax, cryptographic schema, and domain reputation';
+
+  @override
+  String get linkStageDetectingPlatformTitle => 'Detecting Platform';
+
+  @override
+  String get linkStageDetectingPlatformDesc =>
+      'Identifying video host, CDN endpoint, and extractor profile';
+
+  @override
+  String get linkStageDownloadingStreamTitle => 'Downloading Stream';
+
+  @override
+  String get linkStageDownloadingStreamDesc =>
+      'Retrieving media payload into secure forensic sandbox';
+
+  @override
+  String get linkStageSamplingKeyframesTitle => 'Sampling Keyframes';
+
+  @override
+  String get linkStageSamplingKeyframesDesc =>
+      'Decoding video container and extracting scene-aware keyframes';
+
+  @override
+  String get linkStageBiometricDetectionTitle => 'Biometric Detection';
+
+  @override
+  String get linkStageBiometricDetectionDesc =>
+      'Locating facial boundaries, landmarks, and spatial tracking vectors';
+
+  @override
+  String get linkStageNeuralDeepfakeTitle => 'Neural Deepfake Inference';
+
+  @override
+  String get linkStageNeuralDeepfakeDesc =>
+      'Evaluating keyframe crops with on-device & cloud forensic classifiers';
+
+  @override
+  String get linkStageForensicAggregationTitle => 'Forensic Aggregation';
+
+  @override
+  String get linkStageForensicAggregationDesc =>
+      'Fusing spatial, temporal, frequency, and sensor noise evidence';
+
+  @override
+  String get linkStageVerificationCompleteTitle => 'Verification Complete';
+
+  @override
+  String get linkStageVerificationCompleteDesc =>
+      'Compiling cryptographic forensic report and audit trail';
+
+  @override
+  String get linkVerdictAuthenticTitle => 'VERIFIED AUTHENTIC';
+
+  @override
+  String get linkVerdictSyntheticTitle => 'SYNTHETIC / MANIPULATED';
+
+  @override
+  String get linkVerdictInconclusiveTitle => 'INCONCLUSIVE EVIDENCE';
+
+  @override
+  String get linkVerdictUnverifiedTitle => 'UNVERIFIED LINK';
+
+  @override
+  String get linkVerdictAuthenticDesc =>
+      'Natural optical camera sensor noise and consistent temporal facial motion verified across all sampled keyframes.';
+
+  @override
+  String get linkVerdictSyntheticDesc =>
+      'Generative synthetic artifacts and inter-frame facial texture warping detected across video timeline.';
+
+  @override
+  String get linkVerdictInconclusiveDesc =>
+      'Borderline biometric indicators or compressed resolution. Deepfake probability lies in the neutral range.';
+
+  @override
+  String get linkVerdictUnverifiedDesc =>
+      'Video payload could not be extracted directly. Please upload the raw video file for analysis.';
+
+  @override
+  String get linkAuthenticityIndex => 'AUTHENTICITY INDEX';
+
+  @override
+  String get linkDeepfakeRiskIndex => 'DEEPFAKE RISK INDEX';
+
+  @override
+  String get linkConfidenceScore => 'CONFIDENCE SCORE';
+
+  @override
+  String linkAuthenticPercent(String score) {
+    return 'Authentic: $score%';
+  }
+
+  @override
+  String linkManipulationPercent(String score) {
+    return 'Manipulation: $score%';
+  }
+
+  @override
+  String linkFramesCount(int count) {
+    return '$count frames';
+  }
+
+  @override
+  String linkKeyframesCount(int count) {
+    return '$count keyframes';
+  }
+
+  @override
+  String get linkDiagnosticsTitle => 'Forensic AI Diagnostics';
+
+  @override
+  String get linkMetricConfidence => 'Overall Confidence';
+
+  @override
+  String get linkMetricSampledFrames => 'Sampled Frames';
+
+  @override
+  String get linkMetricFaceCoverage => 'Face Coverage';
+
+  @override
+  String get linkMetricTrackingStability => 'Tracking Stability';
+
+  @override
+  String get linkMetricFrameConsistency => 'Frame Consistency';
+
+  @override
+  String get linkMetricLatency => 'Analysis Latency';
+
+  @override
+  String get linkNoSuspiciousFrames => 'No Manipulated Keyframes Detected';
+
+  @override
+  String get linkNoSuspiciousFramesDesc =>
+      'All sampled keyframes passed temporal consistency and facial boundary checks.';
+
+  @override
+  String linkSuspiciousFramesDetected(int count) {
+    return 'Suspicious Keyframes Detected ($count)';
+  }
+
+  @override
+  String linkFrameNumber(int number) {
+    return 'Frame #$number';
+  }
+
+  @override
+  String linkFakePercent(String percent) {
+    return 'Fake: $percent%';
+  }
+
+  @override
+  String linkTrackingPercent(String percent) {
+    return 'Tracking: $percent%';
+  }
+
+  @override
+  String get linkAuditTimeline => 'Forensic Audit Timeline';
+
+  @override
+  String get linkRetrievalFailed => 'Video Stream Retrieval Failed';
+
+  @override
+  String get linkRetrievalFailedDesc =>
+      'Platform access restricted or stream protected.';
+
+  @override
+  String get linkUploadDirectlyBtn => 'Upload Video File Directly';
+
+  @override
+  String get surpriseRevealBtn => 'Surprise Reveal';
+
+  @override
+  String get howToIdentifyBtn => 'How to Identify';
+
+  @override
+  String get realVerdict => 'Real';
+
+  @override
+  String get manipulatedVerdict => 'Manipulated';
+
+  @override
+  String get assessmentLabel => 'ASSESSMENT: ';
+
+  @override
+  String get lowRiskLabel => 'LOW RISK';
+
+  @override
+  String get highRiskLabel => 'HIGH RISK';
+
+  @override
+  String get authenticityUpperLabel => 'AUTHENTICITY';
+
+  @override
+  String get authenticStatus => 'Authentic';
+
+  @override
+  String get manipulatedStatus => 'Manipulated';
+
+  @override
+  String get whyMediaReal => 'Why this media is Real';
+
+  @override
+  String get whyMediaManipulated => 'Why this media is Manipulated';
+
+  @override
+  String get sensorMatchLabel => 'Optical Sensor Match: ';
+
+  @override
+  String get sensorMismatchLabel => 'Optical Sensor Mismatch: ';
+
+  @override
+  String get sensorMatchDesc =>
+      'Silicon sensor pattern noise (PRNU) verified across all keyframes without AI smoothing.';
+
+  @override
+  String get sensorMismatchDesc =>
+      'High-frequency spectral anomalies and generative warping patterns detected.';
+
+  @override
+  String get motionFlowLabel => 'Natural Motion Flow: ';
+
+  @override
+  String get unnaturalMotionLabel => 'Unnatural Motion Vectors: ';
+
+  @override
+  String get motionFlowDesc =>
+      'Facial boundaries and specular lighting vectors remain continuous without seam jitter.';
+
+  @override
+  String get unnaturalMotionDesc =>
+      'Generative flickering and temporal inconsistency detected in facial boundaries.';
+
+  @override
+  String whyMediaMarginNoteReal(String score) {
+    return 'The remaining $score% margin is standard H.264 compression quantization, not neural manipulation.';
+  }
+
+  @override
+  String get whyMediaMarginNoteFake =>
+      'The high manipulation confidence indicates this is highly likely an AI generated deepfake.';
+
+  @override
+  String get forensicObservations => 'Forensic observations';
+
+  @override
+  String get inferenceEngine => 'Inference engine';
+
+  @override
+  String get onDeviceTflite => 'On-device TFLite';
+
+  @override
+  String get analyzedKeyframes => 'Analyzed\\nkeyframes';
+
+  @override
+  String get analyzedImage => 'Analyzed\\nimage';
+
+  @override
+  String get analyzedSegments => 'Analyzed\\nsegments';
+
+  @override
+  String get avgInferencePerFrame => 'Average\\ninference/frame';
+
+  @override
+  String get avgInferencePerImage => 'Average\\ninference\\nper image';
+
+  @override
+  String get manipulationConfidence => 'Manipulation\\nconfidence';
+
+  @override
+  String get creatingPdf => 'Creating PDF...';
+
+  @override
+  String get reportPdf => 'Report PDF';
+
+  @override
+  String get shareLink => 'Share link';
+
+  @override
+  String get reportMediaBtn => 'Report media';
+
+  @override
+  String get scanAnotherBtn => 'Scan another';
+
+  @override
+  String get howToIdentifyTitle => 'How to Identify Real vs Fake';
+
+  @override
+  String get howToIdentifySubtitle =>
+      'Forensic algorithms & analysts verify these physical principles:';
+
+  @override
+  String get pillar1Title => 'Optical Silicon Sensor Noise';
+
+  @override
+  String get pillar1Real =>
+      'Microscopic noise from camera sensors across pixels.';
+
+  @override
+  String get pillar1Fake =>
+      'Mathematical pixels with unnatural neural smoothing.';
+
+  @override
+  String get pillar2Title => 'Corneal Light Reflection';
+
+  @override
+  String get pillar2Real =>
+      'Identical ambient light reflection angles in both eye pupils.';
+
+  @override
+  String get pillar2Fake =>
+      'Mismatched catchlights or distorted corneal reflection.';
+
+  @override
+  String get gotItBtn => 'Got It';
+
+  @override
+  String get linkCopiedSuccess =>
+      'Report verification link copied to clipboard!';
+
+  @override
+  String get onboardingSkip => 'Skip';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingGetStarted => 'Get Started';
+
+  @override
+  String get onboardingSlide1Headline =>
+      'Detect Deepfakes.\\nTrust What\'s Real.';
+
+  @override
+  String get onboardingSlide1Subtitle =>
+      'An AI system built to detect\\ndeepfake videos automatically.';
+
+  @override
+  String get onboardingSlide1Badge => 'Deepfake Detection';
+
+  @override
+  String get onboardingSlide2Headline => 'Real-Time Video &\\nVoice Forensics';
+
+  @override
+  String get onboardingSlide2Subtitle =>
+      'AI models analyze facial landmarks,\\noptical noise, and temporal consistency.';
+
+  @override
+  String get onboardingSlide2Badge => 'VeriFrame AI';
+
+  @override
+  String get onboardingSlide3Headline =>
+      'Explainable Results &\\nForensic Reports';
+
+  @override
+  String get onboardingSlide3Subtitle =>
+      'Step-by-step forensic reasoning with\\nclear confidence scores and evidence.';
+
+  @override
+  String get onboardingSlide3Badge => 'Forensic Audit';
+
+  @override
+  String get onboardingFrameAnalysis => 'Frame Analysis';
+
+  @override
+  String onboardingConfidence(String score) {
+    return '$score% confidence';
+  }
+
+  @override
+  String get onboardingExplainableResults => 'Explainable Results';
+
+  @override
+  String get onboardingExplainableDesc =>
+      'Step-by-step reasoning\\nwith confidence scores';
+
+  @override
+  String get modalityPhotoShield => 'Photo Shield';
 }

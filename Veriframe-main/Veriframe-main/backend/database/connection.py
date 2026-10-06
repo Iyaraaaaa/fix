@@ -3,7 +3,7 @@ import os
 import json
 import time
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from config import config as app_config
 
@@ -91,8 +91,31 @@ def init_db():
     finally:
         conn.close()
 
+def _format_report_row(row: sqlite3.Row) -> Dict[str, Any]:
+    d = dict(row)
+    for field in ("detected_evidence", "forensic_observations"):
+        val = d.get(field)
+        if isinstance(val, str):
+            try:
+                d[field] = json.loads(val)
+            except Exception:
+                d[field] = []
+    # Provide camelCase field aliases for Flutter frontend client compatibility
+    d["verificationId"] = d.get("verification_id") or d.get("id")
+    d["mediaType"] = d.get("media_type")
+    d["authenticityScore"] = d.get("authenticity_score")
+    d["fakeProbability"] = d.get("fake_probability")
+    d["riskLevel"] = d.get("risk_level")
+    d["detectedEvidence"] = d.get("detected_evidence")
+    d["forensicObservations"] = d.get("forensic_observations")
+    d["reportHash"] = d.get("report_hash")
+    d["framesAnalyzed"] = d.get("frames_analyzed")
+    d["processingTimeSec"] = d.get("processing_time_sec")
+    d["thumbnailBase64"] = d.get("thumbnail_base64")
+    return d
+
 def upsert_job(job_id: str, status: str = "pending", progress: float = 0.0, result: Optional[Dict] = None, error: Optional[str] = None, cached: bool = False):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     conn = get_connection()
     try:
         conn.execute("""
@@ -115,11 +138,12 @@ def upsert_job(job_id: str, status: str = "pending", progress: float = 0.0, resu
         conn.close()
 
 def insert_report(report: Dict[str, Any]):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     conn = get_connection()
+    v_id = report.get("verificationId") or f"VRF-{int(time.time() * 1000)}"
     try:
         conn.execute("""
-            INSERT INTO reports (
+            INSERT OR REPLACE INTO reports (
                 id, verification_id, job_id, session_id, source, media_type,
                 authenticity_score, fake_probability, confidence, verdict, risk_level,
                 detected_evidence, forensic_observations, report_hash,
@@ -128,28 +152,28 @@ def insert_report(report: Dict[str, Any]):
                 model_used, thumbnail_base64, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            report.get("verificationId"),
-            report.get("verificationId"),
+            v_id,
+            v_id,
             report.get("_job_id"),
             report.get("_session_id"),
-            report.get("source"),
-            report.get("mediaType"),
-            report.get("authenticityScore"),
-            report.get("fakeProbability"),
-            report.get("confidence"),
-            report.get("verdict"),
-            report.get("riskLevel"),
+            report.get("source", "Verification"),
+            report.get("mediaType", "media"),
+            report.get("authenticityScore", 0.0),
+            report.get("fakeProbability", 0.0),
+            report.get("confidence", 0.0),
+            report.get("verdict", "INCONCLUSIVE"),
+            report.get("riskLevel", "UNKNOWN"),
             json.dumps(report.get("detectedEvidence", []), default=str),
             json.dumps(report.get("forensicObservations", []), default=str),
             report.get("reportHash"),
             report.get("framesAnalyzed", 0),
             report.get("framesSkipped", 0),
-            report.get("processingTimeSec"),
-            report.get("averageScore"),
-            report.get("inferenceTimeMs"),
+            report.get("processingTimeSec", 0.0),
+            report.get("averageScore", 0.0),
+            report.get("inferenceTimeMs", 0.0),
             1 if report.get("is_fake") else 0,
-            report.get("confidence_label"),
-            report.get("_model_used", "veriframe_model"),
+            report.get("confidence_label", "Low"),
+            report.get("model_used") or report.get("modelsUsed") or report.get("_model_used", "veriframe_model"),
             report.get("thumbnailBase64"),
             now,
         ))
@@ -162,7 +186,7 @@ def get_report_by_hash(report_hash: str) -> Optional[Dict[str, Any]]:
     try:
         row = conn.execute("SELECT * FROM reports WHERE report_hash = ?", (report_hash,)).fetchone()
         if row:
-            return dict(row)
+            return _format_report_row(row)
         return None
     finally:
         conn.close()
@@ -174,12 +198,12 @@ def list_reports(limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
             "SELECT * FROM reports ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (limit, offset)
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [_format_report_row(r) for r in rows]
     finally:
         conn.close()
 
 def insert_history(history: Dict[str, Any]):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     conn = get_connection()
     try:
         conn.execute("""

@@ -25,7 +25,7 @@
   "pleaseSelect": "Please select an option.",
   "selectLanguage": "Select Language",
   "success": "Success",
-  "formSubmittedSuccess": "The form has been successfully submitted.",
+  "formSubmittedSuccess": "Form Submitted Successfully!",
   "ok": "OK",
   "generalInquiries": "General Inquiries",
   "contactDetails": "Contact Details",
@@ -102,16 +102,12 @@
   "getYourInformation": "Get Your Information Here",
   "name": "Name",
   "uploadCSV": "Upload CSV",
-  "success": "Success",
-  "formSubmittedSuccess": "Form Submitted Successfully!",
-  "ok": "OK",
   "pleaseCheckNIC": "Please check the NIC number and try again.",
   "leadershipTeam": "Minister: Dr. Nalinda Jayatissa\nDeputy Minister: Dr. Hansaka Vijemuni\nSecretary: Dr. Anil Jayasighe\nDirector General: Dr. Asela Gunawaradena",
   "@leadershipTeam": {
     "description": "Names of the ministry leadership team members",
     "placeholders": {}
   },
-
   "verify": "Verify",
   "analyzeVideo": "Verify",
   "online": "Online",
@@ -165,18 +161,17 @@
   "analyzeStream": "Analyze Stream",
   "deleteAccount": "Delete Account",
   "loading": "Loading...",
-
   "signInTitle": "SIGN IN",
   "signInSubtitle": "Sign in to continue",
   "emailLabel": "Email",
-  "rememberMe": "Remember me",
+  "rememberMe": "Remember Me",
   "forgotPassword": "Forgot Password?",
   "loginButton": "LOGIN",
   "googleSignIn": "GOOGLE SIGN IN",
   "needAccount": "Need an account?",
   "signUpLink": "SIGN UP",
   "signUpTitle": "SIGN UP",
-  "createAccount": "Create your account",
+  "createAccount": "Create Account",
   "confirmPassword": "Confirm Password",
   "sendVerification": "SEND VERIFICATION",
   "completeRegistration": "COMPLETE REGISTRATION",
@@ -189,7 +184,6 @@
   "sendResetLink": "SEND RESET LINK",
   "rememberedPassword": "Remembered your password?",
   "loginAction": "LOGIN",
-
   "profileTitle": "Profile",
   "lightMode": "Light Mode",
   "darkMode": "Dark Mode",
@@ -198,7 +192,6 @@
   "veriFrameVersion": "VeriFrame v1.0",
   "appDescription": "Forensic deepfake detection using EfficientViT and CrossEfficientViT",
   "aboutDescription": "Forensic deepfake detection platform powered by EfficientViT and CrossEfficientViT models. Designed for law enforcement and digital forensic investigators.",
-
   "aiSettingsTitle": "AI Analysis Settings",
   "modelSelection": "Model Selection",
   "modelSelectionDesc": "Choose which neural network model runs inference for deepfake verification. The active model name will be sent with every analysis request.",
@@ -207,7 +200,6 @@
   "crossEfficientViTName": "CrossEfficientViT",
   "crossEfficientViTDesc": "Multi-scale cross-attention architecture that analyzes features at multiple granularities concurrently. Highly robust against compression and warping anomalies.",
   "activeModelSet": "Active model set to {model}",
-
   "pleaseEnterName": "Please enter your name",
   "nameTooShort": "Name must be at least 2 characters",
   "pleaseEnterEmail": "Please enter your email",
@@ -231,7 +223,6 @@
   "imageSizeError": "Image size should be less than 5MB",
   "failedPickImage": "Failed to pick image: {error}",
   "passwordResetSent": "Password reset email sent!",
-
   "privacyTitle": "Privacy Policy",
   "privacyLastUpdated": "Last updated: June 2025",
   "privacyIntro": "VeriFrame is committed to protecting your privacy. This policy explains how we collect, use, and safeguard your information when you use our deepfake detection platform.",
@@ -268,7 +259,6 @@
   "privacyS6Title": "Policy Updates",
   "privacyS6Body": "We may update this Privacy Policy periodically. Significant changes will be communicated via in-app notification. Continued use of VeriFrame after updates constitutes your acceptance of the revised policy.",
   "privacyContact": "Questions about this policy?\nveriframe.support@gmail.com",
-
   "aboutTagline": "DEEP LEARNING • AUTHENTICITY • TRUST",
   "aboutHero": "An intelligent system that sees through the synthetic — protecting truth in a world of AI-generated deception.",
   "aboutMissionLabel": "OUR MISSION",
@@ -286,7 +276,6 @@
   "aboutAppsLabel": "APPLICATIONS",
   "aboutVersion": "Version 1.0.0 • Build 2025",
   "aboutBeta": "BETA",
-
   "contactTitle": "Contact Us",
   "contactSubtitle": "Have questions about VeriFrame? We're here to help.",
   "contactEmail": "Email",
@@ -390,9 +379,9 @@
   "aboutStatUptimeLabel": "Uptime",
   "aboutStoryLabel": "OUR STORY",
   "aboutStory": "VeriFrame began as a research project to make deepfake detection transparent and accessible. Today it brings on-device forensic analysis and explainable AI to everyone.",
-  "aboutValueOne": "Transparency in every verdict",
-  "aboutValueTwo": "Privacy-first, on-device analysis",
-  "aboutValueThree": "Accessible protection for everyone",
+  "aboutValueOne": "Uncompromising Forensic Integrity",
+  "aboutValueTwo": "Calibrated AI Deepfake Rigor",
+  "aboutValueThree": "Transparent & Actionable Intelligence",
   "aboutValuesLabel": "OUR VALUES",
   "aboutValue1Title": "Accuracy",
   "aboutValue1Body": "We measure ourselves by how often we are right, and we are honest about uncertainty.",
@@ -423,7 +412,6 @@
   "profileNameRequired": "Name is required",
   "profileUpdatedSuccessfully": "Profile updated successfully!",
   "profilePhotoRemoved": "Profile photo removed",
-
   "verifyVideoTab": "VIDEO",
   "verifyLinkTab": "LINK",
   "verifyStreamTab": "STREAM",
@@ -530,12 +518,9 @@
   "verifyCurrentProbability": "Current Probability",
   "verifyProbabilityGraph": "Probability Graph",
   "verifyLandmarkMap": "Landmark map: {count} points",
-
-  "deleteAccount": "Delete Account",
   "deleteAccountTitle": "Delete Account?",
   "deleteAccountMessage": "This action permanently removes your account and forensic history. This cannot be undone.",
   "deletePermanently": "Delete Permanently",
-
   "homeStatsAiModels": "AI Models",
   "homeStatsRealtime": "Real-time",
   "homeStatsLiveAnalysis": "Live analysis",
@@ -543,11 +528,9 @@
   "homeStatsEvidenceReports": "Evidence reports",
   "homeFooterTagline": "Media forensics for a trustworthy internet.",
   "homeCopyright": "© {year} VeriFrame. All rights reserved.",
-
   "verifyBackendServerTitle": "Configure Backend Server",
   "verifyBackendUrlHint": "http://192.168.1.100:8000",
   "verifyBackendHelper": "Specify host base address (use LAN IP on physical phones)",
-
   "notificationsMarkAllRead": "Mark all read ({count})",
   "notificationsDeleteTitle": "Delete notification?",
   "notificationsDeleteMessage": "This notification will be permanently removed.",
@@ -557,9 +540,7 @@
   "notificationsDeleteAllConfirm": "Delete All",
   "notificationsNotLoggedIn": "User not logged in.",
   "notificationsError": "Error: {error}",
-
   "accountDeleted": "Your account has been deleted successfully.",
-
   "reportsTitle": "Forensic reports",
   "reportsHistoryTitle": "Media history",
   "reportsHistorySubtitle": "History of media Verification",
@@ -575,10 +556,8 @@
   "reportsDeleteAllTitle": "Delete all reports?",
   "reportsDeleteAllMessage": "All reports will be permanently deleted. This cannot be undone.",
   "reportsDeleteAllConfirm": "Delete All",
-
   "techStackTitle": "Technology Stack",
   "techStackSubtitle": "The technologies powering VeriFrame's forensic deepfake detection platform.",
-
   "notificationsJustNow": "just now",
   "notificationsMinutesAgo": "{count}m ago",
   "notificationsHoursAgo": "{count}h ago",
@@ -671,10 +650,8 @@
   "finalDecisionDesc": "Synthesizing adaptive ensemble verdict...",
   "generatingReportLabel": "Generating Report",
   "generatingReportDesc": "Assembling complete forensic verification report...",
-
   "verifyNoVideoSelected": "No video file selected. Please pick a video first.",
   "verifyFrameExtractionFailed": "Could not extract any frames from the video. It may be corrupt or use an unsupported codec.",
-  "verifyAnalyzingFrame": "Analyzing frame {current} of {total}...",
   "verifyOfflineLinkVerification": "Running offline link verification...",
   "verifyExtractingFramesServer": "Extracting frames on server...",
   "verifyDownloadingMediaStream": "Downloading media stream...",
@@ -691,9 +668,6 @@
   "verifyCompletedStatus": "Completed",
   "verifyConfigureConnectionSettings": "Configure connection settings",
   "notificationsDeleteFailed": "Failed to delete notifications: {error}",
-  "aboutValueOne": "Uncompromising Forensic Integrity",
-  "aboutValueTwo": "Calibrated AI Deepfake Rigor",
-  "aboutValueThree": "Transparent & Actionable Intelligence",
   "profileFailedToPickImage": "Failed to pick image",
   "profileUserNotAuthenticated": "User not authenticated",
   "profilePasswordTooShort": "Password should be at least 6 characters",
@@ -770,111 +744,6 @@
   "reportShareImage": "Share Image",
   "reportCopiedToClipboard": "Report link copied to clipboard.",
   "reportShareFailed": "Failed to share report",
-  "verifyEscalationFailed": "Escalation failed: {error}",
-  "verifyAnalyzeStream": "Analyze Stream",
-  "verifyCancelScan": "Cancel Scan",
-  "verifyStepFormatValidation": "Format Validation",
-  "verifyStepFrameExtraction": "Frame Extraction",
-  "verifyStepFaceDetection": "Face Detection",
-  "verifyStepModelInference": "Model Inference",
-  "verifyStepGeneratingReasoning": "Generating Reasoning",
-  "verifyStepGeneratingPdf": "Generating PDF",
-  "verifyStepSendingNotification": "Sending Notification",
-  "verifyStepCompleted": "Completed",
-  "verifyLinkStepRequestInitiated": "Request Initiated",
-  "verifyLinkStepDownloading": "Downloading",
-  "verifyLinkStepExtracting": "Extracting Frames",
-  "verifyLinkStepDetecting": "Detecting Faces",
-  "verifyLinkStepInference": "Running Inference",
-  "verifyConnectingLiveStream": "Connecting to live stream...",
-  "verifyFpsFrames": "{fps} FPS · {frames} frames",
-  "verifyCurrentProbability": "Current Probability",
-  "verifyProbabilityGraph": "Probability Graph",
-  "verifyLandmarkMap": "Landmark map: {count} points",
-  "cameraStopAnalyze": "Stop & Analyze",
-  "cameraStartLiveStream": "Start Live Stream",
-  "cameraGoBack": "Go Back",
-  "cameraNoCamerasFound": "No cameras found",
-  "cameraError": "Camera error: {error}",
-  "cameraLiveStreamFrames": "Live Stream • {count} frames",
-  "cameraInitializing": "Initializing Camera...",
-  "verifyCancelAnalysis": "CANCEL ANALYSIS",
-  "reportDetailTitle": "Forensic report",
-  "reportMediaScan": "Forensic media scan",
-  "reportIdLabel": "ID {id}",
-  "reportSourceLabel": "Source",
-  "reportVerifiedLabel": "Verified",
-  "reportRiskLabel": "Risk",
-  "reportConfidenceAssessment": "Confidence assessment",
-  "reportConfidenceSubtitle": "Fused score across verification pipelines",
-  "reportConfidencePercent": "% confidence",
-  "reportFusionConfidenceRating": "Fusion confidence rating",
-  "reportFusionSubtitle": "Model, frame and tracking scores combined into one rating.",
-  "reportPipelineMetrics": "Pipeline metrics",
-  "reportPipelineSubtitle": "Deep-learning and structural verification checks",
-  "reportFrameConsistency": "Frame consistency",
-  "reportFrameConsistencyExplanation": "Frame-by-frame color histogram correlation. Low values indicate splicing.",
-  "reportBiometricFaceTracking": "Biometric face tracking",
-  "reportBiometricExplanation": "Temporal displacement variance of detected face bounding boxes.",
-  "reportMetadataValidation": "Metadata validation",
-  "reportMetadataExplanation": "Container structure, FPS range and header integrity validation.",
-  "reportOcrConfidence": "OCR confidence",
-  "reportOcrExplanation": "Presence and edge contour quality of static text overlays.",
-  "reportExport": "Export",
-  "reportExportSubtitle": "Generate and share the official forensic document",
-  "reportPdfForensicReport": "PDF forensic report",
-  "reportPdfSubtitle": "Signed, timestamped and court-ready export.",
-  "reportGeneratePdf": "Generate forensic PDF",
-  "reportCompiling": "Compiling report...",
-  "reportShare": "Share report",
-  "timelineTitle": "AI Forensic Verification Timeline",
-  "timelineStage": "Stage {current} / {total}",
-  "pipelineTitle": "AI Verification Pipeline",
-  "pipelineCompleted": "Completed",
-  "stagePreparingAnalysis": "Preparing Analysis",
-  "stageValidatingMedia": "Validating Media",
-  "stageDownloading": "Downloading",
-  "stageExtractingMetadata": "Extracting Metadata",
-  "stageSelectingFrames": "Selecting Frames",
-  "stageDetectingFaces": "Detecting Faces",
-  "stageTrackingFaces": "Tracking Faces",
-  "stageAssessingQuality": "Assessing Quality",
-  "stageRunningAiAnalysis": "Running AI Analysis",
-  "stageVerifyingTemporalConsistency": "Verifying Temporal Consistency",
-  "stageAggregatingEvidence": "Aggregating Evidence",
-  "stageCalibratingConfidence": "Calibrating Confidence",
-  "stageGeneratingReport": "Generating Report",
-  "stageVerificationComplete": "Verification Complete",
-  "mediaValidationLabel": "Media Validation",
-  "mediaValidationDesc": "Validating media headers, SHA-256 hash, and format integrity...",
-  "metadataInspectionLabel": "Metadata Inspection",
-  "metadataInspectionDesc": "Analyzing EXIF, container metadata, and timestamp consistency...",
-  "frameExtractionLabel": "Frame Extraction",
-  "frameExtractionDesc": "Extracting keyframes using adaptive temporal sampling...",
-  "sceneDetectionLabel": "Scene Detection",
-  "sceneDetectionDesc": "Partitioning video into dynamic visual scenes and cuts...",
-  "faceDetectionLabel": "Face Detection",
-  "faceDetectionDesc": "Running RetinaFace / SCRFD face locator cascade...",
-  "faceTrackingLabel": "Face Tracking",
-  "faceTrackingDesc": "Tracking facial bounding boxes across continuous frames...",
-  "qualityAssessmentLabel": "Quality Assessment",
-  "qualityAssessmentDesc": "Evaluating frame resolution, blur, compression, and lighting...",
-  "artifactDetectionLabel": "Artifact Detection",
-  "artifactDetectionDesc": "Searching for facial boundary glitches and warping artifacts...",
-  "deepfakeAiModelLabel": "Deepfake AI Model",
-  "deepfakeAiModelDesc": "Executing EfficientViT TFLite neural inference engine...",
-  "temporalConsistencyLabel": "Temporal Consistency",
-  "temporalConsistencyDesc": "Evaluating frame-to-frame feature persistence and jitter...",
-  "confidenceCalibrationLabel": "Confidence Calibration",
-  "confidenceCalibrationDesc": "Applying Temperature Scaling (T=1.5) probability smoothing...",
-  "evidenceAggregationLabel": "Evidence Aggregation",
-  "evidenceAggregationDesc": "Correlating neural predictions with forensic spatial heuristic data...",
-  "riskScoringLabel": "Risk Scoring",
-  "riskScoringDesc": "Computing multi-factor threat assessment and risk matrix...",
-  "finalDecisionLabel": "Final Decision",
-  "finalDecisionDesc": "Synthesizing adaptive ensemble verdict...",
-  "generatingReportLabel": "Generating Report",
-  "generatingReportDesc": "Assembling complete forensic verification report...",
   "evidenceVideoTitle": "Evidence Video",
   "evidenceLoadingVideo": "Loading evidence video...",
   "evidenceBackToReport": "Back to Report",
@@ -888,7 +757,317 @@
   "reportOpenPdf": "Open PDF Report",
   "reportOpenVerifiedVideo": "Open Verified Video",
   "reportVideoLinkUnavailable": "Video link unavailable.",
-  "reportActionsUnavailable": "No actions available for this report"
-  }
-
-
+  "reportActionsUnavailable": "No actions available for this report",
+  "modalitySelectTitle": "Select Verification Type",
+  "modalitySelectSubtitle": "Choose what type of media you want to inspect for deepfakes and AI generation.",
+  "modalityVideoTitle": "Video Verification",
+  "modalityVideoDesc": "Analyze videos, YouTube links & live streams for authenticity",
+  "modalityVideoBadge": "VIDEO & STREAM",
+  "modalityLocalVideo": "Local Video",
+  "modalityVideoLink": "Video Link",
+  "modalityLiveStream": "Live Stream",
+  "modalityImageTitle": "Image Verification",
+  "modalityImageDesc": "Detect AI artifacts, face swaps, GAN images & deep fakes",
+  "modalityImageBadge": "IMAGE & URL",
+  "modalityLocalPhoto": "Local Photo",
+  "modalityImageLink": "Image Link",
+  "modalityAudioTitle": "Audio Voice Verification",
+  "modalityAudioDesc": "Detect voice cloning, synthetic speech & audio artifacts",
+  "modalityAudioBadge": "VOICE CLONE AI",
+  "modalityLocalAudio": "Local Audio",
+  "imageForensicsTitle": "Image Forensics",
+  "localImageTab": "Local Image",
+  "imageLinkTab": "Image Link",
+  "inspectImageFilesTitle": "Inspect Image Files",
+  "inspectImageFilesDesc": "Analyze JPEG, PNG, WEBP files for deepfakes, face swaps, GAN generation artifacts, and synthetic manipulations using our forensic AI model.",
+  "localImageAnalysisTitle": "Local Image Analysis",
+  "selectImageFileHint": "Select Image File",
+  "browseImageBtn": "BROWSE IMAGE",
+  "analyzeImageBtn": "Analyze Image",
+  "scanImageUrlTitle": "Scan Image URL",
+  "scanImageUrlDesc": "Verify images directly from public web addresses, news links, and image hosting services.",
+  "imageUrlVerificationTitle": "Image URL Verification",
+  "pasteImageUrlHint": "Paste Image URL",
+  "enterImageUrlPlaceholder": "Enter direct image URL (JPG, PNG, WebP)...",
+  "analyzeLinkBtn": "ANALYZE LINK",
+  "imageForensicReportTitle": "IMAGE FORENSIC REPORT",
+  "scanAnotherImageBtn": "Scan Another Image",
+  "backendServerSettingsTitle": "Backend Server Settings",
+  "resetToDefaultBtn": "Reset to Default",
+  "audioVerificationTitle": "Audio Verification",
+  "audioVoiceDeepfakeTitle": "Audio Voice Deepfake Detection",
+  "audioVoiceDeepfakeDesc": "Analyze audio clips for voice cloning, synthetic speech synthesis, and acoustic manipulation.",
+  "uploadAudioClipTitle": "Upload Audio Clip",
+  "supportedAudioFormatsHint": "Supported formats: MP3, WAV, M4A, AAC, OGG",
+  "browseAudioFileBtn": "BROWSE AUDIO FILE",
+  "verifyAudioBtn": "Verify Audio",
+  "audioForensicReportTitle": "AUDIO FORENSIC REPORT",
+  "scanAnotherAudioBtn": "Scan Another Audio",
+  "forensicReportTitle": "Forensic Report",
+  "escalateToAuthority": "Escalate to Authority",
+  "pdfReportBtn": "PDF Report",
+  "evidenceBtn": "Evidence",
+  "escalateBtn": "Escalate",
+  "openVideoLinkBtn": "Open Video Link",
+  "playLiveStreamRecording": "Play Live Stream Recording",
+  "doneViewingBtn": "Done Viewing",
+  "openImageLinkInBrowser": "Open Image Link in Browser",
+  "openInEvidencePlayer": "Open in Evidence Player",
+  "forensicAnalysisSignals": "FORENSIC ANALYSIS SIGNALS",
+  "aiExplainabilityReasoning": "AI EXPLAINABILITY & REASONING",
+  "investigativeSummary": "INVESTIGATIVE SUMMARY",
+  "mediaDetails": "MEDIA DETAILS",
+  "videoAnalysisTitle": "Video Analysis",
+  "stepValidatingUrl": "Validating URL",
+  "stepDetectingPlatform": "Detecting Platform",
+  "stepDownloadingVideo": "Downloading Video",
+  "stepExtractingFrames": "Extracting Frames",
+  "stepDetectingFaces": "Detecting Faces",
+  "stepRunningAiAnalysis": "Running AI Analysis",
+  "stepGeneratingReport": "Generating Report",
+  "stepVerificationComplete": "Verification Complete",
+  "analyzingVideoStream": "Analyzing Video Stream",
+  "analyzingVideoStreamDesc": "Please wait while VeriFrame downloads and inspects the media.",
+  "viewReportBtn": "View Report",
+  "passwordLabel": "Password",
+  "dontHaveAccount": "Don't have an account?",
+  "alreadyHaveAccount": "Already have an account?",
+  "fullNameLabel": "Full Name",
+  "verificationFailed": "Verification Failed",
+  "goBackAndTryAnother": "Go Back & Try Another URL",
+  "pauseOrCancel": "PAUSE / CANCEL",
+  "processingStatus": "Processing...",
+  "stageOf": "Stage {current} of {total}",
+  "@stageOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "orText": "OR",
+  "audioLabel": "Audio",
+  "imageLabel": "Image",
+  "evidenceLabel": "Evidence",
+  "openPdf": "Open PDF",
+  "localVideoEvidence": "Local Video Evidence",
+  "videoLinkEvidence": "Video Link Evidence",
+  "liveStreamEvidence": "Live Stream Evidence",
+  "imageEvidence": "Image Evidence",
+  "audioEvidence": "Audio Evidence",
+  "verifySelectPlatform": "Select Platform",
+  "verifyChoosePlatform": "Choose where your video is hosted",
+  "verifyVideoLinkLabel": "VIDEO LINK",
+  "verifyClear": "Clear",
+  "verifyPaste": "Paste",
+  "verifyPasteLinkPlaceholder": "Paste your {platform} link here...",
+  "@verifyPasteLinkPlaceholder": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyNowButton": "VERIFY NOW",
+  "verifyLiveTelemetryHud": "LIVE STREAM TELEMETRY HUD",
+  "verifyStreamProtocols": "RTSP / RTMP / CAMERA",
+  "verifyRealTimeStreamTitle": "Real-Time Continuous Stream Verification",
+  "verifyRealTimeStreamDesc": "Monitor live video streams in real-time with continuous sliding-window temporal confidence tracking.",
+  "verifyEnterStreamUrlOptional": "Enter RTSP, RTMP, or HLS stream URL (optional)...",
+  "verifyLiveCameraStreamBtn": "Live Camera Stream",
+  "verifyRtspNetworkStreamBtn": "RTSP/Network Stream",
+  "verifyEnterStreamUrlAlert": "Please enter an RTSP/RTMP/HLS stream URL or select Live Camera Stream.",
+  "verifyRunsOnDevice": "Runs on device",
+  "verifySecondsRemaining": "~{seconds}s remaining",
+  "@verifySecondsRemaining": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "linkStageValidatingUrlTitle": "Validating URL",
+  "linkStageValidatingUrlDesc": "Checking URL syntax, cryptographic schema, and domain reputation",
+  "linkStageDetectingPlatformTitle": "Detecting Platform",
+  "linkStageDetectingPlatformDesc": "Identifying video host, CDN endpoint, and extractor profile",
+  "linkStageDownloadingStreamTitle": "Downloading Stream",
+  "linkStageDownloadingStreamDesc": "Retrieving media payload into secure forensic sandbox",
+  "linkStageSamplingKeyframesTitle": "Sampling Keyframes",
+  "linkStageSamplingKeyframesDesc": "Decoding video container and extracting scene-aware keyframes",
+  "linkStageBiometricDetectionTitle": "Biometric Detection",
+  "linkStageBiometricDetectionDesc": "Locating facial boundaries, landmarks, and spatial tracking vectors",
+  "linkStageNeuralDeepfakeTitle": "Neural Deepfake Inference",
+  "linkStageNeuralDeepfakeDesc": "Evaluating keyframe crops with on-device & cloud forensic classifiers",
+  "linkStageForensicAggregationTitle": "Forensic Aggregation",
+  "linkStageForensicAggregationDesc": "Fusing spatial, temporal, frequency, and sensor noise evidence",
+  "linkStageVerificationCompleteTitle": "Verification Complete",
+  "linkStageVerificationCompleteDesc": "Compiling cryptographic forensic report and audit trail",
+  "linkVerdictAuthenticTitle": "VERIFIED AUTHENTIC",
+  "linkVerdictSyntheticTitle": "SYNTHETIC / MANIPULATED",
+  "linkVerdictInconclusiveTitle": "INCONCLUSIVE EVIDENCE",
+  "linkVerdictUnverifiedTitle": "UNVERIFIED LINK",
+  "linkVerdictAuthenticDesc": "Natural optical camera sensor noise and consistent temporal facial motion verified across all sampled keyframes.",
+  "linkVerdictSyntheticDesc": "Generative synthetic artifacts and inter-frame facial texture warping detected across video timeline.",
+  "linkVerdictInconclusiveDesc": "Borderline biometric indicators or compressed resolution. Deepfake probability lies in the neutral range.",
+  "linkVerdictUnverifiedDesc": "Video payload could not be extracted directly. Please upload the raw video file for analysis.",
+  "linkAuthenticityIndex": "AUTHENTICITY INDEX",
+  "linkDeepfakeRiskIndex": "DEEPFAKE RISK INDEX",
+  "linkConfidenceScore": "CONFIDENCE SCORE",
+  "linkAuthenticPercent": "Authentic: {score}%",
+  "@linkAuthenticPercent": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "linkManipulationPercent": "Manipulation: {score}%",
+  "@linkManipulationPercent": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "linkFramesCount": "{count} frames",
+  "@linkFramesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "linkKeyframesCount": "{count} keyframes",
+  "@linkKeyframesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "linkDiagnosticsTitle": "Forensic AI Diagnostics",
+  "linkMetricConfidence": "Overall Confidence",
+  "linkMetricSampledFrames": "Sampled Frames",
+  "linkMetricFaceCoverage": "Face Coverage",
+  "linkMetricTrackingStability": "Tracking Stability",
+  "linkMetricFrameConsistency": "Frame Consistency",
+  "linkMetricLatency": "Analysis Latency",
+  "linkNoSuspiciousFrames": "No Manipulated Keyframes Detected",
+  "linkNoSuspiciousFramesDesc": "All sampled keyframes passed temporal consistency and facial boundary checks.",
+  "linkSuspiciousFramesDetected": "Suspicious Keyframes Detected ({count})",
+  "@linkSuspiciousFramesDetected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "linkFrameNumber": "Frame #{number}",
+  "@linkFrameNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "linkFakePercent": "Fake: {percent}%",
+  "@linkFakePercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "linkTrackingPercent": "Tracking: {percent}%",
+  "@linkTrackingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "linkAuditTimeline": "Forensic Audit Timeline",
+  "linkRetrievalFailed": "Video Stream Retrieval Failed",
+  "linkRetrievalFailedDesc": "Platform access restricted or stream protected.",
+  "linkUploadDirectlyBtn": "Upload Video File Directly",
+  "surpriseRevealBtn": "Surprise Reveal",
+  "howToIdentifyBtn": "How to Identify",
+  "realVerdict": "Real",
+  "manipulatedVerdict": "Manipulated",
+  "assessmentLabel": "ASSESSMENT: ",
+  "lowRiskLabel": "LOW RISK",
+  "highRiskLabel": "HIGH RISK",
+  "authenticityUpperLabel": "AUTHENTICITY",
+  "authenticStatus": "Authentic",
+  "manipulatedStatus": "Manipulated",
+  "whyMediaReal": "Why this media is Real",
+  "whyMediaManipulated": "Why this media is Manipulated",
+  "sensorMatchLabel": "Optical Sensor Match: ",
+  "sensorMismatchLabel": "Optical Sensor Mismatch: ",
+  "sensorMatchDesc": "Silicon sensor pattern noise (PRNU) verified across all keyframes without AI smoothing.",
+  "sensorMismatchDesc": "High-frequency spectral anomalies and generative warping patterns detected.",
+  "motionFlowLabel": "Natural Motion Flow: ",
+  "unnaturalMotionLabel": "Unnatural Motion Vectors: ",
+  "motionFlowDesc": "Facial boundaries and specular lighting vectors remain continuous without seam jitter.",
+  "unnaturalMotionDesc": "Generative flickering and temporal inconsistency detected in facial boundaries.",
+  "whyMediaMarginNoteReal": "The remaining {score}% margin is standard H.264 compression quantization, not neural manipulation.",
+  "@whyMediaMarginNoteReal": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "whyMediaMarginNoteFake": "The high manipulation confidence indicates this is highly likely an AI generated deepfake.",
+  "forensicObservations": "Forensic observations",
+  "inferenceEngine": "Inference engine",
+  "onDeviceTflite": "On-device TFLite",
+  "analyzedKeyframes": "Analyzed\\nkeyframes",
+  "analyzedImage": "Analyzed\\nimage",
+  "analyzedSegments": "Analyzed\\nsegments",
+  "avgInferencePerFrame": "Average\\ninference/frame",
+  "avgInferencePerImage": "Average\\ninference\\nper image",
+  "manipulationConfidence": "Manipulation\\nconfidence",
+  "creatingPdf": "Creating PDF...",
+  "reportPdf": "Report PDF",
+  "shareLink": "Share link",
+  "reportMediaBtn": "Report media",
+  "scanAnotherBtn": "Scan another",
+  "howToIdentifyTitle": "How to Identify Real vs Fake",
+  "howToIdentifySubtitle": "Forensic algorithms & analysts verify these physical principles:",
+  "pillar1Title": "Optical Silicon Sensor Noise",
+  "pillar1Real": "Microscopic noise from camera sensors across pixels.",
+  "pillar1Fake": "Mathematical pixels with unnatural neural smoothing.",
+  "pillar2Title": "Corneal Light Reflection",
+  "pillar2Real": "Identical ambient light reflection angles in both eye pupils.",
+  "pillar2Fake": "Mismatched catchlights or distorted corneal reflection.",
+  "gotItBtn": "Got It",
+  "linkCopiedSuccess": "Report verification link copied to clipboard!",
+  "onboardingSkip": "Skip",
+  "onboardingNext": "Next",
+  "onboardingGetStarted": "Get Started",
+  "onboardingSlide1Headline": "Detect Deepfakes.\\nTrust What's Real.",
+  "onboardingSlide1Subtitle": "An AI system built to detect\\ndeepfake videos automatically.",
+  "onboardingSlide1Badge": "Deepfake Detection",
+  "onboardingSlide2Headline": "Real-Time Video &\\nVoice Forensics",
+  "onboardingSlide2Subtitle": "AI models analyze facial landmarks,\\noptical noise, and temporal consistency.",
+  "onboardingSlide2Badge": "VeriFrame AI",
+  "onboardingSlide3Headline": "Explainable Results &\\nForensic Reports",
+  "onboardingSlide3Subtitle": "Step-by-step forensic reasoning with\\nclear confidence scores and evidence.",
+  "onboardingSlide3Badge": "Forensic Audit",
+  "onboardingFrameAnalysis": "Frame Analysis",
+  "onboardingConfidence": "{score}% confidence",
+  "@onboardingConfidence": {
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingExplainableResults": "Explainable Results",
+  "onboardingExplainableDesc": "Step-by-step reasoning\\nwith confidence scores",
+  "modalityPhotoShield": "Photo Shield"
+}

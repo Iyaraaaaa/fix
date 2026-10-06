@@ -19,7 +19,6 @@ import 'package:veriframe_app/screens/splash_screen.dart';
 import 'package:veriframe_app/service/user_profile_cache.dart';
 import 'package:veriframe_app/theme/app_theme.dart';
 import 'package:veriframe_app/utils/navigator_key.dart';
-import 'package:veriframe_app/screens/video_link_verification_page.dart';
 import 'package:veriframe_app/screens/download_analysis_page.dart';
 import 'package:veriframe_app/screens/media_modality_selection_page.dart';
 import 'package:veriframe_app/widgets/error_screen.dart';
@@ -28,12 +27,30 @@ Future<void> _initializeApp() async {
   await UserProfileCache.instance.preload();
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final SettingsController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = SettingsController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = SettingsController();
 
     ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
       return ErrorScreen(
@@ -49,39 +66,43 @@ class MyApp extends StatelessWidget {
     };
 
     return SettingsScope(
-      controller: controller,
+      controller: _controller,
       child: ListenableBuilder(
-        listenable: controller,
+        listenable: _controller,
         builder: (context, _) => ProviderScope(
           child: MaterialApp(
             title: 'VeriFrame SL',
           debugShowCheckedModeBanner: false,
           navigatorKey: navigatorKey,
-          locale: controller.locale,
+          locale: _controller.locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          themeMode: controller.themeMode,
+          themeMode: _controller.themeMode,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           home: const SplashScreen(onInitialized: _initializeApp),
           routes: {
             '/on_boarding': (_) => const OnBoardingScreen(),
             '/login': (_) => LoginPage(
-              isDarkMode: controller.isDarkMode,
-              onThemeChanged: (isDark) => controller.setThemeMode(
+              isDarkMode: _controller.isDarkMode,
+              onThemeChanged: (isDark) => _controller.setThemeMode(
                 isDark ? ThemeMode.dark : ThemeMode.light,
               ),
               onGoogleSignIn: () async {},
             ),
             '/signup': (_) => SignUpPage(
-              isDarkMode: controller.isDarkMode,
-              onThemeChanged: (isDark) => controller.setThemeMode(
+              isDarkMode: _controller.isDarkMode,
+              onThemeChanged: (isDark) => _controller.setThemeMode(
                 isDark ? ThemeMode.dark : ThemeMode.light,
               ),
             ),
             '/forgot_password': (_) => const ForgetPasswordPage(),
             '/home': (_) => const HomePage(),
-            '/analyze': (_) => const VerifyPage(),
+            '/analyze': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments;
+              final tab = args is int ? args : 0;
+              return VerifyPage(initialTab: tab);
+            },
             '/image': (_) => const ImagePage(),
             '/audio': (_) => const AudioPage(),
             '/privacy': (_) => const PrivacyPage(),
@@ -89,7 +110,7 @@ class MyApp extends StatelessWidget {
             '/settings': (_) => const SettingsPage(),
             '/reports': (_) => const ReportsPage(),
             '/tech_stack': (_) => const TechnologyStackPage(),
-            '/video_link': (_) => const VideoLinkVerificationPage(),
+            '/video_link': (_) => const VerifyPage(initialTab: 1),
             '/download_analysis': (context) => DownloadAnalysisPage(
               videoUrl: ModalRoute.of(context)?.settings.arguments as String? ?? '',
             ),

@@ -86,16 +86,16 @@ class StreamPipeline:
             logger.warning("[StreamPipeline] Invalid frame input supplied.")
             return self._build_frame_response(session)
 
-        # 1. Full-Scene Spectral & Motion Analysis
+        # 1. Full-Scene Spectral & Motion Analysis (exclude saturated noise kurtosis)
         freq_res = self.scene_analyzer.analyze_frequency_spectrum(frame)
-        noise_res = self.scene_analyzer.analyze_noise_residual(frame)
         motion_score = 0.5
         if session.get("last_frame") is not None:
             m_res = self.scene_analyzer.analyze_motion_physics(session["last_frame"], frame)
             motion_score = m_res["motion_synthetic_score"]
         
         session["last_frame"] = frame.copy()
-        scene_frame_score = float(np.clip(0.40 * freq_res["frequency_synthetic_score"] + 0.35 * motion_score + 0.25 * noise_res["noise_synthetic_score"], 0.0, 1.0))
+        # Weights: 0.5333 frequency / 0.4667 motion (noise kurtosis dropped as it saturates on JPEG)
+        scene_frame_score = float(np.clip(0.5333 * freq_res["frequency_synthetic_score"] + 0.4667 * motion_score, 0.0, 1.0))
         session["scene_scores"].append(scene_frame_score)
 
         # 2. Biometric Facial Analysis
@@ -142,9 +142,11 @@ class StreamPipeline:
         """
         verification_id = f"VRF-STR-{int(time.time() * 1000)}"
 
-        has_faces = len(session["scores"]) > 0
-        if not has_faces and not session["scene_scores"]:
-            logger.info("[StreamPipeline] Session completed without valid frames.")
+        scored_count = len(session.get("scores", []))
+        min_required = 3
+
+        if scored_count < min_required:
+            logger.info(f"[StreamPipeline] Insufficient scored face frames ({scored_count}/{min_required}).")
             return {
                 "status": "completed",
                 "progress": 1.0,
@@ -154,45 +156,38 @@ class StreamPipeline:
                     "mediaType": "live/stream",
                     "source": "Live Stream",
                     "streamUrl": session.get("stream_url", ""),
-                    "authenticityScore": 0.0,
-                    "fakeProbability": 0.0,
-                    "confidence": 0.0,
+                    "authenticityScore": None,
+                    "fakeProbability": None,
+                    "confidence": None,
                     "metadataScore": 100.0,
-                    "frameConsistency": 0.0,
+                    "frameConsistency": None,
                     "ocrConfidence": 0.0,
-                    "trackingConfidence": 0.0,
-                    "manipulationScore": 0.0,
-                    "verdict": "INCONCLUSIVE",
-                    "fineVerdict": "INCONCLUSIVE",
+                    "trackingConfidence": None,
+                    "manipulationScore": None,
+                    "verdict": "INSUFFICIENT_DATA",
+                    "fineVerdict": "INSUFFICIENT_DATA",
                     "riskLevel": "UNKNOWN",
-                    "detectedEvidence": ["No valid frames captured in stream session."],
-                    "forensicObservations": [f"Live Stream session received {session['frame_count']} frames."],
+                    "detectedEvidence": ["No verdict issued: Insufficient clear face frames captured."],
+                    "forensicObservations": [
+                        f"Live Stream session received {session['frame_count']} streaming frame(s).",
+                        f"Face frames successfully scored: {scored_count} (minimum {min_required} required).",
+                        "Please ensure your face is clearly visible, well-lit, and facing the camera."
+                    ],
                     "reportHash": hashlib.sha256(f"{session.get('session_id', '')}-{time.time()}".encode()).hexdigest(),
-                    "framesAnalyzed": 0,
+                    "framesAnalyzed": scored_count,
                     "totalFramesReceived": session["frame_count"],
                 }
             }
 
-        if has_faces:
-            # Use median for face scores — robust against bad frame outliers
-            avg_face_prob = float(np.median(session["scores"]))
-            # Blend scene forensics (computed per-frame but previously ignored in face-track mode)
-            # Match the 70% face + 30% scene fusion used by video_pipeline and link_verification_v2
-            avg_scene_prob = float(np.mean(session["scene_scores"])) if session["scene_scores"] else avg_face_prob
-            avg_fake_prob = float(np.clip(0.70 * avg_face_prob + 0.30 * avg_scene_prob, 0.0, 1.0))
-            correlations = []
-            for i in range(len(session["hists"]) - 1):
-                corr = cv2.compareHist(session["hists"][i], session["hists"][i+1], cv2.HISTCMP_CORREL)
-                correlations.append(corr)
-            frame_consistency = round(float(np.mean(correlations)) * 100.0, 2) if correlations else 100.0
-            tracking_confidence = self._calculate_tracking_confidence(session["boxes"])
-            source_label = "Live Stream (Biometric & Scene Forensics)"
-        else:
-            # Non-face stream
-            avg_fake_prob = float(np.mean(session["scene_scores"]))
-            frame_consistency = 90.0
-            tracking_confidence = 100.0 if session["frame_count"] > 5 else 50.0
-            source_label = "Live Stream (Full-Scene AI Forensics)"
+        # Face stream evaluated using median of fused per-frame scores
+        avg_fake_prob = float(np.clip(np.median(session["scores"]), 0.0, 1.0))
+        correlations = []
+        for i in range(len(session["hists"]) - 1):
+            corr = cv2.compareHist(session["hists"][i], session["hists"][i+1], cv2.HISTCMP_CORREL)
+            correlations.append(corr)
+        frame_consistency = round(float(np.mean(correlations)) * 100.0, 2) if correlations else 100.0
+        tracking_confidence = self._calculate_tracking_confidence(session["boxes"])
+        source_label = "Live Stream (Biometric & Scene Forensics)"
 
         fake_probability = round(avg_fake_prob * 100.0, 2)
         authenticity_score = round((1.0 - avg_fake_prob) * 100.0, 2)
@@ -264,36 +259,16 @@ class StreamPipeline:
 
     def _build_frame_response(self, session: Dict[str, Any]) -> Dict[str, Any]:
         if not session["scores"]:
-            if session["scene_scores"]:
-                rolling = session["scene_scores"][-30:]
-                avg_fake_prob = float(np.mean(rolling))
-                fake_probability = round(avg_fake_prob * 100.0, 2)
-                authenticity_score = round((1.0 - avg_fake_prob) * 100.0, 2)
-                if fake_probability > THRESHOLDS_STREAM["manipulated_above_pct"]:
-                    verdict = "MANIPULATED"
-                elif fake_probability < THRESHOLDS_STREAM["authentic_below_pct"]:
-                    verdict = "AUTHENTIC"
-                else:
-                    verdict = "UNCERTAIN"
-                return {
-                    "session_confidence_score": authenticity_score,
-                    "verdict": verdict,
-                    "authenticity_score": authenticity_score,
-                    "fake_probability": fake_probability,
-                    "model_used": "Veriframe Live Stream Full-Scene Detector",
-                    "frames_processed": session["frame_count"],
-                    "faces_detected": session["faces_detected"],
-                    "scored_frames": len(session["scene_scores"]),
-                    "scene_frames_scored": len(session["scene_scores"]),
-                }
             return {
-                "session_confidence_score": 0.0,
+                "session_confidence_score": None,
                 "verdict": "INSUFFICIENT_DATA",
+                "authenticity_score": None,
+                "fake_probability": None,
                 "model_used": "Veriframe Live Stream Detector",
                 "frames_processed": session["frame_count"],
                 "faces_detected": session["faces_detected"],
                 "scored_frames": 0,
-                "scene_frames_scored": len(session["scene_scores"]),
+                "insufficient_data_reason": "No faces detected yet in camera stream.",
             }
 
         rolling = session["scores"][-30:]

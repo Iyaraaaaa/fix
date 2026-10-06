@@ -10,6 +10,7 @@ import 'package:veriframe_app/screens/delete_account.dart';
 import 'package:veriframe_app/screens/edit_profile.dart';
 import 'package:veriframe_app/screens/reports_page.dart';
 import 'package:veriframe_app/screens/settings_page.dart';
+import 'package:veriframe_app/screens/benchmark_evaluation_page.dart';
 
 import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/l10n/app_localizations.dart';
@@ -382,6 +383,8 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 14),
               Text(
                 loc.aiVideoAuth,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 23,
                   fontWeight: FontWeight.w900,
@@ -421,34 +424,41 @@ class _HomePageState extends State<HomePage> {
         children: [
           for (int i = 0; i < stats.length; i++) ...[
             Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: VFColors.blue600.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: VFColors.blue600.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(stats[i].$1, color: VFColors.blue600, size: 22),
                     ),
-                    child: Icon(stats[i].$1, color: VFColors.blue600, size: 22),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    stats[i].$2,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: text,
+                    const SizedBox(height: 10),
+                    Text(
+                      stats[i].$2,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: text,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stats[i].$3,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: muted),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      stats[i].$3,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
+                  ],
+                ),
               ),
             ),
             if (i < stats.length - 1) divider,
@@ -816,9 +826,9 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: VFColors.blue600,
         foregroundColor: VFColors.white,
         icon: const Icon(Icons.shield_outlined),
-        label: const Text(
-          'Verify Media',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+        label: Text(
+          loc.verifyMedia,
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
         ),
       ),
     );
@@ -902,6 +912,12 @@ class _HomePageState extends State<HomePage> {
             loc.settingsTitle,
             VFColors.blue600,
             const SettingsPage(),
+          ),
+          _buildDrawerItem(
+            Icons.insights_rounded,
+            'Model Benchmarks & Metrics',
+            const Color(0xFF0284C7),
+            const BenchmarkEvaluationPage(),
           ),
 
           const Divider(indent: 16, endIndent: 16),

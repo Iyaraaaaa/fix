@@ -1,7 +1,9 @@
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import asyncio
+import json
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -37,11 +39,14 @@ from services.reality_defender_service import RealityDefenderService
 from services.gemini_service import GeminiService
 from preprocessing.preprocessor import FramePreprocessor
 from cache.result_cache import ResultCache
-from database.connection import init_db, upsert_job, insert_report, insert_history, get_report_by_hash, list_reports
+from database.connection import init_db, upsert_job, insert_report, insert_history, get_report_by_hash, list_reports, get_connection
 from database.models import JobRecord, ReportRecord, CacheEntry, AnalysisHistory
 from utils.video import get_video_metadata, decode_base64_frame
 from utils.image import compute_face_quality_score, pad_to_square
 from utils.transparency import attach_engine_transparency, engine_transparency
+from pipelines.adversarial_shield_pipeline import PhotoShieldPipeline
+from pipelines.rppg_pipeline import RppgForensicsDetector
+from pipelines.undeepfake_pipeline import UnDeepfakeReverser
 
 logger = setup_logger()
 app = FastAPI(title="Veriframe API", version="2.0.0")
@@ -208,17 +213,6 @@ class StreamVerifyRequest(BaseModel):
 
 # ---- Utility functions ----
 
-def _attach_engine(result, kind: str):
-    """Stamp the engine-transparency block onto any verification result.
-
-    The Reality Defender sub-result is read straight off the payload so the
-    block always reflects the engine that actually produced this verdict,
-    including rd_partial and the request id.
-
-    Job/session envelopes wrap the verdict in a ``result`` key; those get the
-    block on both the envelope and the inner verdict, so a client reading
-    either shape finds it.
-    """
 def _append_gemini_engine(result: Any, ai_explanation: Any) -> None:
     if isinstance(result, dict) and isinstance(ai_explanation, dict):
         if ai_explanation.get("status") == "success":
@@ -440,6 +434,10 @@ def download_and_verify_task(job_id: str, url: str):
                     f"is blocking automated downloads. Try a direct video link or "
                     f"upload the file directly."
                 )
+                try:
+                    upsert_job(job_id, status="failed", progress=0.0, error=jobs_db[job_id]["error"])
+                except Exception:
+                    pass
                 return
 
         # If the pipeline returned a failed report (download blocked, media
@@ -452,6 +450,10 @@ def download_and_verify_task(job_id: str, url: str):
             jobs_db[job_id]["progress"] = 1.0
             jobs_db[job_id]["status"] = "failed"
             jobs_db[job_id]["error"] = reason
+            try:
+                upsert_job(job_id, status="failed", progress=1.0, result=result, error=reason)
+            except Exception:
+                pass
             logger.warning(
                 f"[download_and_verify_task] job_id={job_id} link verification failed: "
                 f"{result.get('analysis_status')} — {reason}"
@@ -467,6 +469,15 @@ def download_and_verify_task(job_id: str, url: str):
             logger.warning(f"[download_and_verify_task] Gemini AI explanation failed: {ai_err}")
 
 
+        result["videoUrl"] = url
+        result["mediaName"] = url
+        result["mediaPath"] = url
+        if not result.get("thumbnailBase64"):
+            try:
+                result["thumbnailBase64"] = link_pipeline._fetch_remote_thumbnail(url)
+            except Exception:
+                pass
+
         _attach_engine(result, "link")
         cache.set(url, result)
 
@@ -476,9 +487,19 @@ def download_and_verify_task(job_id: str, url: str):
         jobs_db[job_id]["result"] = result
         jobs_db[job_id]["progress"] = 1.0
         jobs_db[job_id]["status"] = "completed"
+
+        try:
+            insert_report(result)
+            upsert_job(job_id, status="completed", progress=1.0, result=result)
+        except Exception as db_err:
+            logger.warning(f"[download_and_verify_task] Database persist failed: {db_err}")
     except Exception as e:
         jobs_db[job_id]["status"] = "failed"
         jobs_db[job_id]["error"] = str(e)
+        try:
+            upsert_job(job_id, status="failed", error=str(e))
+        except Exception:
+            pass
         logger.error(f"[download_and_verify_task] job_id={job_id} failed: {e}")
 
 # ---- Forensic Pipeline ----
@@ -539,7 +560,12 @@ async def predict(file: UploadFile = File(...)):
             _append_gemini_engine(result, result["aiExplanation"])
         except Exception as ai_err:
             logger.warning(f"[predict] Gemini AI explanation failed: {ai_err}")
-        return _attach_engine(result, "video")
+        final_res = _attach_engine(result, "video")
+        try:
+            insert_report(final_res)
+        except Exception as db_err:
+            logger.warning(f"[predict] Failed to persist report in database: {db_err}")
+        return final_res
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -565,7 +591,12 @@ async def verify_image(file: UploadFile = File(...)):
             _append_gemini_engine(result, result["aiExplanation"])
         except Exception as ai_err:
             logger.warning(f"[verify_image] Gemini AI explanation failed: {ai_err}")
-        return _attach_engine(result, "image")
+        final_res = _attach_engine(result, "image")
+        try:
+            insert_report(final_res)
+        except Exception as db_err:
+            logger.warning(f"[verify_image] Failed to persist report in database: {db_err}")
+        return final_res
     except HTTPException:
         raise
     except Exception as e:
@@ -631,7 +662,12 @@ async def verify_image_link(request: ImageLinkVerifyRequest):
             _append_gemini_engine(result, result["aiExplanation"])
         except Exception as ai_err:
             logger.warning(f"[verify_image_link] Gemini AI explanation failed: {ai_err}")
-        return _attach_engine(result, "image")
+        final_res = _attach_engine(result, "image")
+        try:
+            insert_report(final_res)
+        except Exception as db_err:
+            logger.warning(f"[verify_image_link] Failed to persist report in database: {db_err}")
+        return final_res
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"The URL does not contain a valid image: {str(ve)}")
     except HTTPException:
@@ -658,7 +694,12 @@ async def verify_audio(file: UploadFile = File(...)):
             _append_gemini_engine(result, result["aiExplanation"])
         except Exception as ai_err:
             logger.warning(f"[verify_audio] Gemini AI explanation failed: {ai_err}")
-        return _attach_engine(result, "audio")
+        final_res = _attach_engine(result, "audio")
+        try:
+            insert_report(final_res)
+        except Exception as db_err:
+            logger.warning(f"[verify_audio] Failed to persist report in database: {db_err}")
+        return final_res
     except HTTPException:
         raise
     except Exception as e:
@@ -698,8 +739,76 @@ async def ai_explain(request: AiExplainRequest):
         return {"status": "success", "explanation": explanation}
     except Exception as e:
         logger.error(f"[ai_explain] Error: {e}")
-        raise HTTPException(status_code=500, detail=f"AI explanation failed: {str(e)}")
+photo_shield_pipeline = PhotoShieldPipeline()
+rppg_standalone_detector = RppgForensicsDetector()
+undeepfake_standalone_reverser = UnDeepfakeReverser()
 
+@app.post("/shield/protect")
+async def shield_protect(
+    file: UploadFile = File(...),
+    epsilon: float = Form(8.0)
+):
+    """
+    Active Anti-Deepfake Photo Shield.
+    Applies bounded adversarial noise (L_inf <= epsilon/255) to immunize the portrait
+    against automated neural face-swappers while preserving human visual quality (PSNR > 40 dB).
+    """
+    try:
+        content = await file.read()
+        res = await run_in_threadpool(photo_shield_pipeline.immunize, content, epsilon)
+        return res
+    except Exception as e:
+        logger.error(f"[shield_protect] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to immunize photo: {str(e)}")
+
+@app.post("/forensics/rppg")
+async def forensics_rppg(file: UploadFile = File(...)):
+    """
+    Extracts Remote Photoplethysmography (rPPG) capillary pulse waveform,
+    heart rate (BPM), and spectral SNR from video frames.
+    """
+    suffix = os.path.splitext(file.filename or "")[1] or ".mp4"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        cap = cv2.VideoCapture(tmp_path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        frames = []
+        for _ in range(60):
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                break
+            frames.append(frame)
+        cap.release()
+
+        res = await run_in_threadpool(rppg_standalone_detector.process_frames, frames, None, fps)
+        return res
+    except Exception as e:
+        logger.error(f"[forensics_rppg] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to compute rPPG: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+@app.post("/forensics/undeepfake")
+async def forensics_undeepfake(file: UploadFile = File(...)):
+    """
+    Un-Deepfake Reverser: reconstructs structural face geometry and extracts
+    the manipulation residual heatmap from a face image or keyframe.
+    """
+    try:
+        content = await file.read()
+        nparr = np.frombuffer(content, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("Failed to decode image.")
+        res = await run_in_threadpool(undeepfake_standalone_reverser.process_face, img)
+        return res
+    except Exception as e:
+        logger.error(f"[forensics_undeepfake] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to run Un-Deepfake: {str(e)}")
 
 
 @app.post("/verify/link")
@@ -767,18 +876,75 @@ def get_analysis(id: str):
         except ValueError as ve:
             return {"status": "failed", "error": str(ve)}
 
+    # Fallback to persistent SQLite storage
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM jobs WHERE id = ?", (id,)).fetchone()
+        if row:
+            job_dict = dict(row)
+            if job_dict.get("result"):
+                try:
+                    job_dict["result"] = json.loads(job_dict["result"])
+                except Exception:
+                    pass
+            return job_dict
+    finally:
+        conn.close()
+
     raise HTTPException(status_code=404, detail="Job/Session ID not found.")
+
+@app.get("/analysis/{id}/stream")
+async def stream_analysis(id: str):
+    """
+    Server-Sent Events (SSE) live progress stream for background analysis jobs.
+    Streams real-time JSON status updates until completion or error.
+    """
+    async def event_generator():
+        last_progress = -1.0
+        last_status = ""
+        for _ in range(120):  # 120 seconds max stream timeout
+            if id in jobs_db:
+                job = jobs_db[id]
+                cur_status = job.get("status", "pending")
+                cur_prog = float(job.get("progress", 0.0))
+                if cur_status != last_status or abs(cur_prog - last_progress) >= 0.02:
+                    last_status = cur_status
+                    last_progress = cur_prog
+                    payload = json.dumps({
+                        "id": id,
+                        "status": cur_status,
+                        "progress": cur_prog,
+                        "cached": job.get("cached", False),
+                        "has_result": "result" in job,
+                    })
+                    yield f"data: {payload}\n\n"
+                    if cur_status in ("completed", "failed"):
+                        break
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.post("/report/create")
 def report_create(request: dict):
     session_id = request.get("session_id", "")
     job_id = request.get("job_id", "")
 
-    if job_id and job_id in jobs_db:
-        job = jobs_db[job_id]
-        if job["status"] == "completed":
-            return _attach_engine(job["result"], "link")
-        raise HTTPException(status_code=400, detail=f"Job analysis in status: {job['status']}")
+    if job_id:
+        if job_id in jobs_db:
+            job = jobs_db[job_id]
+            if job["status"] == "completed":
+                return _attach_engine(job["result"], "link")
+            raise HTTPException(status_code=400, detail=f"Job analysis in status: {job['status']}")
+
+        # Fallback to persistent SQLite storage
+        conn = get_connection()
+        try:
+            row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if row and row["status"] == "completed" and row["result"]:
+                res_data = json.loads(row["result"])
+                return _attach_engine(res_data, "link")
+        finally:
+            conn.close()
 
     if session_id and session_id in streams_db:
         session = streams_db[session_id]
