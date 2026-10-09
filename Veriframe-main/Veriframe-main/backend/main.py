@@ -614,6 +614,25 @@ async def verify_image_link(request: ImageLinkVerifyRequest):
         "Accept-Language": "en-US,en;q=0.9",
     }
     target_url = request.url.strip()
+
+    # If the user pasted a YouTube video URL, resolve directly to YouTube's CDN thumbnail
+    yt_match = re.search(r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([\w-]{11})', target_url)
+    if yt_match:
+        video_id = yt_match.group(1)
+        target_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+        logger.info(f"[verify_image_link] Resolved YouTube URL to thumbnail: {target_url}")
+    elif "tiktok.com" in target_url.lower():
+        try:
+            tik_resp = requests.get(f"https://www.tikwm.com/api/?url={requests.utils.quote(target_url)}", timeout=10)
+            if tik_resp.status_code == 200:
+                tik_data = tik_resp.json().get("data", {})
+                cover_url = tik_data.get("cover") or tik_data.get("origin_cover")
+                if cover_url:
+                    target_url = cover_url
+                    logger.info(f"[verify_image_link] Resolved TikTok URL to cover image: {target_url}")
+        except Exception as e:
+            logger.warning(f"[verify_image_link] TikTok cover extraction fallback error: {e}")
+
     try:
         resp = await run_in_threadpool(
             requests.get, target_url, headers=headers, timeout=25

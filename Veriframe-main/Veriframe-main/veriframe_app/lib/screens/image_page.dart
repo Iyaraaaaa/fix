@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -99,7 +100,7 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
               controller: controller,
               decoration: const InputDecoration(
                 labelText: 'Backend URL',
-                hintText: 'https://veriframe-backend-x3fn.onrender.com',
+                hintText: 'https://veriframe-backend-3itd.onrender.com',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -242,12 +243,20 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
   }
 
   Future<void> _analyzeLinkImage() async {
-    final url = _urlController.text.trim();
-    if (url.isEmpty || !url.startsWith('http')) {
+    final rawUrl = _urlController.text.trim();
+    if (rawUrl.isEmpty || !rawUrl.startsWith('http')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid HTTP/HTTPS image URL')),
       );
       return;
+    }
+
+    // Auto-resolve YouTube video links to high-quality thumbnail image
+    String url = rawUrl;
+    final ytMatch = RegExp(r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([\w-]{11})').firstMatch(rawUrl);
+    if (ytMatch != null) {
+      final videoId = ytMatch.group(1);
+      url = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
     }
 
     setState(() {
@@ -257,20 +266,86 @@ class _ImagePageState extends ConsumerState<ImagePage> with SingleTickerProvider
     });
 
     try {
-      final baseUrl = await VerifyBackendService.instance.getBaseUrl();
+      final service = VerifyBackendService.instance;
+      String targetBaseUrl = await service.getBaseUrl();
+      bool isOnline = await service.isBackendAvailable(targetBaseUrl);
+      if (!isOnline && targetBaseUrl != VerifyBackendService.defaultRemoteUrl) {
+        final remoteAvailable = await service.isBackendAvailable(VerifyBackendService.defaultRemoteUrl);
+        if (remoteAvailable) {
+          targetBaseUrl = VerifyBackendService.defaultRemoteUrl;
+          isOnline = true;
+        }
+      }
+
+      if (!isOnline) {
+        throw Exception('Backend server is unreachable.');
+      }
+
       setState(() => _statusMessage = 'Running Biometrics, 2D FFT & Cloud Deepfake AI...');
-      final res = await VerifyBackendService.instance.verifyImageLink(baseUrl, url);
+      final res = await service.verifyImageLink(targetBaseUrl, url);
 
       setState(() {
         _result = res;
         _isAnalyzing = false;
       });
 
-      final mediaName = url.length > 60 ? '${url.substring(0, 57)}...' : url;
-      await _saveResultAndNotify(res, mediaName, videoUrl: url);
+      final mediaName = rawUrl.length > 60 ? '${rawUrl.substring(0, 57)}...' : rawUrl;
+      await _saveResultAndNotify(res, mediaName, videoUrl: rawUrl);
     } catch (e) {
+      debugPrint('[ImagePage] Backend link analysis error: $e. Attempting on-device fallback...');
+      try {
+        setState(() => _statusMessage = 'Downloading image for on-device Image.tflite analysis...');
+        final resp = await http.get(
+          Uri.parse(url),
+          headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'},
+        ).timeout(const Duration(seconds: 15));
+
+        if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+          final bytes = resp.bodyBytes;
+          if (!TFLiteService.instance.isInitialized) {
+            await TFLiteService.instance.init();
+          }
+          final inference = await TFLiteService.instance.runInference(bytes);
+
+          final fakeProb = (inference.fakeProbability * 100).clamp(0.0, 100.0);
+          final authScore = (100.0 - fakeProb).clamp(0.0, 100.0);
+          final isReal = authScore >= 50.0;
+          final verdict = isReal ? 'AUTHENTIC' : 'MANIPULATED';
+          final riskLevel = authScore >= 70 ? 'LOW' : (authScore >= 40 ? 'MEDIUM' : 'HIGH');
+
+          final fallbackRes = {
+            'verdict': verdict,
+            'fineVerdict': verdict,
+            'authenticityScore': double.parse(authScore.toStringAsFixed(1)),
+            'fakeProbability': double.parse(fakeProb.toStringAsFixed(1)),
+            'confidence': double.parse(authScore.toStringAsFixed(1)),
+            'riskLevel': riskLevel,
+            'mediaType': 'image/jpeg',
+            'source': 'On-Device TFLite (Image.tflite)',
+            'detectedEvidence': <String>[],
+            'forensicObservations': <String>[
+              'Verified via on-device Image.tflite model',
+              'Inference time: ${inference.inferenceMs} ms',
+              'Downloaded and inspected image frame locally',
+            ],
+            'thumbnailBase64': base64Encode(bytes),
+          };
+
+          setState(() {
+            _result = fallbackRes;
+            _isAnalyzing = false;
+          });
+
+          final mediaName = rawUrl.length > 60 ? '${rawUrl.substring(0, 57)}...' : rawUrl;
+          await _saveResultAndNotify(fallbackRes, mediaName, videoUrl: rawUrl);
+          return;
+        }
+      } catch (fallbackErr) {
+        debugPrint('[ImagePage] On-device link inference fallback error: $fallbackErr');
+      }
+
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceAll('Exception: ', '').trim();
         _isAnalyzing = false;
       });
     }

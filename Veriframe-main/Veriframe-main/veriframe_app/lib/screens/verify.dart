@@ -130,7 +130,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
   late AnimationController _scannerController;
   late Animation<double> _scannerAnimation;
 
-  String _baseUrl = '';
+  String _baseUrl = VerifyBackendService.defaultRemoteUrl;
 
   String? _errorMessage;
 
@@ -183,6 +183,17 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     }
   }
 
+  void _autoDetectPlatformFromUrl(String url) {
+    final lower = url.toLowerCase();
+    if (lower.contains('tiktok.com')) {
+      if (_selectedPlatform != 'TikTok') setState(() => _selectedPlatform = 'TikTok');
+    } else if (lower.contains('facebook.com') || lower.contains('fb.watch')) {
+      if (_selectedPlatform != 'Facebook') setState(() => _selectedPlatform = 'Facebook');
+    } else if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
+      if (_selectedPlatform != 'YouTube') setState(() => _selectedPlatform = 'YouTube');
+    }
+  }
+
   void _handleInitialArgs() {
     if (widget.initialVideoPath != null) {
       _activeTab = 0;
@@ -192,6 +203,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     } else if (widget.initialVideoUrl != null) {
       _activeTab = 1;
       _urlController.text = widget.initialVideoUrl!;
+      _autoDetectPlatformFromUrl(widget.initialVideoUrl!);
       Future.delayed(const Duration(milliseconds: 300), _verifyUrlLink);
     } else if (widget.initialStreamUrl != null) {
       _activeTab = 2;
@@ -347,11 +359,16 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       );
 
     } catch (e) {
+      debugPrint('[VerifyPage] Online video verification failed: $e. Falling back to on-device TFLite...');
       if (mounted) {
-        setState(() {
-          _isAnalyzing = false;
-          _errorMessage = e.toString();
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cloud server busy or sleeping. Running on-device Vedio.tflite model...'),
+            backgroundColor: Color(0xFF2563EB),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        await _runOfflineTfliteInference();
       }
     }
   }
@@ -566,22 +583,42 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
       return;
     }
 
-      setState(() {
-        _isAnalyzing = true;
-        _showResults = false;
-        _errorMessage = null;
-        _uploadProgress = 0.1;
-        _linkStep = 1;
-        _statusMessage = loc.verifyDownloadingVideo;
-      });
+    setState(() {
+      _isAnalyzing = true;
+      _showResults = false;
+      _errorMessage = null;
+      _uploadProgress = 0.05;
+      _linkStep = 1;
+      _statusMessage = "Connecting to forensic cloud server...";
+    });
 
     final service = VerifyBackendService.instance;
-    final isOnline = await service.isBackendAvailable(_baseUrl);
+    String targetBaseUrl = _baseUrl.trim();
+    if (targetBaseUrl.isEmpty) {
+      targetBaseUrl = await service.getBaseUrl();
+    }
+    if (targetBaseUrl.isEmpty) {
+      targetBaseUrl = VerifyBackendService.defaultRemoteUrl;
+    }
+
+    bool isOnline = await service.isBackendAvailable(targetBaseUrl);
+    if (!isOnline && targetBaseUrl != VerifyBackendService.defaultRemoteUrl) {
+      // If a local/saved dev URL is unreachable, fall back to the live Render backend
+      final remoteAvailable = await service.isBackendAvailable(VerifyBackendService.defaultRemoteUrl);
+      if (remoteAvailable) {
+        targetBaseUrl = VerifyBackendService.defaultRemoteUrl;
+        isOnline = true;
+      }
+    }
+
+    if (mounted) {
+      setState(() => _baseUrl = targetBaseUrl);
+    }
 
     if (!isOnline) {
       try {
         setState(() {
-          _statusMessage = "Running offline link verification...";
+          _statusMessage = "Server unreachable. Running offline link verification...";
           _uploadProgress = 0.15;
           _linkStep = 1;
         });
@@ -638,42 +675,45 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
     }
 
     try {
-      final jobId = await service.verifyLink(_baseUrl, url);
       setState(() {
-        _uploadProgress = 0.3;
-        _linkStep = 2; // Extracting
-        _statusMessage = "Extracting frames on server...";
+        _uploadProgress = 0.15;
+        _statusMessage = "Submitting link to forensic cloud...";
       });
 
-      _pollLinkJobResult(jobId);
-    } catch (e) {
+      final jobId = await service.verifyLink(targetBaseUrl, url);
       setState(() {
-        _isAnalyzing = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+        _uploadProgress = 0.3;
+        _linkStep = 1; // Downloading/processing on server
+        _statusMessage = "Server retrieving video stream...";
       });
+
+      _pollLinkJobResult(targetBaseUrl, jobId);
+    } catch (e) {
+      debugPrint('[VerifyPage] Cloud verifyLink failed ($e). Falling back to on-device engine...');
+      await _runFallbackLinkVerification(url);
     }
   }
 
-  void _pollLinkJobResult(String jobId) {
-    const maxPolls = 90; // 3 minutes max (90 × 2s)
+  void _pollLinkJobResult(String baseUrl, String jobId) {
+    const maxPolls = 300; // 5 minutes max (300 × 1s)
     int polls = 0;
     int consecutiveErrors = 0;
 
-    Timer.periodic(const Duration(seconds: 2), (timer) async {
+    Timer.periodic(const Duration(milliseconds: 1000), (timer) async {
       polls++;
       if (polls > maxPolls || !_isAnalyzing) {
         timer.cancel();
-        if (_isAnalyzing) {
+        if (_isAnalyzing && mounted) {
           setState(() {
             _isAnalyzing = false;
-            _errorMessage = loc.verifyPollingTimeout;
+            _errorMessage = 'Link analysis timed out on the server. Please try a shorter video or check your connection.';
           });
         }
         return;
       }
 
       try {
-        final res = await VerifyBackendService.instance.getAnalysis(_baseUrl, jobId);
+        final res = await VerifyBackendService.instance.getAnalysis(baseUrl, jobId);
         consecutiveErrors = 0;
         final status = res['status']?.toString().toLowerCase();
 
@@ -707,22 +747,7 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           if (results.isEmpty) {
             throw Exception("Link analysis returned empty results.");
           }
-          // Defensive: backend may still return "completed" with a download
-          // failure result (e.g. if the safety-net timeout path was taken).
-          final analysisStatus = results['analysis_status']?.toString() ?? '';
-          final videoRetrieved = results['video_retrieved'] as bool? ?? true;
-          if (analysisStatus == 'DOWNLOAD_FAILED' ||
-              analysisStatus == 'PROCESSING_ERROR' ||
-              !videoRetrieved) {
-            if (mounted) {
-              setState(() {
-                _isAnalyzing = false;
-                _errorMessage = results['reason'] ??
-                    'Unable to retrieve video from this link. The platform may be blocking automated downloads.';
-              });
-            }
-            return;
-          }
+
           final linkResult = VerificationResult.fromJson(results);
           final linkVerdict = linkResult.verdict.toLowerCase();
           final linkModelUsed = linkResult.forensicObservations.isNotEmpty
@@ -758,33 +783,119 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
           );
         } else if (status == 'failed') {
           timer.cancel();
-          if (mounted) {
+          if (res['result'] != null && (res['result'] as Map).isNotEmpty) {
+            final linkResult = VerificationResult.fromJson(res['result']);
+            final linkUrl = _urlController.text.trim();
             setState(() {
-              _isAnalyzing = false;
-              _errorMessage = res['error'] ??
-                  (res['result']?['reason'] ?? 'Forensic server failed to process link.');
+              _linkStep = 4;
+              _uploadProgress = 0.70;
             });
+            await _executePostVerificationFlow(
+              videoName: linkResult.mediaName ?? (linkUrl.length > 60 ? '${linkUrl.substring(0, 57)}...' : linkUrl),
+              videoPath: linkResult.mediaPath ?? linkUrl,
+              verdict: linkResult.verdict.toLowerCase(),
+              authenticityScore: linkResult.authenticityScore,
+              fakeProbability: linkResult.fakeProbability,
+              explanation: linkResult.forensicObservations.join(' '),
+              modelUsed: linkResult.source,
+              suspiciousFrames: linkResult.suspiciousFrames,
+              timelineLogs: linkResult.timelineLogs,
+              framesAnalysedCount: linkResult.framesAnalysedCount,
+              confidence: linkResult.confidence,
+              frameConsistency: linkResult.frameConsistency,
+              trackingConfidence: linkResult.trackingConfidence,
+              processingTimeSec: linkResult.processingTimeSec,
+              faceDetectionRate: linkResult.faceDetectionRate,
+              detectedEvidence: linkResult.detectedEvidence,
+              forensicObservations: linkResult.forensicObservations,
+              thumbnailBase64: linkResult.thumbnailBase64,
+            );
+          } else {
+            final errorMsg = res['error']?.toString() ?? 'Server link job failed.';
+            if (mounted) {
+              setState(() {
+                _isAnalyzing = false;
+                _errorMessage = errorMsg;
+              });
+            }
           }
           return;
         }
       } catch (e) {
         consecutiveErrors++;
         debugPrint('[VerifyPage] Poll error (attempt $consecutiveErrors): $e');
-        if (consecutiveErrors >= 15) {
+        if (consecutiveErrors >= 25) {
           timer.cancel();
           if (mounted) {
-            final rawErr = e.toString().replaceAll('Exception: ', '').trim();
-            final friendlyErr = rawErr.contains('Failed to retrieve analysis status')
-                ? 'Backend server lost connection or restarted during analysis. Please try again or upload the video directly.'
-                : rawErr;
             setState(() {
               _isAnalyzing = false;
-              _errorMessage = friendlyErr;
+              _errorMessage = 'Lost connection while polling server results. Please check your network or try again.';
             });
           }
         }
       }
     });
+  }
+
+  Future<void> _runFallbackLinkVerification(String url) async {
+    if (!mounted) return;
+    try {
+      setState(() {
+        _isAnalyzing = true;
+        _errorMessage = null;
+        _statusMessage = "Analyzing link via on-device engine...";
+        _uploadProgress = 0.20;
+        _linkStep = 1;
+      });
+
+      final result = await LinkVerificationEngine.instance.verify(
+        url,
+        onProgress: (step, progress, message) {
+          if (mounted && _isAnalyzing) {
+            setState(() {
+              _linkStep = step.clamp(1, 4);
+              _uploadProgress = progress;
+              _statusMessage = message;
+            });
+          }
+        },
+      );
+
+      if (!_isAnalyzing || !mounted) return;
+
+      setState(() {
+        _linkStep = 4;
+        _uploadProgress = 0.70;
+      });
+
+      await _executePostVerificationFlow(
+        videoName: result.mediaName ?? url,
+        videoPath: result.mediaPath ?? url,
+        verdict: result.verdict.toLowerCase(),
+        authenticityScore: result.authenticityScore,
+        fakeProbability: result.fakeProbability,
+        explanation: result.forensicObservations.join(' '),
+        modelUsed: result.source,
+        suspiciousFrames: result.suspiciousFrames,
+        timelineLogs: result.timelineLogs,
+        framesAnalysedCount: result.framesAnalysedCount,
+        faceDetectionRate: result.faceDetectionRate,
+        detectedEvidence: result.detectedEvidence,
+        forensicObservations: result.forensicObservations,
+        confidence: result.confidence,
+        frameConsistency: result.frameConsistency,
+        trackingConfidence: result.trackingConfidence,
+        processingTimeSec: result.processingTimeSec,
+        thumbnailBase64: result.thumbnailBase64,
+      );
+    } catch (fallbackErr) {
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+          _errorMessage = fallbackErr.toString().replaceAll('Exception: ', '').trim();
+        });
+      }
+    }
   }
 
   // --- LIVE STREAM PIPELINE ---
@@ -1905,8 +2016,10 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                   onTap: () async {
                     final data = await Clipboard.getData(Clipboard.kTextPlain);
                     if (data?.text != null && data!.text!.trim().isNotEmpty) {
+                      final pasted = data.text!.trim();
                       setState(() {
-                        _urlController.text = data.text!.trim();
+                        _urlController.text = pasted;
+                        _autoDetectPlatformFromUrl(pasted);
                       });
                     }
                   },
@@ -1953,6 +2066,10 @@ class _VerifyPageState extends ConsumerState<VerifyPage> with TickerProviderStat
                       hintText: loc.verifyPasteLinkPlaceholder(_selectedPlatform),
                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w400),
                     ),
+                    onChanged: (val) {
+                      _autoDetectPlatformFromUrl(val);
+                      setState(() {});
+                    },
                     onSubmitted: (_) => _verifyUrlLink(),
                   ),
                 ),

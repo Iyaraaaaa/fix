@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:veriframe_app/l10n/app_localizations.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 import 'package:veriframe_app/service/pdf_service.dart';
+import 'package:veriframe_app/screens/pdf_viewer_screen.dart';
 import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 
 class ForensicResultCard extends StatefulWidget {
@@ -112,13 +112,15 @@ class _ForensicResultCardState extends State<ForensicResultCard>
     try {
       final file = await PdfService.instance.generateReportPdf(result: widget.result);
       if (file != null && await file.exists()) {
-        final openRes = await OpenFilex.open(file.path);
-        if (openRes.type != ResultType.done && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Report saved to: ${file.path}'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: const Color(0xFF2563EB),
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PdfViewerScreen(
+                file: file,
+                title: 'Forensic Verification Report',
+                subtitle: widget.result.verificationId,
+                fileName: 'VeriFrame_Report_${widget.result.verificationId}.pdf',
+              ),
             ),
           );
         }
@@ -523,17 +525,17 @@ class _ForensicResultCardState extends State<ForensicResultCard>
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  animatedAuth.toStringAsFixed(1),
-                                  style: _manrope(fontSize: 72, fontWeight: FontWeight.w200, color: ink, letterSpacing: -2.0, height: 1.0),
+                                  isAuthentic ? animatedAuth.toStringAsFixed(1) : animatedManip.toStringAsFixed(1),
+                                  style: _manrope(fontSize: 72, fontWeight: FontWeight.w200, color: isAuthentic ? ink : warnColor, letterSpacing: -2.0, height: 1.0),
                                 ),
-                                Text(' %', style: _manrope(fontSize: 28, fontWeight: FontWeight.w300, color: const Color(0xFF67E8F9))),
+                                Text(' %', style: _manrope(fontSize: 28, fontWeight: FontWeight.w300, color: isAuthentic ? const Color(0xFF67E8F9) : warnColor)),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    loc?.authenticityUpperLabel ?? 'AUTHENTICITY',
+                                    isAuthentic ? 'AUTHENTICITY' : 'MANIPULATED',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: _manrope(fontSize: 12, fontWeight: FontWeight.w700, color: inkMuted, letterSpacing: 1.5),
+                                    style: _manrope(fontSize: 12, fontWeight: FontWeight.w700, color: isAuthentic ? inkMuted : warnColor, letterSpacing: 1.5),
                                   ),
                                 ),
                               ],

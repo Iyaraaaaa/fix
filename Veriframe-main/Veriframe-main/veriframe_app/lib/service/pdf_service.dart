@@ -18,6 +18,15 @@ class PdfService {
   PdfService._();
   static final PdfService instance = PdfService._();
 
+  static bool _isValidImageBytes(List<int> bytes) {
+    if (bytes.length < 4) return false;
+    // JPEG magic bytes: FF D8
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8) return true;
+    // PNG magic bytes: 89 50 4E 47
+    if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return true;
+    return false;
+  }
+
   /// Generates a standardized VeriFrame Forensic Verification Report.
   ///
   /// Incorporates the complete verdict assessment, dual authenticity meters,
@@ -250,7 +259,7 @@ class PdfService {
           cleaned = cleaned.padRight(cleaned.length + (4 - remainder), '=');
         }
         final bytes = base64Decode(cleaned);
-        if (bytes.isNotEmpty) {
+        if (_isValidImageBytes(bytes)) {
           thumbnailImage = pw.MemoryImage(bytes);
         }
       } catch (e) {
@@ -273,7 +282,7 @@ class PdfService {
               cleaned = cleaned.padRight(cleaned.length + (4 - remainder), '=');
             }
             final bytes = base64Decode(cleaned);
-            if (bytes.isNotEmpty) {
+            if (_isValidImageBytes(bytes)) {
               thumbnailImage = pw.MemoryImage(bytes);
               break;
             }
@@ -299,15 +308,14 @@ class PdfService {
           if (match != null && match.groupCount >= 1) {
             final videoId = match.group(1);
             final resp = await http.get(Uri.parse('https://img.youtube.com/vi/$videoId/hqdefault.jpg')).timeout(const Duration(seconds: 3));
-            if (resp.statusCode == 200 && resp.bodyBytes.length > 1000) {
+            if (resp.statusCode == 200 && _isValidImageBytes(resp.bodyBytes)) {
               thumbnailImage = pw.MemoryImage(resp.bodyBytes);
             }
           } else if (candidateUrl.toLowerCase().endsWith('.jpg') ||
                      candidateUrl.toLowerCase().endsWith('.jpeg') ||
-                     candidateUrl.toLowerCase().endsWith('.png') ||
-                     candidateUrl.toLowerCase().endsWith('.webp')) {
+                     candidateUrl.toLowerCase().endsWith('.png')) {
             final resp = await http.get(Uri.parse(candidateUrl)).timeout(const Duration(seconds: 3));
-            if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+            if (resp.statusCode == 200 && _isValidImageBytes(resp.bodyBytes)) {
               thumbnailImage = pw.MemoryImage(resp.bodyBytes);
             }
           }
@@ -317,11 +325,14 @@ class PdfService {
 
     if (thumbnailImage == null && result.mediaPath != null && result.mediaPath!.isNotEmpty) {
       try {
-        final file = File(result.mediaPath!);
-        if (file.existsSync()) {
-          final bytes = await file.readAsBytes();
-          if (bytes.isNotEmpty) {
-            thumbnailImage = pw.MemoryImage(bytes);
+        final ext = result.mediaPath!.toLowerCase();
+        if (ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.png')) {
+          final file = File(result.mediaPath!);
+          if (file.existsSync()) {
+            final bytes = await file.readAsBytes();
+            if (_isValidImageBytes(bytes)) {
+              thumbnailImage = pw.MemoryImage(bytes);
+            }
           }
         }
       } catch (_) {}
@@ -517,25 +528,22 @@ class PdfService {
       } else {
         Directory? targetDir;
         try {
-          if (Platform.isAndroid) {
-            final extDir = await getExternalStorageDirectory();
-            if (extDir != null) {
-              targetDir = Directory('${extDir.path}/VeriFrame');
-            }
+          final tempDir = await getTemporaryDirectory();
+          final vrfDir = Directory('${tempDir.path}/VeriFrame');
+          if (!await vrfDir.exists()) {
+            await vrfDir.create(recursive: true);
           }
-          if (targetDir == null) {
+          targetDir = vrfDir;
+        } catch (dirErr) {
+          debugPrint('[PdfService] Temporary dir resolution failed: $dirErr, using appDocDir');
+          try {
             final appDocDir = await getApplicationDocumentsDirectory();
             targetDir = Directory('${appDocDir.path}/VeriFrame');
-          }
-          if (!await targetDir.exists()) {
-            await targetDir.create(recursive: true);
-          }
-        } catch (dirErr) {
-          debugPrint('[PdfService] Primary dir resolution failed: $dirErr, using temporaryDir');
-          final tempDir = await getTemporaryDirectory();
-          targetDir = Directory('${tempDir.path}/VeriFrame');
-          if (!await targetDir.exists()) {
-            await targetDir.create(recursive: true);
+            if (!await targetDir.exists()) {
+              await targetDir.create(recursive: true);
+            }
+          } catch (_) {
+            targetDir = Directory.systemTemp;
           }
         }
         path = '${targetDir.path}/$pdfName';

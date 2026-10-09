@@ -143,10 +143,12 @@ class StreamPipeline:
         verification_id = f"VRF-STR-{int(time.time() * 1000)}"
 
         scored_count = len(session.get("scores", []))
+        scene_count = len(session.get("scene_scores", []))
         min_required = 3
+        has_faces = scored_count >= min_required
 
-        if scored_count < min_required:
-            logger.info(f"[StreamPipeline] Insufficient scored face frames ({scored_count}/{min_required}).")
+        if not has_faces and scene_count < min_required:
+            logger.info(f"[StreamPipeline] Insufficient frames captured (faces: {scored_count}, scene: {scene_count}).")
             return {
                 "status": "completed",
                 "progress": 1.0,
@@ -167,27 +169,32 @@ class StreamPipeline:
                     "verdict": "INSUFFICIENT_DATA",
                     "fineVerdict": "INSUFFICIENT_DATA",
                     "riskLevel": "UNKNOWN",
-                    "detectedEvidence": ["No verdict issued: Insufficient clear face frames captured."],
+                    "detectedEvidence": ["No verdict issued: Insufficient clear frames captured."],
                     "forensicObservations": [
                         f"Live Stream session received {session['frame_count']} streaming frame(s).",
-                        f"Face frames successfully scored: {scored_count} (minimum {min_required} required).",
-                        "Please ensure your face is clearly visible, well-lit, and facing the camera."
+                        f"Face frames scored: {scored_count}, Scene frames scored: {scene_count} (minimum {min_required} required).",
+                        "Please keep the camera steady and pointed toward the subject."
                     ],
                     "reportHash": hashlib.sha256(f"{session.get('session_id', '')}-{time.time()}".encode()).hexdigest(),
-                    "framesAnalyzed": scored_count,
+                    "framesAnalyzed": max(scored_count, scene_count),
                     "totalFramesReceived": session["frame_count"],
                 }
             }
 
-        # Face stream evaluated using median of fused per-frame scores
-        avg_fake_prob = float(np.clip(np.median(session["scores"]), 0.0, 1.0))
-        correlations = []
-        for i in range(len(session["hists"]) - 1):
-            corr = cv2.compareHist(session["hists"][i], session["hists"][i+1], cv2.HISTCMP_CORREL)
-            correlations.append(corr)
-        frame_consistency = round(float(np.mean(correlations)) * 100.0, 2) if correlations else 100.0
-        tracking_confidence = self._calculate_tracking_confidence(session["boxes"])
-        source_label = "Live Stream (Biometric & Scene Forensics)"
+        if has_faces:
+            avg_fake_prob = float(np.clip(np.median(session["scores"]), 0.0, 1.0))
+            correlations = []
+            for i in range(len(session["hists"]) - 1):
+                corr = cv2.compareHist(session["hists"][i], session["hists"][i+1], cv2.HISTCMP_CORREL)
+                correlations.append(corr)
+            frame_consistency = round(float(np.mean(correlations)) * 100.0, 2) if correlations else 100.0
+            tracking_confidence = self._calculate_tracking_confidence(session["boxes"])
+            source_label = "Live Stream (Biometric & Scene Forensics)"
+        else:
+            avg_fake_prob = float(np.clip(np.median(session["scene_scores"]), 0.0, 1.0))
+            frame_consistency = 95.0
+            tracking_confidence = 100.0
+            source_label = "Live Stream (Full-Scene Spectral Forensics)"
 
         fake_probability = round(avg_fake_prob * 100.0, 2)
         authenticity_score = round((1.0 - avg_fake_prob) * 100.0, 2)
@@ -236,7 +243,7 @@ class StreamPipeline:
                 "verificationId": verification_id,
                 "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "mediaType": "live/stream",
-                "source": "Live Stream",
+                "source": source_label,
                 "streamUrl": session.get("stream_url", ""),
                 "authenticityScore": authenticity_score,
                 "fakeProbability": fake_probability,
@@ -252,13 +259,32 @@ class StreamPipeline:
                 "detectedEvidence": detected_evidence,
                 "forensicObservations": forensic_observations,
                 "reportHash": hashlib.sha256(f"{session.get('session_id', '')}-{time.time()}".encode()).hexdigest(),
-                "framesAnalyzed": len(session["scores"]),
+                "framesAnalyzed": len(session["scores"]) if has_faces else len(session.get("scene_scores", [])),
                 "totalFramesReceived": session["frame_count"],
             }
         }
 
     def _build_frame_response(self, session: Dict[str, Any]) -> Dict[str, Any]:
         if not session["scores"]:
+            if session.get("scene_scores"):
+                rolling_scene = session["scene_scores"][-30:]
+                avg_scene_fake = float(np.mean(rolling_scene))
+                scene_auth = round((1.0 - avg_scene_fake) * 100.0, 2)
+                scene_fake = round(avg_scene_fake * 100.0, 2)
+                v = "AUTHENTIC" if scene_fake < THRESHOLDS_STREAM["authentic_below_pct"] else (
+                    "MANIPULATED" if scene_fake > THRESHOLDS_STREAM["manipulated_above_pct"] else "UNCERTAIN"
+                )
+                return {
+                    "session_confidence_score": scene_auth,
+                    "verdict": v,
+                    "authenticity_score": scene_auth,
+                    "fake_probability": scene_fake,
+                    "model_used": "Veriframe Scene Forensics",
+                    "frames_processed": session["frame_count"],
+                    "faces_detected": session.get("faces_detected", 0),
+                    "scored_frames": len(session["scene_scores"]),
+                    "rolling_window": len(rolling_scene),
+                }
             return {
                 "session_confidence_score": None,
                 "verdict": "INSUFFICIENT_DATA",

@@ -132,5 +132,84 @@ void main() {
       expect(await file!.exists(), isTrue);
       expect(await file.length(), greaterThan(1000));
     });
+
+    test('Generates PDF with Sinhala text', () async {
+      final outPath = '${tempDir.path}/test_sinhala_report.pdf';
+      final sampleSinhala = VerificationResult(
+        verificationId: 'VRF-TEST-SINHALA-404',
+        verifiedAt: DateTime.now(),
+        mediaType: 'video/mp4',
+        source: 'Local File',
+        authenticityScore: 78.5,
+        fakeProbability: 21.5,
+        confidence: 78.5,
+        metadataScore: 85.0,
+        frameConsistency: 92.0,
+        ocrConfidence: 0.0,
+        trackingConfidence: 94.0,
+        manipulationScore: 21.5,
+        verdict: 'AUTHENTIC',
+        riskLevel: 'LOW',
+        detectedEvidence: [
+          'දෘශ්‍ය සංවේදක ගැළපීම: කැමරා සංවේදක ශබ්දරටාව (PRNU) සියලු රාමුවල ස්වාභාවිකව පවතී.',
+          'ස්වාභාවික චලන රටාව: මුහුණේ සීමා සහ ආලෝක රටා ස්වාභාවිකව පවතී.',
+        ],
+        forensicObservations: [
+          'විශ්ලේෂණ එන්ජිම: උපාංගයේ TFLite video.tflite',
+          '3 විශ්ලේෂිත රාමු',
+          '180ms රාමුවකට සාමාන්‍ය කාලය',
+          '21.5% ව්‍යාජතා විශ්වාසනීයත්වය',
+        ],
+        reportHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        mediaName: 'sinhala_test.mp4',
+        framesAnalysedCount: 3,
+        processingTimeSec: 0.54,
+        pdfPath: outPath,
+      );
+
+      final file = await PdfService.instance.generateReportPdf(result: sampleSinhala);
+      expect(file, isNotNull);
+      expect(await file!.exists(), isTrue);
+    });
+
+    test('Generates complete PDF for Web Link Verification Result (with QR Code)', () async {
+      final outPath = '${tempDir.path}/test_link_report.pdf';
+      final sampleLink = VerificationResult(
+        verificationId: 'VRF-TEST-LNK-505',
+        verifiedAt: DateTime.now(),
+        mediaType: 'video/mp4',
+        source: 'Web Link Analysis',
+        authenticityScore: 18.5,
+        fakeProbability: 81.5,
+        confidence: 85.0,
+        metadataScore: 40.0,
+        frameConsistency: 35.0,
+        ocrConfidence: 90.0,
+        trackingConfidence: 45.0,
+        manipulationScore: 81.5,
+        verdict: 'MANIPULATED',
+        riskLevel: 'HIGH',
+        videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        platform: 'YouTube',
+        detectedEvidence: [
+          'Temporal inconsistency detected across extracted keyframes.',
+          'Audio-visual sync mismatch between lip landmarks and vocal envelope.',
+        ],
+        forensicObservations: [
+          'Downloaded and analyzed stream from YouTube platform.',
+          'High probability of synthetic face reenactment.',
+        ],
+        reportHash: '9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba',
+        mediaName: 'youtube_broadcast.mp4',
+        framesAnalysedCount: 24,
+        processingTimeSec: 2.4,
+        pdfPath: outPath,
+      );
+
+      final file = await PdfService.instance.generateReportPdf(result: sampleLink);
+      expect(file, isNotNull);
+      expect(await file!.exists(), isTrue);
+      expect(await file.length(), greaterThan(1000));
+    });
   });
 }

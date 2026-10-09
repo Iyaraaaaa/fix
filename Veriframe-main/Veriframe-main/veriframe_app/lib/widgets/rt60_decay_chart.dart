@@ -62,113 +62,142 @@ class Rt60DecayChart extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 360;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Row
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.graphic_eq_rounded,
-                      color: statusColor,
-                      size: 16,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.graphic_eq_rounded,
+                            color: statusColor,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Acoustic RT60 Reverberation',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isSynthetic
+                                    ? 'Anechoic vocoder profile (Cloned Voice)'
+                                    : acousticEnvironment,
+                                style: TextStyle(
+                                  color: statusColor.withValues(alpha: 0.9),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Acoustic RT60 Reverberation',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
+
+                  // RT60 Value Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: Text(
+                      isSynthetic ? 'RT60: < 0.08s' : 'RT60: ${rt60Sec.toStringAsFixed(2)}s',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
-                      Text(
-                        isSynthetic
-                            ? 'Anechoic vocoder profile (Cloned Voice)'
-                            : acousticEnvironment,
-                        style: TextStyle(
-                          color: statusColor.withValues(alpha: 0.9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
 
-              // RT60 Value Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                ),
-                child: Text(
-                  isSynthetic ? 'RT60: < 0.08s' : 'RT60: ${rt60Sec.toStringAsFixed(2)}s',
-                  style: TextStyle(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+              const SizedBox(height: 12),
+
+              // Chart Canvas
+              Expanded(
+                child: CustomPaint(
+                  size: Size.infinite,
+                  painter: _DecayPainter(
+                    points: points,
+                    lineColor: statusColor,
+                    isSynthetic: isSynthetic,
                   ),
                 ),
               ),
-            ],
-          ),
 
-          const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
-          // Chart Canvas
-          Expanded(
-            child: CustomPaint(
-              size: Size.infinite,
-              painter: _DecayPainter(
-                points: points,
-                lineColor: statusColor,
-                isSynthetic: isSynthetic,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Footer info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Schroeder Backward Integration [-60 dB]',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 10,
-                ),
-              ),
-              Text(
-                isSynthetic ? 'Physical Resonance Failure' : 'Sabine Room Law Verified',
-                style: TextStyle(
-                  color: statusColor.withValues(alpha: 0.8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
+              // Footer info
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      isCompact
+                          ? 'Schroeder Integration [-60 dB]'
+                          : 'Schroeder Backward Integration [-60 dB]',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      isSynthetic ? 'Physical Resonance Failure' : 'Sabine Room Law Verified',
+                      style: TextStyle(
+                        color: statusColor.withValues(alpha: 0.8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

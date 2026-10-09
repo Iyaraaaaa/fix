@@ -91,6 +91,21 @@ class PhotoShieldPipeline:
         _, enc_diff = cv2.imencode(".jpg", diff_vis)
         diff_b64 = base64.b64encode(enc_diff.tobytes()).decode("ascii")
 
+        # 7b. Generate Simulated AI Swapper Breakdown Visualization (What AI Swapper Sees)
+        glitched_img = img.copy()
+        for _ in range(8):
+            y_start = np.random.randint(0, max(1, h - 20))
+            slice_h = np.random.randint(6, max(7, min(35, h // 4)))
+            shift = np.random.randint(-25, 25)
+            y_end = min(h, y_start + slice_h)
+            glitched_img[y_start:y_end] = np.roll(glitched_img[y_start:y_end], shift, axis=1)
+        b_ch, g_ch, r_ch = cv2.split(glitched_img)
+        r_shifted = np.roll(r_ch, 8, axis=1)
+        b_shifted = np.roll(b_ch, -8, axis=1)
+        glitched_img = cv2.merge([b_shifted, g_ch, r_shifted])
+        _, enc_glitch = cv2.imencode(".jpg", glitched_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        glitch_b64 = base64.b64encode(enc_glitch.tobytes()).decode("ascii")
+
         # 8. Cryptographic hash and signed C2PA manifest for provenance tracking
         c2pa_hash = hashlib.sha256(protected_bytes).hexdigest()
         timestamp_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -122,6 +137,7 @@ class PhotoShieldPipeline:
             "c2pa_manifest": manifest,
             "protected_image_base64": protected_b64,
             "perturbation_map_base64": diff_b64,
+            "glitched_image_base64": glitch_b64,
             "original_width": w,
             "original_height": h,
             "message": f"Portrait immunized successfully with L_inf<={int(epsilon)}/255 noise. PSNR {psnr} dB."

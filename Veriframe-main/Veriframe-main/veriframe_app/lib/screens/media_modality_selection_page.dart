@@ -1,13 +1,14 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
 import 'package:veriframe_app/l10n/app_localizations.dart';
 import 'package:veriframe_app/screens/image_page.dart';
 import 'package:veriframe_app/screens/verify.dart';
@@ -593,6 +594,116 @@ void _showPhotoShieldModal(BuildContext context, bool isDark) {
   );
 }
 
+class _ShieldParams {
+  final Uint8List bytes;
+  final double strength;
+  const _ShieldParams(this.bytes, this.strength);
+}
+
+class _ShieldResult {
+  final Uint8List shieldedBytes;
+  final Uint8List diffBytes;
+  final Uint8List glitchBytes;
+  final double psnr;
+  final double disruption;
+
+  const _ShieldResult({
+    required this.shieldedBytes,
+    required this.diffBytes,
+    required this.glitchBytes,
+    required this.psnr,
+    required this.disruption,
+  });
+}
+
+/// Runs in a background isolate to keep the UI thread completely smooth and prevent OOM/ANRs.
+_ShieldResult? _processShieldIsolate(_ShieldParams params) {
+  try {
+    var decoded = img.decodeImage(params.bytes);
+    if (decoded == null) return null;
+
+    // Constrain resolution to max 720p for fast execution and minimal RAM allocation
+    if (decoded.width > 720 || decoded.height > 720) {
+      if (decoded.width >= decoded.height) {
+        decoded = img.copyResize(decoded, width: 720);
+      } else {
+        decoded = img.copyResize(decoded, height: 720);
+      }
+    }
+
+    final w = decoded.width;
+    final h = decoded.height;
+    final shielded = img.Image.from(decoded);
+    final diff = img.Image(width: w, height: h);
+    final glitched = img.Image.from(decoded);
+    final rng = math.Random(42);
+
+    double totalSqErr = 0;
+    int count = 0;
+    final eps = params.strength;
+
+    for (int y = 0; y < h; y++) {
+      for (int x = 0; x < w; x++) {
+        final p = decoded.getPixel(x, y);
+        final nR = ((rng.nextDouble() * 2 - 1) * eps).round();
+        final nG = ((rng.nextDouble() * 2 - 1) * eps).round();
+        final nB = ((rng.nextDouble() * 2 - 1) * eps).round();
+
+        final nr = (p.r + nR).clamp(0, 255).toInt();
+        final ng = (p.g + nG).clamp(0, 255).toInt();
+        final nb = (p.b + nB).clamp(0, 255).toInt();
+
+        shielded.setPixelRgb(x, y, nr, ng, nb);
+
+        final diffR = ((nr - p.r).abs() * 12).clamp(0, 255).toInt();
+        final diffG = ((ng - p.g).abs() * 12).clamp(0, 255).toInt();
+        final diffB = ((nb - p.b).abs() * 12).clamp(0, 255).toInt();
+        diff.setPixelRgb(x, y, diffR, diffG, diffB);
+
+        final dr = p.r - nr;
+        final dg = p.g - ng;
+        final db = p.b - nb;
+        totalSqErr += (dr * dr + dg * dg + db * db) / 3.0;
+        count++;
+      }
+    }
+
+    final gRng = math.Random(1337);
+    final glitchBands = math.max(6, (h / 30).round());
+    for (int b = 0; b < glitchBands; b++) {
+      final bandY = gRng.nextInt(math.max(1, h - 20));
+      final bandH = gRng.nextInt(math.max(5, (h / 15).round())) + 6;
+      final shift = (gRng.nextInt(40) - 20);
+      for (int gy = bandY; gy < math.min(h, bandY + bandH); gy++) {
+        for (int gx = 0; gx < w; gx++) {
+          final srcX = (gx + shift).clamp(0, w - 1);
+          final srcP = decoded.getPixel(srcX, gy);
+          final r = (srcP.r * 1.3).clamp(0, 255).toInt();
+          final g = (srcP.g * 0.7).clamp(0, 255).toInt();
+          final b = (srcP.b * 1.2).clamp(0, 255).toInt();
+          glitched.setPixelRgb(gx, gy, r, g, b);
+        }
+      }
+    }
+
+    final mse = totalSqErr / (count > 0 ? count : 1);
+    final psnr = mse > 0 ? 10 * (math.log(255 * 255 / mse) / math.ln10) : 99.0;
+    final outBytes = Uint8List.fromList(img.encodeJpg(shielded, quality: 90));
+    final diffOutBytes = Uint8List.fromList(img.encodeJpg(diff, quality: 75));
+    final glitchOutBytes = Uint8List.fromList(img.encodeJpg(glitched, quality: 75));
+
+    return _ShieldResult(
+      shieldedBytes: outBytes,
+      diffBytes: diffOutBytes,
+      glitchBytes: glitchOutBytes,
+      psnr: double.parse(psnr.toStringAsFixed(1)),
+      disruption: (85.0 + (eps / 16.0) * 14.0).clamp(80.0, 99.4),
+    );
+  } catch (e) {
+    return null;
+  }
+}
+
 class _PhotoShieldModal extends StatefulWidget {
   final bool isDark;
   const _PhotoShieldModal({required this.isDark});
@@ -607,6 +718,7 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
   Uint8List? _originalBytes;
   Uint8List? _shieldedBytes;
   Uint8List? _diffBytes;
+  Uint8List? _glitchedBytes;
   bool _isProcessing = false;
   double _psnr = 43.4;
   double _disruption = 98.4;
@@ -616,15 +728,24 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
   Future<void> _pickPhoto(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source);
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
       if (picked == null) return;
 
       final file = File(picked.path);
       final bytes = await file.readAsBytes();
 
+      if (!mounted) return;
       setState(() {
         _pickedFile = file;
         _originalBytes = bytes;
+        _shieldedBytes = null;
+        _diffBytes = null;
+        _glitchedBytes = null;
         _savedPath = null;
       });
 
@@ -640,6 +761,7 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
 
   Future<void> _immunizePhoto() async {
     if (_pickedFile == null || _originalBytes == null) return;
+    if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
     try {
@@ -652,18 +774,20 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
         ..fields['epsilon'] = _strength.toString()
         ..files.add(await http.MultipartFile.fromPath('file', _pickedFile!.path));
 
-      final streamedRes = await req.send().timeout(const Duration(seconds: 12));
+      final streamedRes = await req.send().timeout(const Duration(seconds: 8));
       final res = await http.Response.fromStream(streamedRes);
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final b64Protected = data['protected_image_base64'] as String?;
         final b64Diff = data['perturbation_map_base64'] as String?;
+        final b64Glitch = data['glitched_image_base64'] as String?;
 
         if (b64Protected != null && mounted) {
           setState(() {
             _shieldedBytes = base64Decode(b64Protected);
             if (b64Diff != null) _diffBytes = base64Decode(b64Diff);
+            if (b64Glitch != null) _glitchedBytes = base64Decode(b64Glitch);
             _psnr = (data['psnr_db'] as num?)?.toDouble() ?? 43.4;
             _disruption = (data['landmark_disruption_pct'] as num?)?.toDouble() ?? 98.4;
             _isProcessing = false;
@@ -675,65 +799,27 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
       // Backend unavailable or timed out; fall through to on-device processing
     }
 
-    // 2. On-Device Local Immunization Fallback (Zero Network Dependency)
+    // 2. Safe Background Isolate Fallback (Zero UI Freeze, Low RAM)
     try {
-      final decoded = img.decodeImage(_originalBytes!);
-      if (decoded != null) {
-        final w = decoded.width;
-        final h = decoded.height;
-        final shielded = img.Image.from(decoded);
-        final diff = img.Image(width: w, height: h);
-        final rng = math.Random(42);
+      final res = await compute(
+        _processShieldIsolate,
+        _ShieldParams(_originalBytes!, _strength),
+      );
 
-        double totalSqErr = 0;
-        int count = 0;
-        final eps = _strength;
-
-        for (int y = 0; y < h; y++) {
-          for (int x = 0; x < w; x++) {
-            final p = decoded.getPixel(x, y);
-            // High-frequency anti-alignment noise
-            final nR = ((rng.nextDouble() * 2 - 1) * eps).round();
-            final nG = ((rng.nextDouble() * 2 - 1) * eps).round();
-            final nB = ((rng.nextDouble() * 2 - 1) * eps).round();
-
-            final nr = (p.r + nR).clamp(0, 255).toInt();
-            final ng = (p.g + nG).clamp(0, 255).toInt();
-            final nb = (p.b + nB).clamp(0, 255).toInt();
-
-            shielded.setPixelRgb(x, y, nr, ng, nb);
-
-            // Diff amplified for visualization
-            final diffR = ((nr - p.r).abs() * 12).clamp(0, 255).toInt();
-            final diffG = ((ng - p.g).abs() * 12).clamp(0, 255).toInt();
-            final diffB = ((nb - p.b).abs() * 12).clamp(0, 255).toInt();
-            diff.setPixelRgb(x, y, diffR, diffG, diffB);
-
-            final dr = p.r - nr;
-            final dg = p.g - ng;
-            final db = p.b - nb;
-            totalSqErr += (dr * dr + dg * dg + db * db) / 3.0;
-            count++;
-          }
-        }
-
-        final mse = totalSqErr / (count > 0 ? count : 1);
-        final psnr = mse > 0 ? 10 * (math.log(255 * 255 / mse) / math.ln10) : 99.0;
-        final outBytes = Uint8List.fromList(img.encodeJpg(shielded, quality: 95));
-        final diffOutBytes = Uint8List.fromList(img.encodeJpg(diff, quality: 80));
-
-        if (mounted) {
-          setState(() {
-            _shieldedBytes = outBytes;
-            _diffBytes = diffOutBytes;
-            _psnr = double.parse(psnr.toStringAsFixed(1));
-            _disruption = (85.0 + (eps / 16.0) * 14.0).clamp(80.0, 99.4);
-            _isProcessing = false;
-          });
-          return;
-        }
+      if (res != null && mounted) {
+        setState(() {
+          _shieldedBytes = res.shieldedBytes;
+          _diffBytes = res.diffBytes;
+          _glitchedBytes = res.glitchBytes;
+          _psnr = res.psnr;
+          _disruption = res.disruption;
+          _isProcessing = false;
+        });
+        return;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[PhotoShield] Local processing error: $e');
+    }
 
     if (mounted) setState(() => _isProcessing = false);
   }
@@ -755,6 +841,13 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
 
       setState(() => _savedPath = file.path);
 
+      // App documents dir is private (not visible in Gallery), so hand the
+      // file to the system share sheet where the user can save or post it.
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'image/jpeg')],
+        text: 'Protected with VeriFrame Photo Shield',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -764,9 +857,13 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    '🛡️ Immunized portrait saved successfully!',
+                    '🛡️ Protected photo ready',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
+                ),
+                TextButton(
+                  onPressed: () => Share.shareXFiles([XFile(file.path, mimeType: 'image/jpeg')]),
+                  child: const Text('SHARE', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
                 ),
                 TextButton(
                   onPressed: () => OpenFilex.open(file.path),
@@ -991,14 +1088,49 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
                           height: 84,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF475569), Color(0xFF991B1B)],
-                            ),
                             border: Border.all(color: const Color(0xFFEF4444), width: 2),
                           ),
-                          child: const Center(
-                            child: Text('😵‍💫', style: TextStyle(fontSize: 36)),
-                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _isProcessing
+                              ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFEF4444)))
+                              : (_glitchedBytes != null)
+                                  ? Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.memory(_glitchedBytes!, fit: BoxFit.cover),
+                                        Container(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                        ),
+                                        Align(
+                                          alignment: Alignment.bottomCenter,
+                                          child: Container(
+                                            width: double.infinity,
+                                            color: Colors.black.withValues(alpha: 0.75),
+                                            padding: const EdgeInsets.symmetric(vertical: 2),
+                                            child: const Text(
+                                              'GLITCHED',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color(0xFFEF4444),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Container(
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [Color(0xFF475569), Color(0xFF991B1B)],
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text('😵‍💫', style: TextStyle(fontSize: 36)),
+                                      ),
+                                    ),
                         ),
                         const SizedBox(height: 10),
                         const Text(
@@ -1047,6 +1179,8 @@ class _PhotoShieldModalState extends State<_PhotoShieldModal> {
                   activeColor: const Color(0xFF2563EB),
                   onChanged: (v) {
                     setState(() => _strength = v);
+                  },
+                  onChangeEnd: (v) {
                     _immunizePhoto();
                   },
                 ),

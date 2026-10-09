@@ -81,7 +81,7 @@ class VerifyBackendService {
     return headers;
   }
 
-  static const String defaultRemoteUrl = 'https://veriframe-backend-x3fn.onrender.com';
+  static const String defaultRemoteUrl = 'https://veriframe-backend-3itd.onrender.com';
 
   /// Retrieve the base URL, defaulting to Render cloud backend
   Future<String> getBaseUrl() async {
@@ -110,22 +110,35 @@ class VerifyBackendService {
     await prefs.setString(_kBackendKey, cleanUrl);
   }
 
-  /// Simple ping check to see if the server is alive
+  /// Simple ping check to see if the server is alive.
+  /// Cold-start tolerant: Render free-tier dynos sleep after 15 min and take
+  /// 30-55s to boot. Probes /health with extended timeout and a retry.
   Future<bool> isBackendAvailable(String baseUrl) async {
     if (baseUrl.isEmpty) return false;
+    final uri = Uri.parse('$baseUrl/health');
+    final rootUri = Uri.parse(baseUrl);
+
+    // Attempt 1: Allow up to 45 seconds to wake up a sleeping container
     try {
-      final uri = Uri.parse('$baseUrl/health');
-      final response = await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 15));
-      return response.statusCode == 200 || response.statusCode == 404;
+      final response = await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 45));
+      if (response.statusCode == 200 || response.statusCode == 404) return true;
+    } catch (_) {
+      // First attempt may time out or drop as the container begins booting; proceed to retry
+    }
+
+    // Attempt 2: Retry probe with 25s timeout once container is partially or fully initialized
+    try {
+      final response = await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 25));
+      if (response.statusCode == 200 || response.statusCode == 404) return true;
     } catch (_) {
       try {
-        final rootUri = Uri.parse(baseUrl);
-        final response = await _client.get(rootUri, headers: _headers()).timeout(const Duration(seconds: 8));
+        final response = await _client.get(rootUri, headers: _headers()).timeout(const Duration(seconds: 15));
         return response.statusCode == 200 || response.statusCode == 404;
       } catch (_) {
         return false;
       }
     }
+    return false;
   }
 
   /// Sends a local video to POST /predict, with upload progress tracking
@@ -216,7 +229,7 @@ class VerifyBackendService {
         uri,
         headers: _headers({'Content-Type': 'application/json'}),
         body: jsonEncode({'url': url}),
-      ).timeout(const Duration(seconds: 40));
+      ).timeout(const Duration(seconds: 75));
 
       if (response.statusCode != 200) {
         throw ServerException(_parseErrorDetail(response.body, response.statusCode));
@@ -271,7 +284,7 @@ class VerifyBackendService {
         uri,
         headers: _headers({'Content-Type': 'application/json'}),
         body: jsonEncode({'url': url}),
-      ).timeout(const Duration(seconds: 25));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode != 200) {
         throw ServerException(_parseErrorDetail(response.body, response.statusCode));

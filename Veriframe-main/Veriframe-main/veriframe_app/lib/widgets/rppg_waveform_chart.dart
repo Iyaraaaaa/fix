@@ -95,143 +95,194 @@ class _RppgWaveformChartState extends State<RppgWaveformChart>
         ],
       ),
       padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Metric Badges
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 360;
+
+          final bpmBadge = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Text(
+              widget.isSynthetic ? '0.0 BPM' : '${widget.bpm.toStringAsFixed(0)} BPM',
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          );
+
+          final snrBadge = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Text(
+              snrLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header: Metric Badges
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      widget.isSynthetic ? Icons.heart_broken_rounded : Icons.favorite_rounded,
-                      color: statusColor,
-                      size: 16,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            widget.isSynthetic
+                                ? Icons.heart_broken_rounded
+                                : Icons.favorite_rounded,
+                            color: statusColor,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Capillary rPPG Pulse',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.isSynthetic
+                                    ? 'Biological pulse absent'
+                                    : 'Live ventricular rhythm detected',
+                                style: TextStyle(
+                                  color: statusColor.withValues(alpha: 0.9),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Capillary rPPG Pulse',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      Text(
-                        widget.isSynthetic
-                            ? 'Biological pulse absent'
-                            : 'Live ventricular rhythm detected',
-                        style: TextStyle(
-                          color: statusColor.withValues(alpha: 0.9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+
+                  // Heart Rate & SNR Badges (stacked on compact cards, side-by-side on wide screens)
+                  if (constraints.maxWidth >= 380)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        bpmBadge,
+                        const SizedBox(width: 6),
+                        snrBadge,
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        bpmBadge,
+                        const SizedBox(height: 4),
+                        snrBadge,
+                      ],
+                    ),
                 ],
               ),
 
-              // Heart Rate & SNR Badges
+              const SizedBox(height: 12),
+
+              // Animated Pulse Canvas
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _animController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      size: Size.infinite,
+                      painter: _WaveformPainter(
+                        wavePoints: rawWave,
+                        progress: _animController.value,
+                        waveColor: statusColor,
+                        isSynthetic: widget.isSynthetic,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Technical Footnote
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
+                  Expanded(
                     child: Text(
-                      widget.isSynthetic ? '0.0 BPM' : '${widget.bpm.toStringAsFixed(0)} BPM',
+                      isCompact
+                          ? 'Algorithm: de Haan CHROM'
+                          : 'Algorithm: de Haan CHROM (IEEE TBME 2013)',
                       style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 10,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
-                    child: Text(
-                      snrLabel,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _showComparison = !_showComparison),
+                      child: Text(
+                        widget.isSynthetic
+                            ? 'Synthetic Discontinuity'
+                            : 'Physiological Coherence: 96.4%',
+                        style: TextStyle(
+                          color: statusColor.withValues(alpha: 0.8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
                       ),
                     ),
                   ),
                 ],
               ),
             ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Animated Pulse Canvas
-          Expanded(
-            child: AnimatedBuilder(
-              animation: _animController,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: Size.infinite,
-                  painter: _WaveformPainter(
-                    wavePoints: rawWave,
-                    progress: _animController.value,
-                    waveColor: statusColor,
-                    isSynthetic: widget.isSynthetic,
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Technical Footnote
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Algorithm: de Haan CHROM (IEEE TBME 2013)',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 10,
-                ),
-              ),
-              GestureDetector(
-                onTap: () => setState(() => _showComparison = !_showComparison),
-                child: Text(
-                  widget.isSynthetic ? 'Synthetic Discontinuity' : 'Physiological Coherence: 96.4%',
-                  style: TextStyle(
-                    color: statusColor.withValues(alpha: 0.8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

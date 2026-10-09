@@ -587,6 +587,8 @@ class LinkVerificationV2:
                     valid_face_crops.append(face_resized)
                     boxes.append(best_det.box)
                     detectors.append(best_det.detector)
+                    if len(valid_face_crops) >= 16:
+                        break
                 except Exception as e:
                     logger.debug(f"[LinkV2] Face resize error on frame {idx}: {e}")
 
@@ -658,24 +660,24 @@ class LinkVerificationV2:
 
     def generate_verdict(self, aggregated_prob: float, valid_face_count: int) -> Tuple[str, str, str]:
         """
-        Stage 11: 3-Zone Thresholding.
-        - prob < 0.30 -> REAL / LIKELY_REAL
-        - 0.30 <= prob <= 0.70 -> INCONCLUSIVE / UNCERTAIN
-        - prob > 0.70 -> FAKE / LIKELY_FAKE
+        Stage 11: Multi-Zone Forensic Thresholding.
+        Returns (legacy_verdict, fine_verdict, risk_level).
         """
-        # Require at least 1 valid face (not 2) — single-face videos are common in short clips
-        # A video with 1 clear fake face scoring 0.95 should NOT return UNCERTAIN
-        if valid_face_count < 1 or (
-            THRESHOLDS_LINK["inconclusive_range"][0] <= aggregated_prob <= THRESHOLDS_LINK["inconclusive_range"][1]
-        ):
+        if valid_face_count < 1:
             return "INCONCLUSIVE", "UNCERTAIN", "MEDIUM"
 
-        if aggregated_prob > THRESHOLDS_LINK["manipulated_above"]:
-            fine_verdict = "FAKE" if aggregated_prob >= THRESHOLDS_LINK["fake_confirmed_at_or_above"] else "LIKELY_FAKE"
+        if aggregated_prob >= 0.70:
+            fine_verdict = "FAKE" if aggregated_prob >= 0.82 else "LIKELY_FAKE"
             return "MANIPULATED", fine_verdict, "HIGH"
-        else:
-            fine_verdict = "REAL" if aggregated_prob <= THRESHOLDS_LINK["real_confirmed_at_or_below"] else "LIKELY_REAL"
+        elif aggregated_prob <= 0.30:
+            fine_verdict = "REAL" if aggregated_prob <= 0.18 else "LIKELY_REAL"
             return "AUTHENTIC", fine_verdict, "LOW"
+        elif aggregated_prob > 0.55:
+            return "MANIPULATED", "LIKELY_FAKE", "MEDIUM"
+        elif aggregated_prob < 0.45:
+            return "AUTHENTIC", "LIKELY_REAL", "MEDIUM"
+        else:
+            return "INCONCLUSIVE", "UNCERTAIN", "MEDIUM"
 
     # ---------------------------------------------------------------------------
     # Private Helpers & Download Resolvers
@@ -714,16 +716,21 @@ class LinkVerificationV2:
             ffmpeg_exe = shutil.which("ffmpeg")
 
         ydl_opts = {
-            "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+            "format": "bestvideo[height<=480]/best[height<=480]/bestvideo[height<=720]/best",
             "outtmpl": outtmpl,
             "quiet": True,
             "no_warnings": True,
             "socket_timeout": timeout,
             "noprogress": True,
-            "retries": 5,
-            "fragment_retries": 5,
-            "extractor_retries": 3,
+            "retries": 2,
+            "fragment_retries": 2,
+            "extractor_retries": 2,
             "merge_output_format": "mp4",
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios", "mweb"],
+                }
+            },
             "http_headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
                 "Accept-Language": "en-US,en;q=0.9",

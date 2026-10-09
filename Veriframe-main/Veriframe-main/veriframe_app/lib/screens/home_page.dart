@@ -9,8 +9,6 @@ import 'package:veriframe_app/screens/about_us.dart';
 import 'package:veriframe_app/screens/delete_account.dart';
 import 'package:veriframe_app/screens/edit_profile.dart';
 import 'package:veriframe_app/screens/reports_page.dart';
-import 'package:veriframe_app/screens/settings_page.dart';
-import 'package:veriframe_app/screens/benchmark_evaluation_page.dart';
 
 import 'package:veriframe_app/service/notification_service.dart';
 import 'package:veriframe_app/l10n/app_localizations.dart';
@@ -906,18 +904,6 @@ class _HomePageState extends State<HomePage> {
             loc.contactUs,
             VFColors.amber600,
             const ContactUsPage(),
-          ),
-          _buildDrawerItem(
-            Icons.settings_outlined,
-            loc.settingsTitle,
-            VFColors.blue600,
-            const SettingsPage(),
-          ),
-          _buildDrawerItem(
-            Icons.insights_rounded,
-            'Model Benchmarks & Metrics',
-            const Color(0xFF0284C7),
-            const BenchmarkEvaluationPage(),
           ),
 
           const Divider(indent: 16, endIndent: 16),

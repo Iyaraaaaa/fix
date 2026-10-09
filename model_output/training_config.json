@@ -1,0 +1,20 @@
+{
+  "architecture": "efficientvit",
+  "variant": "b0",
+  "input_size": 224,
+  "epochs": 1,
+  "batch_size": 32,
+  "learning_rate": 0.0001,
+  "weight_decay": 1e-05,
+  "use_mixup": true,
+  "use_cutmix": true,
+  "use_focal_loss": true,
+  "label_smoothing": 0.1,
+  "early_stopping_patience": 5,
+  "mixed_precision": true,
+  "output_dir": "./model_output",
+  "datasets": [
+    "FaceForensics++",
+    "Celeb-DF v2"
+  ]
+}

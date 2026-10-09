@@ -4,12 +4,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:veriframe_app/models/verification_result.dart';
 import 'package:veriframe_app/screens/evidence_video_player_screen.dart';
 import 'package:veriframe_app/service/pdf_service.dart';
+import 'package:veriframe_app/screens/pdf_viewer_screen.dart';
 import 'package:veriframe_app/service/verify_backend_service.dart';
 import 'package:veriframe_app/widgets/escalate_bottom_sheet.dart';
 import 'package:veriframe_app/widgets/main_scaffold.dart';
@@ -182,6 +182,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final vUpper = r.verdict.toUpperCase();
     final isReal = vUpper == 'AUTHENTIC';
     final isInconclusive = vUpper == 'INCONCLUSIVE';
+    final isUnverified = vUpper == 'UNVERIFIED';
     final score = isReal ? r.authenticityScore : r.fakeProbability;
 
     String summary;
@@ -189,7 +190,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     String threatContext;
     String action;
 
-    if (isReal) {
+    if (isUnverified) {
+      threatLevel = 'UNKNOWN';
+      summary =
+          'Media stream could not be extracted from the target platform on device. Biometric and neural deepfake classification could not be computed.';
+      threatContext =
+          'Platform privacy safeguards (e.g., Facebook, Instagram) require user session cookies, preventing direct on-device stream decoding.';
+      action =
+          'Upload the original video or image file directly for forensic evaluation.';
+    } else if (isReal) {
       threatLevel = 'LOW';
       summary =
           'Multimodal signal verification confirmed biological capillary pulse (rPPG: ~72 BPM) and natural acoustic-visual room resonance (RT60 match) across all frames (${score.toStringAsFixed(1)}% authenticity confidence). Zero neural synthesis artifacts detected.';
@@ -286,32 +295,30 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   void _openPdf() async {
     final r = widget.report;
-    String? pathToOpen;
+    File? pdfFile;
     try {
-      final file = await PdfService.instance.generateReportPdf(
+      pdfFile = await PdfService.instance.generateReportPdf(
         result: r,
         aiExplanation: _aiExplanation,
       );
-      pathToOpen = file?.path;
     } catch (e) {
       debugPrint('[ReportDetail] Standardized PDF generation failed: $e');
       if (r.pdfPath != null && r.pdfPath!.isNotEmpty && File(r.pdfPath!).existsSync()) {
-        pathToOpen = r.pdfPath;
+        pdfFile = File(r.pdfPath!);
       }
     }
 
-    if (pathToOpen != null && mounted) {
-      final result = await OpenFilex.open(pathToOpen);
-      if (result.type != ResultType.done && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.message.isNotEmpty ? result.message : 'Could not open PDF.'),
-            backgroundColor: Colors.red.shade400,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    if (pdfFile != null && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PdfViewerScreen(
+            file: pdfFile,
+            title: 'Forensic Verification Report',
+            subtitle: r.verificationId,
+            fileName: 'VeriFrame_Report_${r.verificationId}.pdf',
           ),
-        );
-      }
+        ),
+      );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -347,14 +354,17 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final vUpper = r.verdict.toUpperCase();
     final isReal = vUpper == 'AUTHENTIC';
     final isInconclusive = vUpper == 'INCONCLUSIVE';
+    final isUnverified = vUpper == 'UNVERIFIED';
 
     final verdictColor = isReal
         ? pal.authentic
-        : (isInconclusive ? pal.risk : pal.manipulated);
+        : (isInconclusive ? pal.risk : (isUnverified ? _Pal.slate : pal.manipulated));
 
     // Active score display
     final double primaryScore = isReal ? r.authenticityScore : r.fakeProbability;
-    final effectiveScore = primaryScore > 0 ? primaryScore : (isReal ? 94.0 : 94.0);
+    final double effectiveScore = isUnverified
+        ? 0.0
+        : (primaryScore > 0 ? primaryScore : (isReal ? 94.0 : 94.0));
 
     final loc = AppLocalizations.of(context)!;
 
@@ -404,6 +414,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               verdictColor: verdictColor,
               isReal: isReal,
               isInconclusive: isInconclusive,
+              isUnverified: isUnverified,
               pal: pal,
               modality: modality,
             ),
@@ -428,12 +439,39 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               report: r,
               modality: modality,
               verdictColor: verdictColor,
+              isUnverified: isUnverified,
               pal: pal,
             ),
             const SizedBox(height: 16),
 
             // ── INTERACTIVE FORENSIC SIGNAL CHARTS ──
-            if (modality == ReportModality.audio) ...[
+            if (isUnverified) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: pal.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: pal.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: _Pal.slate, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Direct media extraction was blocked by the host platform. Upload the original media file directly to generate rPPG and RT60 biometric graphs.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: pal.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ] else if (modality == ReportModality.audio) ...[
               Rt60DecayChart(
                 rt60Sec: isReal ? 0.44 : 0.05,
                 isSynthetic: !isReal,
@@ -702,6 +740,7 @@ class _ScoreVerdictCard extends StatelessWidget {
   final Color verdictColor;
   final bool isReal;
   final bool isInconclusive;
+  final bool isUnverified;
   final _Pal pal;
   final ReportModality modality;
 
@@ -711,6 +750,7 @@ class _ScoreVerdictCard extends StatelessWidget {
     required this.verdictColor,
     required this.isReal,
     required this.isInconclusive,
+    this.isUnverified = false,
     required this.pal,
     this.modality = ReportModality.localVideo,
   });
@@ -720,33 +760,47 @@ class _ScoreVerdictCard extends StatelessWidget {
     final r = report;
 
     // Risk Chip Setup
-    final isHighRisk = r.riskLevel.toUpperCase() == 'HIGH' || (!isReal && !isInconclusive);
-    final isLowRisk = isReal || r.riskLevel.toUpperCase() == 'LOW';
+    final isHighRisk = !isUnverified && (r.riskLevel.toUpperCase() == 'HIGH' || (!isReal && !isInconclusive));
+    final isLowRisk = !isUnverified && (isReal || r.riskLevel.toUpperCase() == 'LOW');
 
-    final Color riskBg = isHighRisk
-        ? pal.manipulatedBg
-        : (isLowRisk ? pal.authenticBg : pal.riskBg);
-    final Color riskColor = isHighRisk
-        ? pal.manipulated
-        : (isLowRisk ? pal.authentic : pal.risk);
-    final String riskText = isHighRisk
-        ? 'HIGH RISK'
-        : (isLowRisk ? 'LOW RISK' : 'MEDIUM RISK');
-    final IconData riskIcon = isHighRisk
-        ? Icons.warning_amber_rounded
-        : (isLowRisk ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded);
+    final Color riskBg = isUnverified
+        ? pal.surfaceMuted
+        : (isHighRisk
+            ? pal.manipulatedBg
+            : (isLowRisk ? pal.authenticBg : pal.riskBg));
+    final Color riskColor = isUnverified
+        ? _Pal.slate
+        : (isHighRisk
+            ? pal.manipulated
+            : (isLowRisk ? pal.authentic : pal.risk));
+    final String riskText = isUnverified
+        ? 'UNVERIFIED'
+        : (isHighRisk
+            ? 'HIGH RISK'
+            : (isLowRisk ? 'LOW RISK' : 'MEDIUM RISK'));
+    final IconData riskIcon = isUnverified
+        ? Icons.help_outline_rounded
+        : (isHighRisk
+            ? Icons.warning_amber_rounded
+            : (isLowRisk ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded));
 
     // Verdict Heading
     final String verdictTitle = isReal
         ? 'Authentic'
-        : (isInconclusive ? 'Inconclusive' : 'Manipulated');
+        : (isInconclusive
+            ? 'Inconclusive'
+            : (isUnverified ? 'Unverified' : 'Manipulated'));
 
     final isAudio = modality == ReportModality.audio;
     final isImage = modality == ReportModality.localImage || modality == ReportModality.imageLink;
 
     // Contextual Subtitle
     String subtitle;
-    if (!isImage && r.detectedEvidence.isNotEmpty && r.detectedEvidence.first.length <= 70) {
+    if (isUnverified) {
+      subtitle = r.detectedEvidence.isNotEmpty
+          ? r.detectedEvidence.first
+          : 'Direct media stream could not be extracted on device.';
+    } else if (!isImage && r.detectedEvidence.isNotEmpty && r.detectedEvidence.first.length <= 70) {
       subtitle = r.detectedEvidence.first;
     } else if (isReal) {
       subtitle = isAudio
@@ -781,6 +835,7 @@ class _ScoreVerdictCard extends StatelessWidget {
             color: verdictColor,
             trackColor: pal.surfaceMuted,
             pal: pal,
+            isUnverified: isUnverified,
           ),
           const SizedBox(width: 20),
 
@@ -854,17 +909,19 @@ class _CircularScoreGauge extends StatelessWidget {
   final Color color;
   final Color trackColor;
   final _Pal pal;
+  final bool isUnverified;
 
   const _CircularScoreGauge({
     required this.score,
     required this.color,
     required this.trackColor,
     required this.pal,
+    this.isUnverified = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fraction = (score / 100.0).clamp(0.0, 1.0);
+    final fraction = isUnverified ? 0.0 : (score / 100.0).clamp(0.0, 1.0);
     return SizedBox(
       width: 104,
       height: 104,
@@ -880,34 +937,45 @@ class _CircularScoreGauge extends StatelessWidget {
               strokeWidth: 9.5,
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${score.round()}',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: pal.textPrimary,
-                  letterSpacing: -1,
-                  height: 1.0,
-                ),
+          if (isUnverified)
+            Text(
+              'N/A',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: pal.textSubtle,
+                letterSpacing: -0.5,
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 2, left: 1),
-                child: Text(
-                  '%',
+            )
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${score.round()}',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: pal.textSecondary,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: pal.textPrimary,
+                    letterSpacing: -1,
                     height: 1.0,
                   ),
                 ),
-              ),
-            ],
-          ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, left: 1),
+                  child: Text(
+                    '%',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: pal.textSecondary,
+                      height: 1.0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -974,12 +1042,14 @@ class _ForensicSignalsList extends StatelessWidget {
   final VerificationResult report;
   final ReportModality modality;
   final Color verdictColor;
+  final bool isUnverified;
   final _Pal pal;
 
   const _ForensicSignalsList({
     required this.report,
     required this.modality,
     required this.verdictColor,
+    this.isUnverified = false,
     required this.pal,
   });
 
@@ -987,8 +1057,12 @@ class _ForensicSignalsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = report;
     final isReal = r.verdict.toUpperCase() == 'AUTHENTIC';
-    final signalBg = isReal ? pal.authenticBg : pal.manipulatedBg;
-    final signalColor = isReal ? pal.authentic : pal.manipulated;
+    final signalBg = isUnverified
+        ? pal.surfaceMuted
+        : (isReal ? pal.authenticBg : pal.manipulatedBg);
+    final signalColor = isUnverified
+        ? _Pal.slate
+        : (isReal ? pal.authentic : pal.manipulated);
 
     // Calculate signals according to modality
     List<Widget> items = [];
@@ -1005,7 +1079,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Acoustic spectrum',
           score: specScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1014,7 +1089,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Voice synthesis check',
           score: voiceScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1023,16 +1099,18 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Acoustic space (RT60 Reverb)',
           score: isReal ? 94.8 : 88.5,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
           icon: Icons.storage_rounded,
-          iconBg: pal.primaryBlueBg,
-          iconColor: pal.primaryBlue,
+          iconBg: isUnverified ? pal.surfaceMuted : pal.primaryBlueBg,
+          iconColor: isUnverified ? _Pal.slate : pal.primaryBlue,
           title: 'Metadata check',
           score: metaScore,
-          scoreColor: pal.primaryBlue,
+          scoreColor: isUnverified ? _Pal.slate : pal.primaryBlue,
+          customText: isUnverified ? 'N/A' : null,
         ),
       ];
     } else if (modality == ReportModality.localImage || modality == ReportModality.imageLink) {
@@ -1047,7 +1125,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Biometric consistency',
           score: bioScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1056,16 +1135,18 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Frequency domain (FFT)',
           score: fftScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
           icon: Icons.storage_rounded,
-          iconBg: pal.primaryBlueBg,
-          iconColor: pal.primaryBlue,
+          iconBg: isUnverified ? pal.surfaceMuted : pal.primaryBlueBg,
+          iconColor: isUnverified ? _Pal.slate : pal.primaryBlue,
           title: 'Metadata check',
           score: metaScore,
-          scoreColor: pal.primaryBlue,
+          scoreColor: isUnverified ? _Pal.slate : pal.primaryBlue,
+          customText: isUnverified ? 'N/A' : null,
         ),
       ];
     } else {
@@ -1081,7 +1162,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Capillary pulse (rPPG)',
           score: isReal ? 93.6 : 91.2,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1090,7 +1172,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Frame consistency',
           score: frameScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1099,7 +1182,8 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Face tracking',
           score: trackingScore,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
@@ -1108,16 +1192,18 @@ class _ForensicSignalsList extends StatelessWidget {
           iconColor: signalColor,
           title: 'Acoustic-visual match (RT60)',
           score: isReal ? 94.2 : 87.8,
-          scoreColor: isReal ? pal.authentic : pal.manipulated,
+          scoreColor: isUnverified ? _Pal.slate : (isReal ? pal.authentic : pal.manipulated),
+          customText: isUnverified ? 'N/A' : null,
         ),
         _divider(),
         _signalRow(
           icon: Icons.storage_rounded,
-          iconBg: pal.primaryBlueBg,
-          iconColor: pal.primaryBlue,
+          iconBg: isUnverified ? pal.surfaceMuted : pal.primaryBlueBg,
+          iconColor: isUnverified ? _Pal.slate : pal.primaryBlue,
           title: 'Metadata check',
           score: metaScore,
-          scoreColor: pal.primaryBlue,
+          scoreColor: isUnverified ? _Pal.slate : pal.primaryBlue,
+          customText: isUnverified ? 'N/A' : null,
         ),
       ];
 
@@ -1164,8 +1250,9 @@ class _ForensicSignalsList extends StatelessWidget {
     required String title,
     required double score,
     required Color scoreColor,
+    String? customText,
   }) {
-    final fraction = (score / 100.0).clamp(0.0, 1.0);
+    final fraction = customText != null ? 0.0 : (score / 100.0).clamp(0.0, 1.0);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1198,7 +1285,7 @@ class _ForensicSignalsList extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${score.toStringAsFixed(1)}%',
+                    customText ?? '${score.toStringAsFixed(1)}%',
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
